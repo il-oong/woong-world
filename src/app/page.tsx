@@ -181,30 +181,36 @@ export default function HomePage() {
                   }}
                 />
 
-                {/* Eye icon */}
+                {/* Eye icon — slit when idle, opens on hover */}
                 <div className={`relative transition-all duration-300 ${isHovered ? "scale-150" : "scale-100"}`}>
                   <PixelIcon
                     type="project"
                     id={project.type}
-                    size={isHovered ? 32 : 20}
+                    size={isHovered ? 36 : 24}
                     color={project.color}
                   />
                 </div>
 
-                {/* Name — appears on hover */}
-                <AnimatePresence>
-                  {isHovered && (
-                    <motion.div
-                      initial={{ opacity: 0, y: 5 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: 5 }}
-                      className="absolute top-full left-1/2 -translate-x-1/2 mt-3 whitespace-nowrap"
-                    >
-                      <div className="text-xs font-medium text-white/80">{project.name}</div>
-                      <div className="text-[9px] font-mono text-white/25 mt-0.5 text-center">{project.category}</div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
+                {/* Name always visible — faded, brightens on hover */}
+                <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 whitespace-nowrap text-center">
+                  <div className={`text-[10px] transition-all duration-300 ${
+                    isHovered ? "text-white/80 tracking-wide" : "text-white/15"
+                  }`}>
+                    {project.name}
+                  </div>
+                  <AnimatePresence>
+                    {isHovered && (
+                      <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="text-[8px] font-mono text-white/20 mt-0.5"
+                      >
+                        {project.category}
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
               </Link>
             </motion.div>
           );

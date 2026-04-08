@@ -143,14 +143,16 @@ export default function PixelIcon({
       // Clear
       ctx.clearRect(0, 0, size, size);
 
-      // Don't draw anything if fully closed
+      // Closed state — thin slit line so you can see where they are
       if (state.openAmount < 0.01) {
-        // Just a tiny dot when closed
-        ctx.fillStyle = irisColor;
-        ctx.globalAlpha = 0.15;
+        const slitW = size * 0.3;
+        ctx.strokeStyle = irisColor;
+        ctx.globalAlpha = 0.25;
+        ctx.lineWidth = 1.5;
         ctx.beginPath();
-        ctx.arc(size / 2, size / 2, size * 0.04, 0, Math.PI * 2);
-        ctx.fill();
+        ctx.moveTo(cx - slitW, cy);
+        ctx.quadraticCurveTo(cx, cy - 2, cx + slitW, cy);
+        ctx.stroke();
         ctx.globalAlpha = 1;
 
         animRef.current = requestAnimationFrame(draw);
