@@ -23,6 +23,19 @@ interface Issue {
   content: string;
 }
 
+const FALLBACK_TASKS: Task[] = [
+  { name: "ECHO 게임 Phaser 씬 구현", status: "in_progress", priority: "high", team: "게임개발팀" },
+  { name: "김원웅 월드 Next.js 보완", status: "in_progress", priority: "high", team: "웹디자인팀" },
+  { name: "Obsidian 동기화 유지보수", status: "done", priority: "medium", team: "개발팀" },
+  { name: "Steam 스토어 이미지 준비", status: "pending", priority: "medium", team: "디자인팀" },
+  { name: "Alpha Investment Gemini 연동", status: "pending", priority: "medium", team: "코드개발팀" },
+  { name: "GoPoint Windows 11 테스트", status: "pending", priority: "low", team: "개발팀" },
+];
+
+const FALLBACK_MEETINGS: Meeting[] = [
+  { date: "오프라인", type: "야간회의", time: "19:00", content: "볼트 연결 시 실시간 회의록이 표시됩니다.\n\n현재 볼트가 오프라인 상태입니다." },
+];
+
 export default function MissionsPage() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [meetings, setMeetings] = useState<Meeting[]>([]);
@@ -31,17 +44,27 @@ export default function MissionsPage() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<"meetings" | "tasks" | "issues">("meetings");
 
-  useEffect(() => {
+  const fetchData = () => {
+    setLoading(true);
     Promise.all([
       fetch("/api/tasks").then((r) => r.json()),
       fetch("/api/meetings").then((r) => r.json()),
     ]).then(([taskData, mtgData]) => {
-      setTasks(taskData.tasks || []);
+      const isConnected = taskData.connected || false;
+      setConnected(isConnected);
+      setTasks(isConnected ? (taskData.tasks || []) : FALLBACK_TASKS);
       setIssues(taskData.issues || []);
-      setConnected(taskData.connected || false);
-      setMeetings(mtgData.meetings || []);
+      setMeetings(isConnected ? (mtgData.meetings || []) : FALLBACK_MEETINGS);
       setLoading(false);
-    }).catch(() => setLoading(false));
+    }).catch(() => {
+      setTasks(FALLBACK_TASKS);
+      setMeetings(FALLBACK_MEETINGS);
+      setLoading(false);
+    });
+  };
+
+  useEffect(() => {
+    fetchData();
   }, []);
 
   const today = new Date().toLocaleDateString("ko-KR", {
@@ -60,12 +83,20 @@ export default function MissionsPage() {
           <h1 className="text-3xl font-bold tracking-tight text-white/90">Missions</h1>
           <p className="text-xs font-mono text-white/20 mt-1">{today}</p>
         </div>
-        <div className="text-[10px] font-mono">
-          {connected ? (
-            <span className="text-emerald-400/50">VAULT CONNECTED</span>
-          ) : (
-            <span className="text-white/15">VAULT OFFLINE</span>
-          )}
+        <div className="flex items-center gap-3">
+          <button
+            onClick={fetchData}
+            className="text-[10px] font-mono text-white/25 hover:text-white/50 transition-colors border border-white/[0.06] rounded px-2 py-1 hover:border-white/10"
+          >
+            새로고침
+          </button>
+          <div className="text-[10px] font-mono">
+            {connected ? (
+              <span className="text-emerald-400/50">VAULT CONNECTED</span>
+            ) : (
+              <span className="text-white/15">VAULT OFFLINE</span>
+            )}
+          </div>
         </div>
       </div>
 

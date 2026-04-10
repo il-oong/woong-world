@@ -6,9 +6,9 @@
 import fs from "fs";
 import path from "path";
 
-const VAULT_ROOT = path.join(
-  "C:\\Users\\kww29\\OneDrive\\Desktop\\cluade 자동화\\AI를 정복하겠다\\웅스 컴퍼니"
-);
+const VAULT_ROOT = process.env.OBSIDIAN_VAULT_PATH
+  ? path.resolve(process.env.OBSIDIAN_VAULT_PATH)
+  : path.join("C:\\Users\\kww29\\OneDrive\\Desktop\\cluade 자동화\\AI를 정복하겠다\\웅스 컴퍼니");
 
 function readFileIfExists(filePath: string): string | null {
   try {
