@@ -63,7 +63,7 @@ export default function CrewHubPage() {
             >
               {/* Pixel avatar */}
               <div className="shrink-0 opacity-70 group-hover:opacity-100 transition-opacity">
-                <PixelIcon type="crew" id={member.teamId} size={32} speed={1200} />
+                <PixelIcon type="crew" id={member.teamId} size={32} />
               </div>
 
               {/* Name */}

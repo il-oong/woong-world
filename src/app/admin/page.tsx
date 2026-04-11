@@ -125,7 +125,7 @@ export default function AdminDashboard() {
                 <div className="flex gap-1 mt-4">
                   {["ceo", "marketing", "planning", "dev", "design", "game"].map((tid) => (
                     <div key={tid} className="opacity-40 group-hover:opacity-80 transition-opacity">
-                      <PixelIcon type="crew" id={tid} size={24} speed={1500} />
+                      <PixelIcon type="crew" id={tid} size={24} />
                     </div>
                   ))}
                   <span className="text-[10px] text-white/10 self-center ml-1 font-mono">+{crewData.length - 6}</span>

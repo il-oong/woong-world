@@ -143,6 +143,9 @@ export default function PixelIcon({
       // Clear
       ctx.clearRect(0, 0, size, size);
 
+      const cx = size / 2;
+      const cy = size / 2;
+
       // Closed state — thin slit line so you can see where they are
       if (state.openAmount < 0.01) {
         const slitW = size * 0.3;
@@ -159,8 +162,6 @@ export default function PixelIcon({
         return;
       }
 
-      const cx = size / 2;
-      const cy = size / 2;
       const eyeW = size * 0.38;
       const baseEyeH = eyeW * getHeightRatio(style.shape);
 
