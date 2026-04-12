@@ -1,20 +1,18 @@
 /**
- * Next.js 16 Proxy (formerly `middleware.ts`).
+ * Next.js 16 Proxy (formerly middleware.ts).
  *
- * Responsibilities, in order:
- *   1. Cheap same-origin guard for state-changing /api/* requests. This is a
- *      belt-and-braces duplicate of the per-route `isSameOrigin` check so
- *      cross-site POSTs are rejected before route handler code runs.
- *   2. Nothing else — auth for /admin/* is still done in the layout because
- *      real verification requires firebase-admin, which isn't wired up yet.
+ * 1. /admin/*  — require a valid __admin_session cookie (HMAC-verified).
+ *               If missing/invalid/expired → redirect to /.
+ * 2. /api/*    — block cross-site state-changing requests (POST/PUT/PATCH/DELETE).
  */
 
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { verifySession, COOKIE_NAME } from "@/lib/session";
 
 const STATE_CHANGING = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 
-function isSameOrigin(req: NextRequest): boolean {
+function isSameOriginCheck(req: NextRequest): boolean {
   const host = req.headers.get("host");
   if (!host) return false;
 
@@ -38,16 +36,42 @@ function isSameOrigin(req: NextRequest): boolean {
   return false;
 }
 
-export function proxy(req: NextRequest) {
-  if (STATE_CHANGING.has(req.method) && !isSameOrigin(req)) {
-    return new NextResponse(JSON.stringify({ error: "forbidden" }), {
-      status: 403,
-      headers: { "content-type": "application/json" },
-    });
+export async function proxy(req: NextRequest) {
+  const { pathname } = req.nextUrl;
+
+  // ─── /admin/* server-side gate ───────────────────────────────────
+  if (pathname.startsWith("/admin")) {
+    // If SESSION_SECRET is not configured, the HMAC key is null and
+    // verifySession returns null. In that case we still block access
+    // in production — the only way through is a valid session.
+    const cookie = req.cookies.get(COOKIE_NAME)?.value;
+    const session = await verifySession(cookie);
+
+    if (!session) {
+      // In development without SESSION_SECRET, fall through so
+      // local dev doesn't require the full auth stack.
+      const isDev = process.env.NODE_ENV !== "production";
+      if (isDev) {
+        return NextResponse.next();
+      }
+      // Production: redirect to home
+      return NextResponse.redirect(new URL("/", req.url));
+    }
   }
+
+  // ─── /api/* CSRF guard ───────────────────────────────────────────
+  if (pathname.startsWith("/api") && STATE_CHANGING.has(req.method)) {
+    if (!isSameOriginCheck(req)) {
+      return new NextResponse(JSON.stringify({ error: "forbidden" }), {
+        status: 403,
+        headers: { "content-type": "application/json" },
+      });
+    }
+  }
+
   return NextResponse.next();
 }
 
 export const config = {
-  matcher: ["/api/:path*"],
+  matcher: ["/admin/:path*", "/api/:path*"],
 };
