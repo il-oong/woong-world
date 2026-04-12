@@ -4,7 +4,7 @@ import { use, useEffect, useState, useRef } from "react";
 import { motion, useMotionValue, useTransform, useSpring } from "framer-motion";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth";
-import { isFirebaseConfigured } from "@/lib/firebase";
+import { isDemoMode } from "@/lib/firebase";
 import projectsData from "@/data/projects.json";
 import {
   EchoEffect, OtondoEffect, AlphaEffect, GoPointEffect,
@@ -145,7 +145,7 @@ const themeEffects: Record<string, React.FC> = {
 export default function ProjectDivePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const { isAdmin } = useAuth();
-  const demoMode = !isFirebaseConfigured;
+  const demoMode = isDemoMode;
   const project = projectsData.projects.find((p) => p.id === id);
 
   // Mouse parallax

@@ -13,6 +13,13 @@ const firebaseConfig = {
 
 export const isFirebaseConfigured = !!process.env.NEXT_PUBLIC_FIREBASE_API_KEY;
 
+/**
+ * Demo mode = "skip auth entirely". We only allow it in development so a
+ * missing Firebase env in production can never accidentally unlock /admin.
+ */
+export const isDemoMode =
+  !isFirebaseConfigured && process.env.NODE_ENV !== "production";
+
 let app: FirebaseApp;
 let auth: Auth;
 let db: Firestore;

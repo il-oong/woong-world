@@ -4,7 +4,7 @@ import { useRef, useEffect, useState, useCallback } from "react";
 import { motion, useScroll, useTransform, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth";
-import { isFirebaseConfigured } from "@/lib/firebase";
+import { isDemoMode } from "@/lib/firebase";
 import projectsData from "@/data/projects.json";
 import PixelIcon from "@/components/shared/PixelIcon";
 
@@ -12,7 +12,7 @@ const projects = projectsData.projects;
 
 export default function HomePage() {
   const { isAdmin } = useAuth();
-  const demoMode = !isFirebaseConfigured;
+  const demoMode = isDemoMode;
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const { scrollYProgress } = useScroll();

@@ -2,13 +2,13 @@
 
 import Link from "next/link";
 import { useAuth, signInWithGoogle, signOut } from "@/lib/auth";
-import { isFirebaseConfigured } from "@/lib/firebase";
+import { isDemoMode } from "@/lib/firebase";
 import { usePathname } from "next/navigation";
 
 export default function NavBar() {
   const { user, isAdmin, loading } = useAuth();
   const pathname = usePathname();
-  const demoMode = !isFirebaseConfigured;
+  const demoMode = isDemoMode;
   const showAdmin = isAdmin || demoMode;
 
   // Hide on project dive pages — they have their own nav

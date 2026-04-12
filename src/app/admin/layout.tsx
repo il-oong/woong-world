@@ -4,18 +4,20 @@ import { useAuth } from "@/lib/auth";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { motion } from "framer-motion";
-import { isFirebaseConfigured } from "@/lib/firebase";
+import { isDemoMode } from "@/lib/firebase";
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
-  const { user, isAdmin, loading } = useAuth();
+  const { isAdmin, loading } = useAuth();
   const router = useRouter();
 
-  // Firebase 미설정 시 데모 모드 — 관리자 접근 허용
-  const demoMode = !isFirebaseConfigured;
+  // `isDemoMode` is a compile-time constant that is `false` in production,
+  // so the demo bypass can never accidentally unlock /admin when Firebase
+  // env vars are missing on the deployment platform.
+  const demoMode = isDemoMode;
 
   useEffect(() => {
     if (!demoMode && !loading && !isAdmin) {
-      router.push("/");
+      router.replace("/");
     }
   }, [loading, isAdmin, router, demoMode]);
 
@@ -28,6 +30,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   }
 
   if (!demoMode && !isAdmin) {
+    // Render nothing while the client redirect runs. Note: this is a UX
+    // guard only. Sensitive data must be fetched from API routes that
+    // perform their own auth checks (see src/lib/api-guard.ts).
     return null;
   }
 
