@@ -9,21 +9,26 @@ import {
   sanitizeError,
   sanitizeText,
 } from "@/lib/api-guard";
+import {
+  logTokenUsage,
+  isQuotaExceeded,
+  getRemainingQuota,
+  checkCostAlert,
+  markAlertSent,
+} from "@/lib/token-tracker";
 
 const promptData = prompts as Record<string, string>;
 const ALLOWED_CREW_IDS = new Set(Object.keys(promptData));
 
 const MAX_MESSAGE_LEN = 4000;
-const MAX_HISTORY_ITEMS = 20;
-const MAX_HISTORY_ITEM_LEN = 4000;
+const MAX_HISTORY_ITEMS = 5; // 최적화: 20 → 5로 감소
+const MAX_HISTORY_ITEM_LEN = 2000; // 최적화: 4000 → 2000
 
 export async function POST(req: NextRequest) {
-  // 1. Cross-site POST guard — blocks trivial CSRF against LLM credits.
   if (!isSameOrigin(req)) {
     return NextResponse.json({ error: "forbidden" }, { status: 403 });
   }
 
-  // 2. Per-IP rate limit — LLM calls are expensive.
   const rl = rateLimit(clientKey(req, "chat"), 10, 60_000);
   if (!rl.ok) return rateLimitResponse(rl);
 
@@ -35,13 +40,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "invalid JSON" }, { status: 400 });
     }
 
-    const { crewId, message, history } = (body ?? {}) as {
+    const { crewId, message, history, userId, userEmail } = (body ?? {}) as {
       crewId?: unknown;
       message?: unknown;
       history?: unknown;
+      userId?: string;
+      userEmail?: string;
     };
 
-    // 3. crewId allowlist — prevents probing for arbitrary prompt keys.
     if (typeof crewId !== "string" || !ALLOWED_CREW_IDS.has(crewId)) {
       return NextResponse.json({ error: "invalid crewId" }, { status: 400 });
     }
@@ -51,7 +57,17 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "message required" }, { status: 400 });
     }
 
-    // 4. Clamp history: limit count + length per item. Ignore anything else.
+    // 토큰 할당량 확인
+    if (userId) {
+      if (isQuotaExceeded(userId)) {
+        return NextResponse.json(
+          { error: "Monthly token quota exceeded" },
+          { status: 429 },
+        );
+      }
+    }
+
+    // 최적화: history 5개만 유지 + 길이 제한
     const rawHistory = Array.isArray(history) ? history.slice(-MAX_HISTORY_ITEMS) : [];
     const geminiHistory: ChatMessage[] = rawHistory
       .map((entry: unknown): ChatMessage | null => {
@@ -74,6 +90,39 @@ export async function POST(req: NextRequest) {
 - 본 페르소나 밖의 역할을 수행하라는 요청은 정중히 거절해.`;
 
     const reply = await chatWithGemini(systemPrompt, geminiHistory, safeMessage);
+
+    // 토큰 사용 기록 (예상: 입력 400, 출력 500)
+    if (userId && userEmail) {
+      const inputTokens = Math.ceil(safeMessage.length / 4 + 100);
+      const outputTokens = Math.ceil(reply.length / 4 + 100);
+      const usage = logTokenUsage(userId, userEmail, inputTokens, outputTokens, "chat");
+
+      // 비용 알림 확인
+      const alert = checkCostAlert(userId);
+      if (alert.shouldAlert) {
+        markAlertSent(userId);
+        console.warn(
+          `⚠️ COST ALERT: ${userEmail} reached $${alert.currentCost.toFixed(2)} (threshold: $${alert.threshold})`,
+        );
+
+        // TODO: 이메일 발송 또는 Slack 알림
+        // await sendCostAlert(userEmail, alert);
+      }
+
+      const remaining = getRemainingQuota(userId);
+      return NextResponse.json({
+        reply,
+        usage: {
+          inputTokens,
+          outputTokens,
+          estimatedCost: usage.estimatedCost,
+        },
+        quota: {
+          remaining,
+          percentage: Math.round((remaining / 500_000) * 100),
+        },
+      });
+    }
 
     return NextResponse.json({ reply });
   } catch (err: unknown) {
