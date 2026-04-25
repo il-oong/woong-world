@@ -70,12 +70,18 @@ export function ServiceCard({
             </span>
           )}
           {!service.exists && (
-            <span className="rounded-md bg-amber-500/10 px-2 py-0.5 text-[10px] uppercase tracking-wider text-amber-400">
+            <span
+              className="rounded-md bg-amber-500/10 px-2 py-0.5 text-[10px] uppercase tracking-wider text-amber-400"
+              title="레포에 접근할 수 없습니다. 비공개 레포라면 .env.local에 GITHUB_TOKEN을 추가하세요."
+            >
               unlinked
             </span>
           )}
           {service.exists && service.isPrivate && (
-            <span className="rounded-md bg-white/5 px-2 py-0.5 text-[10px] uppercase tracking-wider text-zinc-400">
+            <span
+              className="rounded-md bg-white/5 px-2 py-0.5 text-[10px] uppercase tracking-wider text-zinc-400"
+              title="비공개 레포 — GitHub에 로그인되어 있어야 접근 가능합니다."
+            >
               private
             </span>
           )}
@@ -147,6 +153,25 @@ export function ServiceCard({
           </>
         )}
       </div>
+
+      {!service.exists && (
+        <div className="-mx-5 -mb-5 mt-1 border-t border-amber-500/15 bg-amber-500/[0.04] px-5 py-2.5 text-[11px] leading-relaxed text-amber-300/80">
+          <span className="font-medium">접근 불가.</span> 비공개 레포라면{" "}
+          <code className="rounded bg-black/30 px-1 py-0.5 font-mono text-[10px]">
+            .env.local
+          </code>
+          에{" "}
+          <code className="rounded bg-black/30 px-1 py-0.5 font-mono text-[10px]">
+            GITHUB_TOKEN
+          </code>
+          을 추가하세요.
+        </div>
+      )}
+      {service.exists && service.isPrivate && (
+        <div className="-mx-5 -mb-5 mt-1 border-t border-white/5 bg-white/[0.02] px-5 py-2.5 text-[11px] leading-relaxed text-[var(--muted)]">
+          🔒 비공개 — 클릭 시 GitHub 로그인이 필요할 수 있습니다.
+        </div>
+      )}
     </a>
   );
 }
