@@ -2,6 +2,7 @@ import seed from "@/data/services.json";
 import { fetchRepo } from "@/lib/github";
 import type { Service, ServiceSeed } from "@/lib/types";
 import { HubGrid } from "@/components/HubGrid";
+import { CalendarWidget } from "@/components/CalendarWidget";
 
 async function loadServices(): Promise<Service[]> {
   const seeds = seed as ServiceSeed[];
@@ -55,6 +56,10 @@ export default async function HubPage() {
             </div>
           )}
         </header>
+
+        <div className="mb-10">
+          <CalendarWidget />
+        </div>
 
         <HubGrid services={services} />
 

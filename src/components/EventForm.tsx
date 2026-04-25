@@ -1,0 +1,285 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { toIso } from "@/lib/calendar-util";
+
+type EventKind = "timed" | "allday" | "project";
+
+const REMINDER_OPTIONS: { value: number | null; label: string }[] = [
+  { value: null, label: "없음" },
+  { value: 5, label: "5분 전" },
+  { value: 30, label: "30분 전" },
+  { value: 60, label: "1시간 전" },
+  { value: 60 * 24, label: "1일 전" },
+];
+
+export type EventFormSubmit = {
+  summary: string;
+  description?: string;
+  kind: EventKind;
+  start: string;
+  end: string;
+  reminderMinutes: number | null;
+};
+
+export function EventForm({
+  open,
+  defaultDate,
+  defaultKind = "timed",
+  onClose,
+  onSubmit,
+}: {
+  open: boolean;
+  defaultDate?: string;
+  defaultKind?: EventKind;
+  onClose: () => void;
+  onSubmit: (input: EventFormSubmit) => Promise<void>;
+}) {
+  if (!open) return null;
+  return (
+    <FormBody
+      defaultDate={defaultDate}
+      defaultKind={defaultKind}
+      onClose={onClose}
+      onSubmit={onSubmit}
+    />
+  );
+}
+
+function FormBody({
+  defaultDate,
+  defaultKind,
+  onClose,
+  onSubmit,
+}: {
+  defaultDate?: string;
+  defaultKind: EventKind;
+  onClose: () => void;
+  onSubmit: (input: EventFormSubmit) => Promise<void>;
+}) {
+  const today = defaultDate ?? toIso(new Date());
+  const [kind, setKind] = useState<EventKind>(defaultKind);
+  const [summary, setSummary] = useState("");
+  const [description, setDescription] = useState("");
+  const [startDate, setStartDate] = useState(today);
+  const [endDate, setEndDate] = useState(today);
+  const [startTime, setStartTime] = useState("09:00");
+  const [endTime, setEndTime] = useState("10:00");
+  const [reminder, setReminder] = useState<number | null>(30);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  const submit = async () => {
+    if (!summary.trim()) {
+      setError("제목을 입력하세요");
+      return;
+    }
+    setSubmitting(true);
+    setError(null);
+    try {
+      let start: string;
+      let end: string;
+      if (kind === "timed") {
+        start = `${startDate}T${startTime}:00`;
+        end = `${startDate}T${endTime}:00`;
+      } else {
+        start = startDate;
+        end = kind === "project" ? endDate : startDate;
+      }
+      await onSubmit({
+        summary: summary.trim(),
+        description: description.trim() || undefined,
+        kind,
+        start,
+        end,
+        reminderMinutes: reminder,
+      });
+      onClose();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "저장 실패");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4 backdrop-blur-sm"
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-w-md overflow-hidden rounded-xl border border-[var(--border)] bg-[#101015] shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between border-b border-[var(--border)] px-5 py-3">
+          <h2 className="text-sm font-medium text-foreground">새 일정</h2>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close"
+            className="text-[var(--muted)] hover:text-foreground"
+          >
+            ✕
+          </button>
+        </div>
+
+        <div className="space-y-4 p-5">
+          <div className="flex gap-1.5">
+            {(
+              [
+                { id: "timed", label: "일정" },
+                { id: "allday", label: "종일" },
+                { id: "project", label: "프로젝트" },
+              ] as const
+            ).map((opt) => (
+              <button
+                key={opt.id}
+                type="button"
+                onClick={() => setKind(opt.id)}
+                className={`flex-1 rounded-md border px-3 py-1.5 text-xs transition ${
+                  kind === opt.id
+                    ? "border-[var(--accent)]/60 bg-[var(--accent)]/10 text-[var(--accent)]"
+                    : "border-[var(--border)] text-[var(--muted)] hover:text-foreground"
+                }`}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+
+          <Field label="제목">
+            <input
+              type="text"
+              value={summary}
+              onChange={(e) => setSummary(e.target.value)}
+              placeholder="회의, 마감, ..."
+              className="w-full rounded-md border border-[var(--border)] bg-[var(--card)] px-3 py-2 text-sm focus:border-[var(--accent)]/50 focus:outline-none"
+              autoFocus
+            />
+          </Field>
+
+          <Field label="메모">
+            <textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              rows={2}
+              className="w-full resize-none rounded-md border border-[var(--border)] bg-[var(--card)] px-3 py-2 text-sm focus:border-[var(--accent)]/50 focus:outline-none"
+            />
+          </Field>
+
+          <div className="grid grid-cols-2 gap-3">
+            <Field label={kind === "project" ? "시작일" : "날짜"}>
+              <input
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                className="w-full rounded-md border border-[var(--border)] bg-[var(--card)] px-3 py-2 text-sm focus:border-[var(--accent)]/50 focus:outline-none"
+              />
+            </Field>
+            {kind === "project" && (
+              <Field label="종료일">
+                <input
+                  type="date"
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                  className="w-full rounded-md border border-[var(--border)] bg-[var(--card)] px-3 py-2 text-sm focus:border-[var(--accent)]/50 focus:outline-none"
+                />
+              </Field>
+            )}
+            {kind === "timed" && (
+              <div className="grid grid-cols-2 gap-2">
+                <Field label="시작">
+                  <input
+                    type="time"
+                    value={startTime}
+                    onChange={(e) => setStartTime(e.target.value)}
+                    className="w-full rounded-md border border-[var(--border)] bg-[var(--card)] px-2 py-2 text-sm focus:border-[var(--accent)]/50 focus:outline-none"
+                  />
+                </Field>
+                <Field label="종료">
+                  <input
+                    type="time"
+                    value={endTime}
+                    onChange={(e) => setEndTime(e.target.value)}
+                    className="w-full rounded-md border border-[var(--border)] bg-[var(--card)] px-2 py-2 text-sm focus:border-[var(--accent)]/50 focus:outline-none"
+                  />
+                </Field>
+              </div>
+            )}
+          </div>
+
+          <Field label="알림">
+            <div className="flex flex-wrap gap-1.5">
+              {REMINDER_OPTIONS.map((opt) => {
+                const active = reminder === opt.value;
+                return (
+                  <button
+                    key={String(opt.value)}
+                    type="button"
+                    onClick={() => setReminder(opt.value)}
+                    className={`rounded-full border px-3 py-1 text-xs transition ${
+                      active
+                        ? "border-[var(--accent)]/60 bg-[var(--accent)]/10 text-[var(--accent)]"
+                        : "border-[var(--border)] text-[var(--muted)] hover:text-foreground"
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                );
+              })}
+            </div>
+          </Field>
+
+          {error && (
+            <div className="rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-300">
+              {error}
+            </div>
+          )}
+        </div>
+
+        <div className="flex items-center justify-end gap-2 border-t border-[var(--border)] px-5 py-3">
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-md px-3 py-1.5 text-sm text-[var(--muted)] hover:text-foreground"
+          >
+            취소
+          </button>
+          <button
+            type="button"
+            onClick={submit}
+            disabled={submitting}
+            className="rounded-md bg-[var(--accent)] px-3 py-1.5 text-sm font-medium text-black hover:bg-[var(--accent)]/90 disabled:opacity-50"
+          >
+            {submitting ? "저장 중..." : "저장"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Field({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="flex flex-col gap-1.5">
+      <label className="text-[11px] font-medium uppercase tracking-wider text-[var(--muted)]">
+        {label}
+      </label>
+      {children}
+    </div>
+  );
+}
