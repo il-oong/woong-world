@@ -1,0 +1,31 @@
+[
+  {
+    "repo": "il-oong/woong-world",
+    "category": "portfolio",
+    "icon": "🌐",
+    "title": "Woong Hub",
+    "description": "내 도구·서비스를 모아 둔 허브 (이 사이트)",
+    "pinned": true
+  },
+  {
+    "repo": "il-oong/prompts",
+    "category": "prompts",
+    "icon": "📝",
+    "title": "Prompt Archive",
+    "description": "자주 쓰는 프롬프트 모음"
+  },
+  {
+    "repo": "il-oong/ideas",
+    "category": "ideas",
+    "icon": "💡",
+    "title": "Idea Notes",
+    "description": "떠오르는 아이디어 기록"
+  },
+  {
+    "repo": "il-oong/dragon-raja",
+    "category": "games",
+    "icon": "🐉",
+    "title": "Dragon Raja",
+    "description": "드래곤 라자 게임 프로젝트"
+  }
+]
