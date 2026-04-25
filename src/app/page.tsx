@@ -20,6 +20,7 @@ async function loadServices(): Promise<Service[]> {
         pushedAt: repo?.pushed_at ?? null,
         isPrivate: repo?.private,
         exists: repo !== null,
+        curated: true,
       };
     }),
   );

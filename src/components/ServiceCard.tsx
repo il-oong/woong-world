@@ -1,4 +1,6 @@
-import type { Service } from "@/lib/types";
+"use client";
+
+import { CATEGORY_BY_ID, type Service } from "@/lib/types";
 
 function relativeTime(iso: string | null | undefined): string | null {
   if (!iso) return null;
@@ -13,35 +15,108 @@ function relativeTime(iso: string | null | undefined): string | null {
   return `${Math.floor(diff / (365 * day))}y ago`;
 }
 
-export function ServiceCard({ service }: { service: Service }) {
+export function ServiceCard({
+  service,
+  favorited,
+  onToggleFavorite,
+}: {
+  service: Service;
+  favorited: boolean;
+  onToggleFavorite: (slug: string) => void;
+}) {
   const isExternal = !service.resolvedUrl.startsWith("/");
   const updated = relativeTime(service.pushedAt);
+  const category = CATEGORY_BY_ID[service.category];
 
   return (
     <a
       href={service.resolvedUrl}
       target={isExternal ? "_blank" : undefined}
       rel={isExternal ? "noopener noreferrer" : undefined}
-      className="group relative flex flex-col gap-3 rounded-xl border border-[var(--border)] bg-[var(--card)] p-5 transition hover:border-[var(--accent)]/40 hover:bg-[var(--card-hover)]"
+      className="group relative flex flex-col gap-3 overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--card)] p-5 transition hover:bg-[var(--card-hover)]"
+      style={
+        {
+          "--cat": category.color,
+        } as React.CSSProperties
+      }
+      onMouseEnter={(e) => {
+        e.currentTarget.style.borderColor = `${category.color}66`;
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.borderColor = "";
+      }}
     >
+      <span
+        aria-hidden
+        className="absolute inset-x-0 top-0 h-px opacity-0 transition group-hover:opacity-100"
+        style={{ background: category.color }}
+      />
+
       <div className="flex items-start justify-between gap-3">
-        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-white/5 text-2xl">
+        <div
+          className="flex h-10 w-10 items-center justify-center rounded-lg text-2xl"
+          style={{ background: `${category.color}1a` }}
+        >
           {service.icon ?? "📦"}
         </div>
-        {!service.exists && (
-          <span className="rounded-md bg-amber-500/10 px-2 py-0.5 text-[10px] uppercase tracking-wider text-amber-400">
-            unlinked
-          </span>
-        )}
-        {service.exists && service.isPrivate && (
-          <span className="rounded-md bg-white/5 px-2 py-0.5 text-[10px] uppercase tracking-wider text-zinc-400">
-            private
-          </span>
-        )}
+
+        <div className="flex items-center gap-1.5">
+          {service.pinned && (
+            <span
+              className="rounded-md px-1.5 py-0.5 text-[10px] uppercase tracking-wider"
+              style={{ background: `${category.color}1a`, color: category.color }}
+            >
+              pinned
+            </span>
+          )}
+          {!service.exists && (
+            <span className="rounded-md bg-amber-500/10 px-2 py-0.5 text-[10px] uppercase tracking-wider text-amber-400">
+              unlinked
+            </span>
+          )}
+          {service.exists && service.isPrivate && (
+            <span className="rounded-md bg-white/5 px-2 py-0.5 text-[10px] uppercase tracking-wider text-zinc-400">
+              private
+            </span>
+          )}
+          <button
+            type="button"
+            aria-label={favorited ? "Remove from favorites" : "Add to favorites"}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onToggleFavorite(service.repo);
+            }}
+            className={`flex h-7 w-7 items-center justify-center rounded-md transition hover:bg-white/10 ${
+              favorited ? "text-amber-400" : "text-[var(--muted)] hover:text-foreground"
+            }`}
+          >
+            <svg
+              viewBox="0 0 24 24"
+              className="h-4 w-4"
+              fill={favorited ? "currentColor" : "none"}
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden
+            >
+              <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+            </svg>
+          </button>
+        </div>
       </div>
 
       <div className="flex-1">
-        <h3 className="text-base font-medium text-foreground">
+        <div className="flex items-center gap-2">
+          <span
+            className="font-mono text-[10px] uppercase tracking-wider"
+            style={{ color: category.color }}
+          >
+            {category.label}
+          </span>
+        </div>
+        <h3 className="mt-1 text-base font-medium text-foreground">
           {service.resolvedTitle}
         </h3>
         {service.resolvedDescription && (
@@ -51,12 +126,18 @@ export function ServiceCard({ service }: { service: Service }) {
         )}
       </div>
 
-      <div className="flex items-center gap-3 text-xs text-[var(--muted)]">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-[var(--muted)]">
         <span className="font-mono">{service.repo}</span>
         {service.language && (
           <>
             <span>·</span>
             <span>{service.language}</span>
+          </>
+        )}
+        {typeof service.stars === "number" && service.stars > 0 && (
+          <>
+            <span>·</span>
+            <span>★ {service.stars}</span>
           </>
         )}
         {updated && (
