@@ -1,5 +1,13 @@
 import { CATEGORIES, getCategory } from "./categories";
 import type { Plan } from "./plans";
+import type {
+  ChatMessage,
+  ProposedAction,
+  UploadedFile,
+} from "./assistant";
+import { newId } from "./assistant";
+import type { CalendarEvent } from "./google";
+import { eventOnDay, formatTimeRange, toIso } from "./calendar-util";
 
 const GEMINI_MODEL = "gemini-2.5-flash-lite";
 const ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
@@ -144,4 +152,225 @@ export async function reviewPlan(plan: Plan): Promise<ReviewResult> {
 export async function reviewPortfolio(plans: Plan[]): Promise<ReviewResult> {
   const text = await callGemini(buildPortfolioPrompt(plans));
   return parseReview(text);
+}
+
+// =====================================================================
+// Chat assistant ("뇌 대리")
+// =====================================================================
+
+const CHAT_SYSTEM_PROMPT = `너는 사용자의 인생 비서다 ("뇌 대리"). 사용자의 캘린더, 계획, 업로드한 파일을 모두 보고 한국어로 답한다.
+
+성격:
+- 친근하지만 만만치 않은 멘토. 무의미한 칭찬 금지.
+- 답은 짧고 단단하게. 불필요한 서론·맺음말 금지.
+- 사용자가 "뭐 해야 해?", "이번 주 어때?" 같은 모호한 질문을 하면 캘린더/계획을 근거로 구체적으로 답한다.
+- 빠진 영역(예: '인생' 카테고리에 아무 일정/계획 없음) 같은 패턴이 보이면 짚어준다.
+
+쓰기 액션:
+- 캘린더에 일정을 추가하거나 계획을 만들/수정해야 할 상황이면, 답변 안에 다음 형식의 액션 블록을 포함해라:
+  <action>{"type":"add_event","params":{"summary":"...","kind":"timed","start":"2026-04-27T10:00","end":"2026-04-27:11:00","categoryId":"company","reminderMinutes":30}}</action>
+  <action>{"type":"create_plan","params":{"period":"weekly","periodKey":"2026-W18","title":"...","items":[{"text":"..."}],"categoryId":"life"}}</action>
+  <action>{"type":"update_plan","params":{"planId":"pl_...","patch":{"title":"..."}}}</action>
+- 액션은 최종적으로 사용자가 [승인] 버튼을 눌러야만 실행된다. 자유롭게 제안하되, 사용자 의도가 불분명하면 먼저 물어봐라.
+- categoryId는 다음 중 하나: "life"(인생), "company"(회사), "vfx"(VFX), "appdev"(앱개발), "jazz"(재즈)
+- 시간은 ISO 8601 (한국 시간 기준 'Asia/Seoul'). timed면 'YYYY-MM-DDTHH:mm', allday/project면 'YYYY-MM-DD'.
+
+규칙:
+- 한국어로 답한다.
+- 액션 블록 외의 본문은 일반 텍스트(마크다운 약간 OK).
+- 모르면 모른다고 답한다. 추측해서 만들지 마라.`;
+
+export type AssistantContext = {
+  email: string;
+  today: string; // ISO date YYYY-MM-DD
+  upcomingEvents: CalendarEvent[];
+  activePlans: Plan[];
+  files: UploadedFile[];
+};
+
+function summarizeEvents(events: CalendarEvent[], today: string): string {
+  if (events.length === 0) return "  (없음)";
+  const lines: string[] = [];
+  for (let i = 0; i < 14; i++) {
+    const d = new Date(today);
+    d.setDate(d.getDate() + i);
+    const iso = toIso(d);
+    const onDay = events.filter((ev) => eventOnDay(ev, iso));
+    if (onDay.length === 0) continue;
+    lines.push(`  ${iso}:`);
+    for (const ev of onDay.slice(0, 6)) {
+      lines.push(`    - ${ev.summary ?? "(제목 없음)"} (${formatTimeRange(ev)})`);
+    }
+  }
+  return lines.length ? lines.join("\n") : "  (없음)";
+}
+
+function summarizePlans(plans: Plan[]): string {
+  if (plans.length === 0) return "  (없음)";
+  return plans
+    .slice(0, 30)
+    .map((p) => {
+      const cat = p.categoryId ? getCategory(p.categoryId).label : "전체";
+      const period =
+        p.period === "weekly" ? "주" : p.period === "monthly" ? "월" : "연";
+      const done = p.items.filter((i) => i.done).length;
+      const items = p.items
+        .slice(0, 5)
+        .map((i) => `      ${i.done ? "[x]" : "[ ]"} ${i.text}`)
+        .join("\n");
+      return `  - id=${p.id} [${period}/${cat}] ${p.title} (${p.periodKey}, ${done}/${p.items.length})${items ? "\n" + items : ""}`;
+    })
+    .join("\n");
+}
+
+function summarizeFiles(files: UploadedFile[]): string {
+  if (files.length === 0) return "  (없음)";
+  return files
+    .slice(0, 50)
+    .map((f) => {
+      const preview = (f.textContent ?? "").slice(0, 200).replace(/\s+/g, " ");
+      return `  - id=${f.id} kind=${f.kind} name=${f.name}${preview ? `\n      preview: ${preview}` : ""}`;
+    })
+    .join("\n");
+}
+
+function buildContextBlock(ctx: AssistantContext): string {
+  const cats = CATEGORIES.map((c) => `${c.id}=${c.label}`).join(", ");
+  return `[오늘] ${ctx.today} (${weekdayLabel(ctx.today)})
+[사용자] ${ctx.email}
+[카테고리] ${cats}
+
+[다가오는 일정 (다음 14일)]
+${summarizeEvents(ctx.upcomingEvents, ctx.today)}
+
+[활성 계획]
+${summarizePlans(ctx.activePlans)}
+
+[업로드된 파일/링크]
+${summarizeFiles(ctx.files)}`;
+}
+
+const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"];
+function weekdayLabel(iso: string): string {
+  const [y, m, d] = iso.split("-").map(Number);
+  const date = new Date(y, m - 1, d);
+  return WEEKDAYS[date.getDay()] + "요일";
+}
+
+type GeminiPart =
+  | { text: string }
+  | { inlineData: { mimeType: string; data: string } };
+
+type GeminiContent = { role: "user" | "model"; parts: GeminiPart[] };
+
+async function fetchAsBase64(
+  url: string,
+): Promise<{ data: string; mimeType: string } | null> {
+  try {
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    const mimeType = res.headers.get("content-type") ?? "image/png";
+    const buf = new Uint8Array(await res.arrayBuffer());
+    let binary = "";
+    for (let i = 0; i < buf.length; i++) binary += String.fromCharCode(buf[i]);
+    const data = Buffer.from(binary, "binary").toString("base64");
+    return { data, mimeType };
+  } catch {
+    return null;
+  }
+}
+
+async function buildContents(
+  history: ChatMessage[],
+  userMessage: string,
+  attachments: UploadedFile[],
+): Promise<GeminiContent[]> {
+  const contents: GeminiContent[] = [];
+
+  // History (cap to last 30 messages to keep prompt size sane)
+  const recent = history.slice(-30);
+  for (const m of recent) {
+    contents.push({
+      role: m.role === "user" ? "user" : "model",
+      parts: [{ text: m.text }],
+    });
+  }
+
+  // Current user message + image attachments inline
+  const userParts: GeminiPart[] = [{ text: userMessage }];
+  for (const f of attachments) {
+    if (f.kind === "image" && f.blobUrl) {
+      const inline = await fetchAsBase64(f.blobUrl);
+      if (inline) {
+        userParts.push({
+          inlineData: { mimeType: inline.mimeType, data: inline.data },
+        });
+      }
+    }
+  }
+  contents.push({ role: "user", parts: userParts });
+
+  return contents;
+}
+
+const ACTION_REGEX = /<action>([\s\S]*?)<\/action>/g;
+
+function parseActions(text: string): {
+  cleanText: string;
+  actions: ProposedAction[];
+} {
+  const actions: ProposedAction[] = [];
+  const cleanText = text.replace(ACTION_REGEX, (_, json: string) => {
+    try {
+      const parsed = JSON.parse(json) as Omit<ProposedAction, "id" | "status">;
+      actions.push({
+        id: newId("act"),
+        status: "pending",
+        ...parsed,
+      } as ProposedAction);
+    } catch {
+      // skip malformed
+    }
+    return "";
+  });
+  return { cleanText: cleanText.trim(), actions };
+}
+
+export async function chatWithAssistant(input: {
+  history: ChatMessage[];
+  userMessage: string;
+  attachments: UploadedFile[];
+  context: AssistantContext;
+}): Promise<{ text: string; proposedActions: ProposedAction[] }> {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) throw new Error("GEMINI_API_KEY not set");
+
+  const systemText = `${CHAT_SYSTEM_PROMPT}\n\n${buildContextBlock(input.context)}`;
+  const contents = await buildContents(
+    input.history,
+    input.userMessage,
+    input.attachments,
+  );
+
+  const res = await fetch(`${ENDPOINT}?key=${apiKey}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      systemInstruction: { parts: [{ text: systemText }] },
+      contents,
+      generationConfig: { temperature: 0.7 },
+    }),
+  });
+  if (!res.ok) {
+    const t = await res.text();
+    throw new Error(`Gemini ${res.status}: ${t.slice(0, 300)}`);
+  }
+  const data = (await res.json()) as {
+    candidates?: { content?: { parts?: { text?: string }[] } }[];
+  };
+  const raw = data.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+  if (!raw) return { text: "(빈 응답)", proposedActions: [] };
+
+  const { cleanText, actions } = parseActions(raw);
+  return { text: cleanText || raw, proposedActions: actions };
 }

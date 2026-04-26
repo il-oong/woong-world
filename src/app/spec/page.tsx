@@ -46,6 +46,12 @@ const FEATURES: {
     notes: "gemini-2.5-flash-lite. 개별 계획·전체 포트폴리오 두 모드.",
   },
   {
+    title: "채팅 비서 (뇌 대리)",
+    status: "done",
+    notes:
+      "우하단 플로팅 위젯. 캘린더+계획+업로드 파일을 컨텍스트로 받아 답변. 텍스트/마크다운/JSON/PDF/DOCX/이미지/URL 첨부. 봇이 일정·계획 액션 제안하면 사용자가 [승인]해서 실행.",
+  },
+  {
     title: "게임풍 UI/UX 리스킨",
     status: "planned",
     notes: "픽셀/도트 폰트, 카드 모션, 사운드. 컴포넌트 구조는 그대로 두고 시각만 교체.",
@@ -69,6 +75,7 @@ const ROUTES: { path: string; desc: string }[] = [
   { path: "/spec", desc: "(여기) 기획서 + 코드 구조" },
   { path: "/api/google/*", desc: "OAuth, 이벤트 CRUD, 상태" },
   { path: "/api/plans/*", desc: "계획 CRUD, AI 리뷰, 상태" },
+  { path: "/api/assistant/*", desc: "채팅 비서: chat / history / files / url / action / status" },
   { path: "/api/discover", desc: "GitHub에서 본인 레포 자동 수집" },
 ];
 
@@ -83,8 +90,10 @@ const STACK: { label: string; items: string[] }[] = [
     items: [
       "Google Calendar API (직접 fetch)",
       "Upstash Redis (@upstash/redis)",
-      "Gemini 2.5 Flash Lite (REST)",
+      "Gemini 2.5 Flash Lite (REST, multimodal)",
       "GitHub REST API",
+      "Vercel Blob (파일 저장)",
+      "pdfjs-dist / mammoth (PDF·DOCX 텍스트 추출)",
     ],
   },
   { label: "인증", items: ["Google OAuth 2.0", "jose (JWE 쿠키 세션)"] },
@@ -107,13 +116,19 @@ const TREE: { path: string; desc: string }[] = [
   { path: "src/components/CalendarWidget.tsx", desc: "홈용 위젯" },
   { path: "src/components/EventForm.tsx", desc: "일정 추가 폼" },
   { path: "src/components/PlansPanel.tsx", desc: "계획 페이지 본체" },
+  { path: "src/components/AssistantWidget.tsx", desc: "우하단 플로팅 비서 버튼" },
+  { path: "src/components/AssistantPanel.tsx", desc: "비서 채팅 패널" },
+  { path: "src/components/AssistantMessage.tsx", desc: "메시지 + 액션 카드" },
+  { path: "src/components/AssistantFiles.tsx", desc: "파일/URL 업로드 모달" },
   { path: "src/lib/", desc: "도메인 로직 (서버·클라 공용)" },
   { path: "src/lib/google.ts", desc: "Calendar API 클라이언트" },
   { path: "src/lib/session.ts", desc: "암호화 쿠키 세션" },
   { path: "src/lib/categories.ts", desc: "5개 카테고리 정의" },
   { path: "src/lib/calendar-util.ts", desc: "날짜·이벤트 유틸" },
-  { path: "src/lib/plans.ts", desc: "Upstash Redis 저장소" },
-  { path: "src/lib/gemini.ts", desc: "Gemini API + 프롬프트" },
+  { path: "src/lib/plans.ts", desc: "Upstash Redis (계획)" },
+  { path: "src/lib/assistant.ts", desc: "Upstash Redis (채팅 + 파일 메타)" },
+  { path: "src/lib/files.ts", desc: "파일 업로드/추출 (PDF/DOCX/URL)" },
+  { path: "src/lib/gemini.ts", desc: "Gemini API + 챗 + 프롬프트" },
   { path: "src/lib/github.ts", desc: "GitHub 메타 fetch" },
   { path: "src/lib/types.ts", desc: "Service / Category 타입" },
   { path: "src/data/services.json", desc: "큐레이션된 서비스 목록 (수동 편집)" },
@@ -262,8 +277,11 @@ SESSION_SECRET            # 32+ 글자 랜덤
 UPSTASH_REDIS_REST_URL    또는 KV_REST_API_URL
 UPSTASH_REDIS_REST_TOKEN  또는 KV_REST_API_TOKEN
 
-# AI 리뷰 (선택)
+# AI (Gemini, 계획 리뷰 + 채팅 비서)
 GEMINI_API_KEY            # aistudio.google.com/apikey
+
+# 파일 업로드 (Vercel Blob, 채팅 비서 파일 첨부 시 필요)
+BLOB_READ_WRITE_TOKEN     # Vercel Storage → Blob 1-click
 
 # GitHub 비공개 레포 메타 조회 (선택)
 GITHUB_TOKEN`}</pre>
