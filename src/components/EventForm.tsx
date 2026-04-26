@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { toIso } from "@/lib/calendar-util";
+import { CATEGORIES, type CategoryId } from "@/lib/categories";
 
 type EventKind = "timed" | "allday" | "project";
 
@@ -20,18 +21,21 @@ export type EventFormSubmit = {
   start: string;
   end: string;
   reminderMinutes: number | null;
+  categoryId: CategoryId;
 };
 
 export function EventForm({
   open,
   defaultDate,
   defaultKind = "timed",
+  defaultCategoryId,
   onClose,
   onSubmit,
 }: {
   open: boolean;
   defaultDate?: string;
   defaultKind?: EventKind;
+  defaultCategoryId?: CategoryId;
   onClose: () => void;
   onSubmit: (input: EventFormSubmit) => Promise<void>;
 }) {
@@ -40,6 +44,7 @@ export function EventForm({
     <FormBody
       defaultDate={defaultDate}
       defaultKind={defaultKind}
+      defaultCategoryId={defaultCategoryId}
       onClose={onClose}
       onSubmit={onSubmit}
     />
@@ -49,16 +54,21 @@ export function EventForm({
 function FormBody({
   defaultDate,
   defaultKind,
+  defaultCategoryId,
   onClose,
   onSubmit,
 }: {
   defaultDate?: string;
   defaultKind: EventKind;
+  defaultCategoryId?: CategoryId;
   onClose: () => void;
   onSubmit: (input: EventFormSubmit) => Promise<void>;
 }) {
   const today = defaultDate ?? toIso(new Date());
   const [kind, setKind] = useState<EventKind>(defaultKind);
+  const [categoryId, setCategoryId] = useState<CategoryId>(
+    defaultCategoryId ?? CATEGORIES[0].id,
+  );
   const [summary, setSummary] = useState("");
   const [description, setDescription] = useState("");
   const [startDate, setStartDate] = useState(today);
@@ -101,6 +111,7 @@ function FormBody({
         start,
         end,
         reminderMinutes: reminder,
+        categoryId,
       });
       onClose();
     } catch (e) {
@@ -154,6 +165,33 @@ function FormBody({
               </button>
             ))}
           </div>
+
+          <Field label="카테고리">
+            <div className="flex flex-wrap gap-1.5">
+              {CATEGORIES.map((cat) => {
+                const active = categoryId === cat.id;
+                return (
+                  <button
+                    key={cat.id}
+                    type="button"
+                    onClick={() => setCategoryId(cat.id)}
+                    className="rounded-full border px-3 py-1 text-xs transition"
+                    style={{
+                      borderColor: active ? cat.border : "var(--border)",
+                      background: active ? cat.bg : "transparent",
+                      color: active ? cat.color : "var(--muted)",
+                    }}
+                  >
+                    <span
+                      className="mr-1.5 inline-block h-2 w-2 rounded-full align-middle"
+                      style={{ background: cat.color }}
+                    />
+                    {cat.label}
+                  </button>
+                );
+              })}
+            </div>
+          </Field>
 
           <Field label="제목">
             <input

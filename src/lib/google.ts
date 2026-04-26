@@ -3,6 +3,7 @@ import {
   writeSession,
   type GoogleSession,
 } from "./session";
+import { getCategory, type CategoryId } from "./categories";
 
 const TOKEN_URL = "https://oauth2.googleapis.com/token";
 const CALENDAR_API = "https://www.googleapis.com/calendar/v3";
@@ -29,6 +30,10 @@ export type CalendarEvent = {
   start: { date?: string; dateTime?: string; timeZone?: string };
   end: { date?: string; dateTime?: string; timeZone?: string };
   htmlLink?: string;
+  colorId?: string;
+  extendedProperties?: {
+    private?: { category?: string };
+  };
   reminders?: {
     useDefault?: boolean;
     overrides?: { method: "email" | "popup"; minutes: number }[];
@@ -42,6 +47,7 @@ export type CreateEventInput = {
   start: string;
   end: string;
   reminderMinutes?: number | null;
+  categoryId?: CategoryId;
 };
 
 function required(name: string): string {
@@ -59,14 +65,17 @@ export function isConfigured(): boolean {
   );
 }
 
-export function getAuthUrl(state: string): string {
+export function getAuthUrl(state: string, forceConsent = false): string {
   const url = new URL("https://accounts.google.com/o/oauth2/v2/auth");
   url.searchParams.set("client_id", required("GOOGLE_CLIENT_ID"));
   url.searchParams.set("redirect_uri", required("GOOGLE_REDIRECT_URI"));
   url.searchParams.set("response_type", "code");
   url.searchParams.set("scope", SCOPES);
   url.searchParams.set("access_type", "offline");
-  url.searchParams.set("prompt", "consent");
+  url.searchParams.set("include_granted_scopes", "true");
+  // Only force the consent screen on first connect or explicit reconnect.
+  // On subsequent re-auths Google will skip it and return the existing refresh_token.
+  if (forceConsent) url.searchParams.set("prompt", "consent");
   url.searchParams.set("state", state);
   return url.toString();
 }
@@ -174,6 +183,12 @@ export async function createEvent(
       useDefault: false,
       overrides: [{ method: "popup", minutes: input.reminderMinutes }],
     };
+  }
+
+  if (input.categoryId) {
+    const category = getCategory(input.categoryId);
+    body.colorId = category.colorId;
+    body.extendedProperties = { private: { category: category.id } };
   }
 
   const res = await fetch(`${CALENDAR_API}/calendars/primary/events`, {

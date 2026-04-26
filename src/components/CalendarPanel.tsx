@@ -10,8 +10,22 @@ import {
   toIso,
 } from "@/lib/calendar-util";
 import type { CalendarEvent } from "@/lib/google";
-import { CalendarMonthGrid } from "./CalendarMonthGrid";
+import {
+  CATEGORIES,
+  categoryFromEvent,
+  type CategoryId,
+} from "@/lib/categories";
+import { CalendarMonthGrid, type CalendarSize } from "./CalendarMonthGrid";
 import { EventForm, type EventFormSubmit } from "./EventForm";
+
+const SIZE_STORAGE_KEY = "wh-calendar-size";
+const SIZE_STEPS: CalendarSize[] = ["sm", "md", "lg", "xl"];
+const SIZE_LABEL: Record<CalendarSize, string> = {
+  sm: "S",
+  md: "M",
+  lg: "L",
+  xl: "XL",
+};
 
 type Status =
   | { configured: false; connected: false }
@@ -32,6 +46,33 @@ export function CalendarPanel({ variant = "full" }: { variant?: Variant }) {
   const [refresh, setRefresh] = useState(0);
   const [formOpen, setFormOpen] = useState(false);
   const [formKind, setFormKind] = useState<"timed" | "allday" | "project">("timed");
+  const [formCategory, setFormCategory] = useState<CategoryId | undefined>(
+    undefined,
+  );
+  const [activeTab, setActiveTab] = useState<CategoryId | "all">("all");
+  const [size, setSize] = useState<CalendarSize>(() => {
+    if (variant === "compact") return "sm";
+    if (typeof window === "undefined") return "md";
+    const stored = window.localStorage.getItem(SIZE_STORAGE_KEY);
+    return stored && SIZE_STEPS.includes(stored as CalendarSize)
+      ? (stored as CalendarSize)
+      : "md";
+  });
+
+  const changeSize = (next: CalendarSize) => {
+    setSize(next);
+    if (variant === "full" && typeof window !== "undefined") {
+      window.localStorage.setItem(SIZE_STORAGE_KEY, next);
+    }
+  };
+
+  const sizeIndex = SIZE_STEPS.indexOf(size);
+  const zoomOut = () => {
+    if (sizeIndex > 0) changeSize(SIZE_STEPS[sizeIndex - 1]);
+  };
+  const zoomIn = () => {
+    if (sizeIndex < SIZE_STEPS.length - 1) changeSize(SIZE_STEPS[sizeIndex + 1]);
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -80,15 +121,37 @@ export function CalendarPanel({ variant = "full" }: { variant?: Variant }) {
     };
   }, [status?.connected, year, month, refresh]);
 
+  const activeCategory = useMemo(
+    () =>
+      activeTab === "all"
+        ? null
+        : (CATEGORIES.find((c) => c.id === activeTab) ?? null),
+    [activeTab],
+  );
+
+  const visibleEvents = useMemo(() => {
+    if (activeTab === "all") return events;
+    return events.filter((ev) => {
+      const cat = categoryFromEvent(ev);
+      return cat?.id === activeTab;
+    });
+  }, [events, activeTab]);
+
   const selectedEvents = useMemo(() => {
-    return events
+    return visibleEvents
       .filter((ev) => eventOnDay(ev, selectedIso))
       .sort((a, b) => {
         const aTime = a.start.dateTime ?? a.start.date ?? "";
         const bTime = b.start.dateTime ?? b.start.date ?? "";
         return aTime.localeCompare(bTime);
       });
-  }, [events, selectedIso]);
+  }, [visibleEvents, selectedIso]);
+
+  const openForm = (kind: "timed" | "allday" | "project") => {
+    setFormCategory(activeTab === "all" ? undefined : activeTab);
+    setFormKind(kind);
+    setFormOpen(true);
+  };
 
   const goPrev = () => {
     if (month === 0) {
@@ -226,24 +289,48 @@ SESSION_SECRET=at-least-32-chars-of-random-data`}</pre>
         <div className="flex items-center gap-2">
           <button
             type="button"
-            onClick={() => {
-              setFormKind("timed");
-              setFormOpen(true);
+            onClick={() => openForm("timed")}
+            className="rounded-md px-3 py-1.5 text-xs font-medium text-black transition"
+            style={{
+              background: activeCategory?.color ?? "var(--accent)",
             }}
-            className="rounded-md bg-[var(--accent)] px-3 py-1.5 text-xs font-medium text-black hover:bg-[var(--accent)]/90"
           >
-            + 일정
+            + 일정{activeCategory ? ` · ${activeCategory.label}` : ""}
           </button>
           <button
             type="button"
-            onClick={() => {
-              setFormKind("project");
-              setFormOpen(true);
-            }}
+            onClick={() => openForm("project")}
             className="rounded-md border border-[var(--border)] px-3 py-1.5 text-xs hover:bg-white/5"
           >
             + 프로젝트
           </button>
+          {variant === "full" && (
+            <div className="ml-1 flex items-center overflow-hidden rounded-md border border-[var(--border)]">
+              <button
+                type="button"
+                onClick={zoomOut}
+                disabled={sizeIndex === 0}
+                aria-label="작게"
+                title="작게"
+                className="px-2 py-1 text-xs text-[var(--muted)] hover:bg-white/5 hover:text-foreground disabled:opacity-30"
+              >
+                −
+              </button>
+              <span className="border-x border-[var(--border)] px-2 py-1 font-mono text-[10px] text-[var(--muted)]">
+                {SIZE_LABEL[size]}
+              </span>
+              <button
+                type="button"
+                onClick={zoomIn}
+                disabled={sizeIndex === SIZE_STEPS.length - 1}
+                aria-label="크게"
+                title="크게"
+                className="px-2 py-1 text-xs text-[var(--muted)] hover:bg-white/5 hover:text-foreground disabled:opacity-30"
+              >
+                +
+              </button>
+            </div>
+          )}
           {variant === "full" && (
             <div className="ml-2 flex items-center gap-2 border-l border-[var(--border)] pl-2 text-[11px] text-[var(--muted)]">
               {status.email && <span>{status.email}</span>}
@@ -259,20 +346,41 @@ SESSION_SECRET=at-least-32-chars-of-random-data`}</pre>
         </div>
       </div>
 
+      <div className="flex flex-wrap items-center gap-1 rounded-lg border border-[var(--border)] bg-[var(--card)] p-1">
+        <TabButton
+          label="전체"
+          active={activeTab === "all"}
+          onClick={() => setActiveTab("all")}
+        />
+        {CATEGORIES.map((cat) => (
+          <TabButton
+            key={cat.id}
+            label={cat.label}
+            color={cat.color}
+            bg={cat.bg}
+            border={cat.border}
+            active={activeTab === cat.id}
+            onClick={() => setActiveTab(cat.id)}
+          />
+        ))}
+      </div>
+
       <div
         className={
           variant === "full"
-            ? "grid gap-4 lg:grid-cols-[2fr_1fr]"
+            ? size === "xl"
+              ? "grid gap-4"
+              : "grid gap-4 lg:grid-cols-[2fr_1fr]"
             : "grid gap-4"
         }
       >
         <CalendarMonthGrid
           year={year}
           month={month}
-          events={events}
+          events={visibleEvents}
           selectedIso={selectedIso}
           onSelect={setSelectedIso}
-          size={variant === "compact" ? "sm" : "md"}
+          size={size}
         />
 
         <div className="flex flex-col gap-2 rounded-xl border border-[var(--border)] bg-[var(--card)] p-4">
@@ -295,13 +403,23 @@ SESSION_SECRET=at-least-32-chars-of-random-data`}</pre>
             </p>
           )}
 
-          {selectedEvents.map((ev) => (
+          {selectedEvents.map((ev) => {
+            const cat = categoryFromEvent(ev);
+            return (
             <div
               key={ev.id}
               className="group flex flex-col gap-1 rounded-lg border border-[var(--border)] bg-white/[0.02] p-2.5"
+              style={cat ? { borderLeft: `3px solid ${cat.color}` } : undefined}
             >
               <div className="flex items-start justify-between gap-2">
-                <span className="text-sm font-medium text-foreground">
+                <span className="flex items-center gap-2 text-sm font-medium text-foreground">
+                  {cat && (
+                    <span
+                      className="inline-block h-2 w-2 shrink-0 rounded-full"
+                      style={{ background: cat.color }}
+                      aria-label={cat.label}
+                    />
+                  )}
                   {ev.summary ?? "(제목 없음)"}
                 </span>
                 <button
@@ -344,7 +462,8 @@ SESSION_SECRET=at-least-32-chars-of-random-data`}</pre>
                 </p>
               )}
             </div>
-          ))}
+            );
+          })}
         </div>
       </div>
 
@@ -352,6 +471,7 @@ SESSION_SECRET=at-least-32-chars-of-random-data`}</pre>
         open={formOpen}
         defaultDate={selectedIso}
         defaultKind={formKind}
+        defaultCategoryId={formCategory}
         onClose={() => setFormOpen(false)}
         onSubmit={handleCreate}
       />
@@ -363,4 +483,44 @@ function formatReminder(minutes: number): string {
   if (minutes >= 60 * 24) return `${Math.floor(minutes / (60 * 24))}일 전`;
   if (minutes >= 60) return `${Math.floor(minutes / 60)}시간 전`;
   return `${minutes}분 전`;
+}
+
+function TabButton({
+  label,
+  color,
+  bg,
+  border,
+  active,
+  onClick,
+}: {
+  label: string;
+  color?: string;
+  bg?: string;
+  border?: string;
+  active: boolean;
+  onClick: () => void;
+}) {
+  const accent = color ?? "var(--accent)";
+  const accentBg = bg ?? "color-mix(in oklab, var(--accent) 15%, transparent)";
+  const accentBorder = border ?? "color-mix(in oklab, var(--accent) 45%, transparent)";
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs transition"
+      style={{
+        background: active ? accentBg : "transparent",
+        color: active ? accent : "var(--muted)",
+        border: `1px solid ${active ? accentBorder : "transparent"}`,
+      }}
+    >
+      {color && (
+        <span
+          className="inline-block h-2 w-2 rounded-full"
+          style={{ background: color }}
+        />
+      )}
+      {label}
+    </button>
+  );
 }
