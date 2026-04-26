@@ -40,9 +40,7 @@ export function CalendarPanel({ variant = "full" }: { variant?: Variant }) {
   const [formCategory, setFormCategory] = useState<CategoryId | undefined>(
     undefined,
   );
-  const [activeCategories, setActiveCategories] = useState<Set<CategoryId>>(
-    () => new Set(CATEGORIES.map((c) => c.id)),
-  );
+  const [activeTab, setActiveTab] = useState<CategoryId | "all">("all");
 
   useEffect(() => {
     let cancelled = false;
@@ -91,13 +89,21 @@ export function CalendarPanel({ variant = "full" }: { variant?: Variant }) {
     };
   }, [status?.connected, year, month, refresh]);
 
+  const activeCategory = useMemo(
+    () =>
+      activeTab === "all"
+        ? null
+        : (CATEGORIES.find((c) => c.id === activeTab) ?? null),
+    [activeTab],
+  );
+
   const visibleEvents = useMemo(() => {
+    if (activeTab === "all") return events;
     return events.filter((ev) => {
       const cat = categoryFromEvent(ev);
-      if (!cat) return activeCategories.size === CATEGORIES.length;
-      return activeCategories.has(cat.id);
+      return cat?.id === activeTab;
     });
-  }, [events, activeCategories]);
+  }, [events, activeTab]);
 
   const selectedEvents = useMemo(() => {
     return visibleEvents
@@ -109,20 +115,8 @@ export function CalendarPanel({ variant = "full" }: { variant?: Variant }) {
       });
   }, [visibleEvents, selectedIso]);
 
-  const toggleCategory = (id: CategoryId) => {
-    setActiveCategories((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  };
-
-  const openFormFor = (
-    categoryId: CategoryId,
-    kind: "timed" | "allday" | "project" = "timed",
-  ) => {
-    setFormCategory(categoryId);
+  const openForm = (kind: "timed" | "allday" | "project") => {
+    setFormCategory(activeTab === "all" ? undefined : activeTab);
     setFormKind(kind);
     setFormOpen(true);
   };
@@ -263,22 +257,17 @@ SESSION_SECRET=at-least-32-chars-of-random-data`}</pre>
         <div className="flex items-center gap-2">
           <button
             type="button"
-            onClick={() => {
-              setFormCategory(undefined);
-              setFormKind("timed");
-              setFormOpen(true);
+            onClick={() => openForm("timed")}
+            className="rounded-md px-3 py-1.5 text-xs font-medium text-black transition"
+            style={{
+              background: activeCategory?.color ?? "var(--accent)",
             }}
-            className="rounded-md bg-[var(--accent)] px-3 py-1.5 text-xs font-medium text-black hover:bg-[var(--accent)]/90"
           >
-            + 일정
+            + 일정{activeCategory ? ` · ${activeCategory.label}` : ""}
           </button>
           <button
             type="button"
-            onClick={() => {
-              setFormCategory(undefined);
-              setFormKind("project");
-              setFormOpen(true);
-            }}
+            onClick={() => openForm("project")}
             className="rounded-md border border-[var(--border)] px-3 py-1.5 text-xs hover:bg-white/5"
           >
             + 프로젝트
@@ -298,48 +287,23 @@ SESSION_SECRET=at-least-32-chars-of-random-data`}</pre>
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center gap-1.5">
-        {CATEGORIES.map((cat) => {
-          const active = activeCategories.has(cat.id);
-          return (
-            <div
-              key={cat.id}
-              className="group flex items-stretch overflow-hidden rounded-full border transition"
-              style={{
-                borderColor: active ? cat.border : "var(--border)",
-                background: active ? cat.bg : "transparent",
-                opacity: active ? 1 : 0.45,
-              }}
-            >
-              <button
-                type="button"
-                onClick={() => toggleCategory(cat.id)}
-                className="flex items-center gap-1.5 px-3 py-1 text-xs"
-                style={{ color: active ? cat.color : "var(--muted)" }}
-                title={active ? `${cat.label} 숨기기` : `${cat.label} 표시`}
-              >
-                <span
-                  className="inline-block h-2 w-2 rounded-full"
-                  style={{ background: cat.color }}
-                />
-                {cat.label}
-              </button>
-              <button
-                type="button"
-                onClick={() => openFormFor(cat.id, "timed")}
-                className="border-l px-2 text-xs leading-none transition hover:bg-white/5"
-                style={{
-                  borderColor: active ? cat.border : "var(--border)",
-                  color: active ? cat.color : "var(--muted)",
-                }}
-                aria-label={`${cat.label}에 일정 추가`}
-                title={`${cat.label}에 일정 추가`}
-              >
-                +
-              </button>
-            </div>
-          );
-        })}
+      <div className="flex flex-wrap items-center gap-1 rounded-lg border border-[var(--border)] bg-[var(--card)] p-1">
+        <TabButton
+          label="전체"
+          active={activeTab === "all"}
+          onClick={() => setActiveTab("all")}
+        />
+        {CATEGORIES.map((cat) => (
+          <TabButton
+            key={cat.id}
+            label={cat.label}
+            color={cat.color}
+            bg={cat.bg}
+            border={cat.border}
+            active={activeTab === cat.id}
+            onClick={() => setActiveTab(cat.id)}
+          />
+        ))}
       </div>
 
       <div
@@ -458,4 +422,44 @@ function formatReminder(minutes: number): string {
   if (minutes >= 60 * 24) return `${Math.floor(minutes / (60 * 24))}일 전`;
   if (minutes >= 60) return `${Math.floor(minutes / 60)}시간 전`;
   return `${minutes}분 전`;
+}
+
+function TabButton({
+  label,
+  color,
+  bg,
+  border,
+  active,
+  onClick,
+}: {
+  label: string;
+  color?: string;
+  bg?: string;
+  border?: string;
+  active: boolean;
+  onClick: () => void;
+}) {
+  const accent = color ?? "var(--accent)";
+  const accentBg = bg ?? "color-mix(in oklab, var(--accent) 15%, transparent)";
+  const accentBorder = border ?? "color-mix(in oklab, var(--accent) 45%, transparent)";
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs transition"
+      style={{
+        background: active ? accentBg : "transparent",
+        color: active ? accent : "var(--muted)",
+        border: `1px solid ${active ? accentBorder : "transparent"}`,
+      }}
+    >
+      {color && (
+        <span
+          className="inline-block h-2 w-2 rounded-full"
+          style={{ background: color }}
+        />
+      )}
+      {label}
+    </button>
+  );
 }

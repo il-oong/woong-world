@@ -65,14 +65,17 @@ export function isConfigured(): boolean {
   );
 }
 
-export function getAuthUrl(state: string): string {
+export function getAuthUrl(state: string, forceConsent = false): string {
   const url = new URL("https://accounts.google.com/o/oauth2/v2/auth");
   url.searchParams.set("client_id", required("GOOGLE_CLIENT_ID"));
   url.searchParams.set("redirect_uri", required("GOOGLE_REDIRECT_URI"));
   url.searchParams.set("response_type", "code");
   url.searchParams.set("scope", SCOPES);
   url.searchParams.set("access_type", "offline");
-  url.searchParams.set("prompt", "consent");
+  url.searchParams.set("include_granted_scopes", "true");
+  // Only force the consent screen on first connect or explicit reconnect.
+  // On subsequent re-auths Google will skip it and return the existing refresh_token.
+  if (forceConsent) url.searchParams.set("prompt", "consent");
   url.searchParams.set("state", state);
   return url.toString();
 }
