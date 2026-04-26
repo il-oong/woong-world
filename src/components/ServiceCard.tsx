@@ -19,20 +19,42 @@ export function ServiceCard({
   service,
   favorited,
   onToggleFavorite,
+  onPreview,
 }: {
   service: Service;
   favorited: boolean;
   onToggleFavorite: (slug: string) => void;
+  onPreview?: (service: Service) => void;
 }) {
   const isExternal = !service.resolvedUrl.startsWith("/");
+  const isGitHubUrl = /^https?:\/\/(www\.)?github\.com\//.test(
+    service.resolvedUrl,
+  );
+  const canPreview = Boolean(onPreview) && service.exists && !isGitHubUrl;
   const updated = relativeTime(service.pushedAt);
   const category = CATEGORY_BY_ID[service.category];
+
+  const handleClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
+    // Let modifier-clicks (Cmd/Ctrl/Shift/middle) follow the link normally.
+    if (
+      !canPreview ||
+      e.metaKey ||
+      e.ctrlKey ||
+      e.shiftKey ||
+      e.button === 1
+    ) {
+      return;
+    }
+    e.preventDefault();
+    onPreview!(service);
+  };
 
   return (
     <a
       href={service.resolvedUrl}
       target={isExternal ? "_blank" : undefined}
       rel={isExternal ? "noopener noreferrer" : undefined}
+      onClick={handleClick}
       className="group relative flex flex-col gap-3 overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--card)] p-5 transition hover:bg-[var(--card-hover)]"
       style={
         {

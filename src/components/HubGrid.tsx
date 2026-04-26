@@ -8,6 +8,7 @@ import { ServiceCard } from "./ServiceCard";
 import { CategoryFilter, type CategorySelection } from "./CategoryFilter";
 import { SearchBar } from "./SearchBar";
 import { CommandPalette } from "./CommandPalette";
+import { PreviewModal } from "./PreviewModal";
 
 type Mode = "curated" | "all";
 
@@ -19,6 +20,7 @@ export function HubGrid({ services: initialServices }: { services: Service[] }) 
   const [category, setCategory] = useState<CategorySelection>("all");
   const [query, setQuery] = useState("");
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const [preview, setPreview] = useState<Service | null>(null);
 
   const { favs, toggle } = useFavorites();
 
@@ -144,6 +146,7 @@ export function HubGrid({ services: initialServices }: { services: Service[] }) 
               service={s}
               favorited={favs.has(s.repo)}
               onToggleFavorite={toggle}
+              onPreview={setPreview}
             />
           ))}
         </div>
@@ -154,6 +157,14 @@ export function HubGrid({ services: initialServices }: { services: Service[] }) 
         open={paletteOpen}
         onClose={() => setPaletteOpen(false)}
       />
+
+      {preview && (
+        <PreviewModal
+          url={preview.resolvedUrl}
+          title={preview.resolvedTitle}
+          onClose={() => setPreview(null)}
+        />
+      )}
     </div>
   );
 }
