@@ -104,7 +104,7 @@ export async function fetchRepoDocs(slug: string): Promise<RepoDoc[] | null> {
   const branch = (meta as GitHubRepo & { default_branch?: string }).default_branch ?? "main";
 
   const treeRes = await fetch(
-    `https://api.github.com/repos/${slug}/git/trees/${branch}?recursive=1`,
+    `https://api.github.com/repos/${slug}/git/trees/${encodeURIComponent(branch)}?recursive=1`,
     { headers: authHeaders(), next: { revalidate: 600 } },
   );
   if (!treeRes.ok) return null;

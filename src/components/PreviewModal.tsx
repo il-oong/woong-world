@@ -398,7 +398,20 @@ function escapeHtml(s: string): string {
   return s
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;");
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function safeHref(raw: string): string | null {
+  if (!/^https?:\/\//i.test(raw)) return null;
+  try {
+    const u = new URL(raw);
+    if (u.protocol !== "http:" && u.protocol !== "https:") return null;
+    return u.toString();
+  } catch {
+    return null;
+  }
 }
 
 function renderInline(text: string): string {
@@ -409,10 +422,20 @@ function renderInline(text: string): string {
   out = out.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
   // italic (avoid clashing with bold)
   out = out.replace(/(^|[^*])\*([^*\n]+)\*/g, "$1<em>$2</em>");
-  // links [text](url)
+  // links [text](url) — URL is escaped through escapeHtml above; further validate scheme/parse
   out = out.replace(
     /\[([^\]]+)\]\((https?:[^)\s]+)\)/g,
-    '<a href="$2" target="_blank" rel="noopener noreferrer" class="text-[var(--accent)] hover:underline">$1</a>',
+    (_m, label: string, urlEscaped: string) => {
+      const url = urlEscaped
+        .replace(/&amp;/g, "&")
+        .replace(/&quot;/g, '"')
+        .replace(/&#39;/g, "'")
+        .replace(/&lt;/g, "<")
+        .replace(/&gt;/g, ">");
+      const safe = safeHref(url);
+      if (!safe) return label;
+      return `<a href="${escapeHtml(safe)}" target="_blank" rel="noopener noreferrer" class="text-[var(--accent)] hover:underline">${label}</a>`;
+    },
   );
   return out;
 }
