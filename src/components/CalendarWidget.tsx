@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { CalendarMonthGrid } from "./CalendarMonthGrid";
+import { CalendarMonthGrid, type CalendarSize } from "./CalendarMonthGrid";
 import {
   eventOnDay,
   formatTimeRange,
@@ -11,6 +11,15 @@ import {
   toIso,
 } from "@/lib/calendar-util";
 import type { CalendarEvent } from "@/lib/google";
+
+const SIZE_STORAGE_KEY = "wh-home-calendar-size";
+const SIZE_STEPS: CalendarSize[] = ["sm", "md", "lg"];
+const SIZE_LABEL: Record<CalendarSize, string> = {
+  sm: "S",
+  md: "M",
+  lg: "L",
+  xl: "XL",
+};
 
 type Status =
   | { configured: false; connected: false }
@@ -23,6 +32,22 @@ export function CalendarWidget() {
   const [month, setMonth] = useState(today.getMonth());
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [status, setStatus] = useState<Status | null>(null);
+  const [size, setSize] = useState<CalendarSize>(() => {
+    if (typeof window === "undefined") return "md";
+    const stored = window.localStorage.getItem(SIZE_STORAGE_KEY);
+    return stored && SIZE_STEPS.includes(stored as CalendarSize)
+      ? (stored as CalendarSize)
+      : "md";
+  });
+
+  const changeSize = (next: CalendarSize) => {
+    setSize(next);
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(SIZE_STORAGE_KEY, next);
+    }
+  };
+
+  const sizeIndex = SIZE_STEPS.indexOf(size);
 
   useEffect(() => {
     let cancelled = false;
@@ -103,6 +128,32 @@ export function CalendarWidget() {
           >
             ›
           </button>
+          <div className="ml-1 flex items-center overflow-hidden rounded-md border border-[var(--border)]">
+            <button
+              type="button"
+              onClick={() => sizeIndex > 0 && changeSize(SIZE_STEPS[sizeIndex - 1])}
+              disabled={sizeIndex === 0}
+              aria-label="작게"
+              className="px-1.5 py-0.5 text-xs text-[var(--muted)] hover:bg-white/5 hover:text-foreground disabled:opacity-30"
+            >
+              −
+            </button>
+            <span className="border-x border-[var(--border)] px-1.5 py-0.5 font-mono text-[10px] text-[var(--muted)]">
+              {SIZE_LABEL[size]}
+            </span>
+            <button
+              type="button"
+              onClick={() =>
+                sizeIndex < SIZE_STEPS.length - 1 &&
+                changeSize(SIZE_STEPS[sizeIndex + 1])
+              }
+              disabled={sizeIndex === SIZE_STEPS.length - 1}
+              aria-label="크게"
+              className="px-1.5 py-0.5 text-xs text-[var(--muted)] hover:bg-white/5 hover:text-foreground disabled:opacity-30"
+            >
+              +
+            </button>
+          </div>
           <Link
             href="/calendar"
             className="ml-2 rounded-md border border-[var(--border)] px-2 py-1 text-[11px] text-[var(--muted)] hover:text-foreground"
@@ -139,7 +190,7 @@ export function CalendarWidget() {
             year={year}
             month={month}
             events={events}
-            size="sm"
+            size={size}
           />
           <div className="mt-3 space-y-1.5">
             <p className="text-[10px] font-mono uppercase tracking-wider text-[var(--muted)]">

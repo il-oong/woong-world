@@ -39,15 +39,11 @@ export default async function HubPage() {
       <div className="mx-auto max-w-6xl px-6 py-16 md:py-24">
         <header className="mb-12 md:mb-16">
           <p className="font-mono text-xs uppercase tracking-[0.3em] text-[var(--accent)]">
-            woong / hub
+            woong-hub
           </p>
           <h1 className="mt-3 text-4xl font-semibold tracking-tight md:text-5xl">
-            내 도구와 서비스를 한 곳에
+            woong-hub
           </h1>
-          <p className="mt-4 max-w-xl text-base text-[var(--muted)]">
-            포트폴리오, 프롬프트 아카이브, 아이디어 노트, 게임 프로젝트, 워크플로우
-            도구 — 직접 만들고 사용하는 모든 것을 모았습니다.
-          </p>
           {pinned.length > 0 && (
             <div className="mt-6 flex items-center gap-2 text-xs text-[var(--muted)]">
               <span className="inline-block h-1.5 w-1.5 rounded-full bg-[var(--accent)]" />
