@@ -266,85 +266,275 @@ function LiveTab({
   );
 }
 
+type RepoDoc = {
+  path: string;
+  size: number;
+  content: string;
+  truncated: boolean;
+  html_url: string;
+};
+
 function SpecTab({ service }: { service: Service }) {
-  return (
-    <div className="mx-auto max-w-2xl px-6 py-8 text-sm">
-      <section className="mb-6">
-        <h3 className="mb-2 font-mono text-[10px] uppercase tracking-[0.2em] text-[var(--muted)]">
-          {"// "}소개
-        </h3>
-        <p className="leading-relaxed">
-          {service.resolvedDescription || (
-            <span className="text-[var(--muted)]">
-              설명이 없습니다. GitHub repo의 description 또는 services.json 의
-              description 을 채워주세요.
-            </span>
-          )}
+  const [docs, setDocs] = useState<RepoDoc[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [activePath, setActivePath] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    setDocs(null);
+    setError(null);
+    setActivePath(null);
+    fetch(`/api/repo-docs/${service.repo}`)
+      .then((r) => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        return r.json() as Promise<{ docs: RepoDoc[] }>;
+      })
+      .then((d) => {
+        if (cancelled) return;
+        setDocs(d.docs);
+        setActivePath(d.docs[0]?.path ?? null);
+      })
+      .catch((e: Error) => {
+        if (!cancelled) setError(e.message);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [service.repo]);
+
+  if (error) {
+    return (
+      <div className="flex h-full flex-col items-center justify-center gap-3 px-6 text-center text-xs">
+        <span className="text-2xl">📋</span>
+        <p className="text-[var(--muted)]">기획서를 불러올 수 없습니다 ({error})</p>
+        <p className="max-w-md leading-relaxed text-[var(--muted)]">
+          비공개 레포라면{" "}
+          <code className="rounded bg-white/5 px-1 font-mono">GITHUB_TOKEN</code>
+          이 필요합니다. 또는 GitHub API rate limit (60 req/h, 인증 시 5000)일
+          수도 있습니다.
         </p>
-      </section>
+      </div>
+    );
+  }
 
-      {service.topics && service.topics.length > 0 && (
-        <section className="mb-6">
-          <h3 className="mb-2 font-mono text-[10px] uppercase tracking-[0.2em] text-[var(--muted)]">
-            {"// "}topics
-          </h3>
-          <div className="flex flex-wrap gap-1.5">
-            {service.topics.map((t) => (
-              <span
-                key={t}
-                className="rounded-md bg-white/5 px-2 py-0.5 text-xs text-[var(--muted)]"
-              >
-                {t}
-              </span>
-            ))}
-          </div>
-        </section>
-      )}
+  if (!docs) {
+    return (
+      <div className="flex h-full items-center justify-center text-xs text-[var(--muted)]">
+        .md 파일 수집 중...
+      </div>
+    );
+  }
 
-      <section className="mb-6">
-        <h3 className="mb-2 font-mono text-[10px] uppercase tracking-[0.2em] text-[var(--muted)]">
-          {"// "}메타
-        </h3>
-        <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 text-xs">
-          <dt className="text-[var(--muted)]">repo</dt>
-          <dd className="font-mono">{service.repo}</dd>
-          {service.language && (
-            <>
-              <dt className="text-[var(--muted)]">언어</dt>
-              <dd>{service.language}</dd>
-            </>
+  if (docs.length === 0) {
+    return (
+      <div className="flex h-full flex-col items-center justify-center gap-3 px-6 text-center text-xs">
+        <span className="text-2xl">📋</span>
+        <p className="text-[var(--muted)]">이 레포에는 .md 파일이 없습니다.</p>
+        <p className="max-w-md leading-relaxed text-[var(--muted)]">
+          README.md, SPEC.md, docs/*.md 등이 있으면 여기에 모아서 보여드립니다.
+        </p>
+      </div>
+    );
+  }
+
+  const active = docs.find((d) => d.path === activePath) ?? docs[0];
+
+  return (
+    <div className="flex h-full">
+      <aside className="w-56 shrink-0 overflow-y-auto border-r border-[var(--border)] bg-black/20 p-2 text-xs">
+        <p className="px-2 pb-2 pt-1 font-mono text-[10px] uppercase tracking-[0.2em] text-[var(--muted)]">
+          {docs.length}개 .md
+        </p>
+        {docs.map((d) => (
+          <button
+            key={d.path}
+            type="button"
+            onClick={() => setActivePath(d.path)}
+            className={`block w-full truncate rounded-md px-2 py-1.5 text-left font-mono text-[11px] transition ${
+              d.path === active.path
+                ? "bg-white/10 text-foreground"
+                : "text-[var(--muted)] hover:bg-white/5 hover:text-foreground"
+            }`}
+            title={d.path}
+          >
+            {d.path}
+          </button>
+        ))}
+      </aside>
+      <div className="flex flex-1 flex-col overflow-hidden">
+        <div className="flex items-center gap-2 border-b border-[var(--border)] bg-[var(--card)] px-4 py-1.5 text-[11px]">
+          <code className="truncate font-mono text-[var(--muted)]">
+            {active.path}
+          </code>
+          <span className="font-mono text-[10px] text-[var(--muted)]">
+            {formatSize(active.size)}
+            {active.truncated && " · 잘림"}
+          </span>
+          <a
+            href={active.html_url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="ml-auto rounded px-1.5 py-0.5 text-[var(--muted)] hover:bg-white/5 hover:text-foreground"
+            title="GitHub에서 원문 보기"
+          >
+            ↗
+          </a>
+        </div>
+        <div className="flex-1 overflow-auto px-6 py-6">
+          <Markdown source={active.content} />
+          {active.truncated && (
+            <p className="mt-6 rounded-md border border-[var(--border)] bg-black/20 px-3 py-2 text-[10px] text-[var(--muted)]">
+              파일이 64KB 이상이라 일부만 표시됩니다. ↗ 버튼으로 GitHub에서 원문
+              확인.
+            </p>
           )}
-          {typeof service.stars === "number" && (
-            <>
-              <dt className="text-[var(--muted)]">★</dt>
-              <dd>{service.stars}</dd>
-            </>
-          )}
-          {service.pushedAt && (
-            <>
-              <dt className="text-[var(--muted)]">최근 push</dt>
-              <dd>{new Date(service.pushedAt).toLocaleDateString()}</dd>
-            </>
-          )}
-          {service.resolvedLiveUrl && (
-            <>
-              <dt className="text-[var(--muted)]">라이브</dt>
-              <dd className="truncate">
-                <a
-                  href={service.resolvedLiveUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-[var(--accent)] hover:underline"
-                >
-                  {service.resolvedLiveUrl}
-                </a>
-              </dd>
-            </>
-          )}
-        </dl>
-      </section>
+        </div>
+      </div>
     </div>
   );
+}
+
+function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+function renderInline(text: string): string {
+  let out = escapeHtml(text);
+  // inline code
+  out = out.replace(/`([^`]+)`/g, '<code class="rounded bg-white/10 px-1 py-0.5 font-mono text-[12px]">$1</code>');
+  // bold
+  out = out.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
+  // italic (avoid clashing with bold)
+  out = out.replace(/(^|[^*])\*([^*\n]+)\*/g, "$1<em>$2</em>");
+  // links [text](url)
+  out = out.replace(
+    /\[([^\]]+)\]\((https?:[^)\s]+)\)/g,
+    '<a href="$2" target="_blank" rel="noopener noreferrer" class="text-[var(--accent)] hover:underline">$1</a>',
+  );
+  return out;
+}
+
+function Markdown({ source }: { source: string }) {
+  const lines = source.replace(/\r\n/g, "\n").split("\n");
+  const blocks: React.ReactNode[] = [];
+  let i = 0;
+  let key = 0;
+  while (i < lines.length) {
+    const line = lines[i];
+    // fenced code
+    if (line.startsWith("```")) {
+      const lang = line.slice(3).trim();
+      const start = i + 1;
+      let end = start;
+      while (end < lines.length && !lines[end].startsWith("```")) end++;
+      const code = lines.slice(start, end).join("\n");
+      blocks.push(
+        <pre
+          key={key++}
+          className="my-3 overflow-x-auto rounded-lg border border-[var(--border)] bg-black/40 p-3 text-[12px] leading-relaxed"
+        >
+          {lang && (
+            <span className="mb-1 block font-mono text-[10px] uppercase tracking-wider text-[var(--muted)]">
+              {lang}
+            </span>
+          )}
+          <code>{code}</code>
+        </pre>,
+      );
+      i = end + 1;
+      continue;
+    }
+    // headings
+    const h = /^(#{1,6})\s+(.*)$/.exec(line);
+    if (h) {
+      const level = h[1].length;
+      const cls =
+        level === 1
+          ? "mt-4 mb-3 text-2xl font-semibold"
+          : level === 2
+            ? "mt-5 mb-2 text-xl font-semibold"
+            : level === 3
+              ? "mt-4 mb-2 text-lg font-medium"
+              : "mt-3 mb-1.5 text-sm font-medium";
+      blocks.push(
+        <p
+          key={key++}
+          className={cls}
+          dangerouslySetInnerHTML={{ __html: renderInline(h[2]) }}
+        />,
+      );
+      i++;
+      continue;
+    }
+    // unordered list
+    if (/^\s*[-*]\s+/.test(line)) {
+      const items: string[] = [];
+      while (i < lines.length && /^\s*[-*]\s+/.test(lines[i])) {
+        items.push(lines[i].replace(/^\s*[-*]\s+/, ""));
+        i++;
+      }
+      blocks.push(
+        <ul key={key++} className="my-2 ml-5 list-disc space-y-1 text-sm leading-relaxed">
+          {items.map((it, idx) => (
+            <li
+              key={idx}
+              dangerouslySetInnerHTML={{ __html: renderInline(it) }}
+            />
+          ))}
+        </ul>,
+      );
+      continue;
+    }
+    // ordered list
+    if (/^\s*\d+\.\s+/.test(line)) {
+      const items: string[] = [];
+      while (i < lines.length && /^\s*\d+\.\s+/.test(lines[i])) {
+        items.push(lines[i].replace(/^\s*\d+\.\s+/, ""));
+        i++;
+      }
+      blocks.push(
+        <ol key={key++} className="my-2 ml-5 list-decimal space-y-1 text-sm leading-relaxed">
+          {items.map((it, idx) => (
+            <li
+              key={idx}
+              dangerouslySetInnerHTML={{ __html: renderInline(it) }}
+            />
+          ))}
+        </ol>,
+      );
+      continue;
+    }
+    // blank line
+    if (line.trim() === "") {
+      i++;
+      continue;
+    }
+    // paragraph (collect consecutive non-empty non-special lines)
+    const para: string[] = [line];
+    i++;
+    while (
+      i < lines.length &&
+      lines[i].trim() !== "" &&
+      !lines[i].startsWith("```") &&
+      !/^(#{1,6})\s+/.test(lines[i]) &&
+      !/^\s*[-*]\s+/.test(lines[i]) &&
+      !/^\s*\d+\.\s+/.test(lines[i])
+    ) {
+      para.push(lines[i]);
+      i++;
+    }
+    blocks.push(
+      <p
+        key={key++}
+        className="my-2 text-sm leading-relaxed"
+        dangerouslySetInnerHTML={{ __html: renderInline(para.join(" ")) }}
+      />,
+    );
+  }
+  return <div className="prose-invert">{blocks}</div>;
 }
 
 function TreeTab({ service }: { service: Service }) {
