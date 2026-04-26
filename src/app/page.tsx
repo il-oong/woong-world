@@ -80,7 +80,18 @@ export default async function HubPage() {
         <HubGrid services={services} />
 
         <footer className="mt-20 border-t border-[var(--border)] pt-6 text-xs text-[var(--muted)]">
-          <p>
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+            <Link href="/spec" className="hover:text-foreground">
+              📋 기획서 / 코드 구조
+            </Link>
+            <Link href="/calendar" className="hover:text-foreground">
+              📅 일정
+            </Link>
+            <Link href="/plans" className="hover:text-foreground">
+              🎯 계획
+            </Link>
+          </div>
+          <p className="mt-3">
             서비스 추가는{" "}
             <code className="rounded bg-white/5 px-1.5 py-0.5 font-mono text-[11px]">
               src/data/services.json
