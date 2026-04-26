@@ -7,7 +7,6 @@ import {
   type Service,
   type ServiceSeed,
 } from "@/lib/types";
-import { countFeatures } from "@/lib/spec";
 import { HubGrid } from "@/components/HubGrid";
 import { CalendarWidget } from "@/components/CalendarWidget";
 
@@ -40,7 +39,6 @@ async function loadServices(): Promise<Service[]> {
 export default async function HubPage() {
   const services = await loadServices();
   const pinned = services.filter((s) => s.pinned);
-  const featureCounts = countFeatures();
 
   return (
     <div className="relative">
@@ -64,34 +62,8 @@ export default async function HubPage() {
           )}
         </header>
 
-        <div className="mb-10 grid gap-4 lg:grid-cols-4">
-          <div className="lg:col-span-2">
-            <CalendarWidget />
-          </div>
-          <Link
-            href="/spec"
-            className="group flex flex-col justify-between rounded-xl border border-[var(--border)] bg-[var(--card)] p-5 transition hover:border-[var(--accent)]/50"
-          >
-            <div>
-              <p className="font-mono text-[10px] uppercase tracking-[0.3em] text-[var(--accent)]">
-                woong / spec
-              </p>
-              <h2 className="mt-2 text-base font-medium">기획서 / 코드 구조</h2>
-              <p className="mt-1 text-xs leading-relaxed text-[var(--muted)]">
-                무엇을 만들고 있고, 무엇이 어디에 있는지 한눈에.
-              </p>
-            </div>
-            <div className="mt-4 flex items-center justify-between text-[11px] text-[var(--muted)] group-hover:text-foreground">
-              <span>
-                <span className="text-[#46d6db]">DONE {featureCounts.done}</span>
-                {" · "}
-                <span className="text-[#ffa726]">WIP {featureCounts.wip}</span>
-                {" · "}
-                <span className="text-[#a36ee0]">PLANNED {featureCounts.planned}</span>
-              </span>
-              <span>→</span>
-            </div>
-          </Link>
+        <div className="mb-10 grid gap-4 lg:grid-cols-[2fr_1fr]">
+          <CalendarWidget />
           <Link
             href="/plans"
             className="group flex flex-col justify-between rounded-xl border border-[var(--border)] bg-[var(--card)] p-5 transition hover:border-[var(--accent)]/50"
@@ -102,7 +74,8 @@ export default async function HubPage() {
               </p>
               <h2 className="mt-2 text-base font-medium">계획 관리</h2>
               <p className="mt-1 text-xs leading-relaxed text-[var(--muted)]">
-                주/월/년 계획을 카테고리별로. Gemini가 보완점 제안.
+                주간 / 월간 / 연간 계획을 카테고리별로 정리하고 Gemini로
+                보완점을 받습니다.
               </p>
             </div>
             <div className="mt-4 flex items-center justify-between text-[11px] text-[var(--muted)] group-hover:text-foreground">

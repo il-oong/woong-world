@@ -66,4 +66,84 @@ export async function fetchRepoContents(
   return data;
 }
 
+type TreeEntry = {
+  path: string;
+  type: "blob" | "tree";
+  size?: number;
+};
+
+export type RepoDoc = {
+  path: string;
+  size: number;
+  content: string;
+  truncated: boolean;
+  html_url: string;
+};
+
+const DOC_PRIORITY = [
+  /^README(\.[a-z]+)?\.md$/i,
+  /^SPEC(\.[a-z]+)?\.md$/i,
+  /^(PLAN|ROADMAP|DESIGN|ARCHITECTURE)(\.[a-z]+)?\.md$/i,
+  /^docs?\//i,
+  /\.md$/i,
+];
+
+const MAX_FILES = 12;
+const MAX_BYTES_PER_FILE = 64 * 1024;
+
+function docPriority(path: string): number {
+  for (let i = 0; i < DOC_PRIORITY.length; i++) {
+    if (DOC_PRIORITY[i].test(path)) return i;
+  }
+  return DOC_PRIORITY.length;
+}
+
+export async function fetchRepoDocs(slug: string): Promise<RepoDoc[] | null> {
+  const meta = await fetchRepo(slug);
+  if (!meta) return null;
+  const branch = (meta as GitHubRepo & { default_branch?: string }).default_branch ?? "main";
+
+  const treeRes = await fetch(
+    `https://api.github.com/repos/${slug}/git/trees/${encodeURIComponent(branch)}?recursive=1`,
+    { headers: authHeaders(), next: { revalidate: 600 } },
+  );
+  if (!treeRes.ok) return null;
+  const tree = (await treeRes.json()) as { tree?: TreeEntry[] };
+  const mdFiles = (tree.tree ?? [])
+    .filter((e) => e.type === "blob" && /\.md$/i.test(e.path))
+    .sort((a, b) => {
+      const pa = docPriority(a.path);
+      const pb = docPriority(b.path);
+      if (pa !== pb) return pa - pb;
+      return a.path.localeCompare(b.path);
+    })
+    .slice(0, MAX_FILES);
+
+  const docs: RepoDoc[] = [];
+  for (const f of mdFiles) {
+    const res = await fetch(
+      `https://api.github.com/repos/${slug}/contents/${encodeURIComponent(f.path).replace(/%2F/g, "/")}`,
+      { headers: authHeaders(), next: { revalidate: 600 } },
+    );
+    if (!res.ok) continue;
+    const data = (await res.json()) as {
+      content?: string;
+      encoding?: string;
+      size?: number;
+      html_url?: string;
+    };
+    if (!data.content || data.encoding !== "base64") continue;
+    const buf = Buffer.from(data.content, "base64");
+    const slice = buf.subarray(0, MAX_BYTES_PER_FILE);
+    docs.push({
+      path: f.path,
+      size: data.size ?? buf.byteLength,
+      content: slice.toString("utf-8"),
+      truncated: buf.byteLength > MAX_BYTES_PER_FILE,
+      html_url: data.html_url ?? `https://github.com/${slug}/blob/${branch}/${f.path}`,
+    });
+  }
+  return docs;
+}
+
 export type { GitHubRepo };

@@ -2,7 +2,6 @@ import Link from "next/link";
 
 const ITEMS = [
   { href: "/", label: "허브" },
-  { href: "/spec", label: "기획서" },
   { href: "/calendar", label: "일정" },
   { href: "/plans", label: "계획" },
 ];
