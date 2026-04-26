@@ -35,8 +35,6 @@ export function PreviewModal({
 }) {
   const initialTab: Tab = service.resolvedLiveUrl ? "live" : "spec";
   const [tab, setTab] = useState<Tab>(initialTab);
-  const [iframeLoaded, setIframeLoaded] = useState(false);
-  const [iframeKey, setIframeKey] = useState(0);
   const category = CATEGORY_BY_ID[service.category];
 
   useEffect(() => {
@@ -133,18 +131,7 @@ export function PreviewModal({
           </aside>
 
           <main className="relative flex-1 overflow-auto bg-black">
-            {tab === "live" && (
-              <LiveTab
-                service={service}
-                iframeKey={iframeKey}
-                onReload={() => {
-                  setIframeLoaded(false);
-                  setIframeKey((k) => k + 1);
-                }}
-                loaded={iframeLoaded}
-                onLoad={() => setIframeLoaded(true)}
-              />
-            )}
+            {tab === "live" && <LiveTab service={service} />}
             {tab === "spec" && <SpecTab service={service} />}
             {tab === "tree" && <TreeTab service={service} />}
           </main>
@@ -178,20 +165,25 @@ function TabButton({
   );
 }
 
-function LiveTab({
-  service,
-  iframeKey,
-  onReload,
-  loaded,
-  onLoad,
-}: {
-  service: Service;
-  iframeKey: number;
-  onReload: () => void;
-  loaded: boolean;
-  onLoad: () => void;
-}) {
-  if (!service.resolvedLiveUrl) {
+function LiveTab({ service }: { service: Service }) {
+  const [iframeKey, setIframeKey] = useState(0);
+  const [loaded, setLoaded] = useState(false);
+  const [blocked, setBlocked] = useState(false);
+
+  const url = service.resolvedLiveUrl;
+
+  useEffect(() => {
+    if (!url) return;
+    setLoaded(false);
+    setBlocked(false);
+    const t = setTimeout(() => {
+      setBlocked((b) => (loaded ? b : true));
+    }, 6000);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [url, iframeKey]);
+
+  if (!url) {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-3 px-6 text-center">
         <span className="text-3xl">🌐</span>
@@ -223,7 +215,11 @@ function LiveTab({
       <div className="flex items-center gap-2 border-b border-[var(--border)] bg-[var(--card)] px-3 py-1.5 text-[11px]">
         <button
           type="button"
-          onClick={onReload}
+          onClick={() => {
+            setLoaded(false);
+            setBlocked(false);
+            setIframeKey((k) => k + 1);
+          }}
           className="rounded p-1 text-[var(--muted)] hover:bg-white/5 hover:text-foreground"
           aria-label="새로고침"
           title="새로고침"
@@ -234,10 +230,10 @@ function LiveTab({
           </svg>
         </button>
         <span className="truncate font-mono text-[var(--muted)]">
-          {service.resolvedLiveUrl}
+          {url}
         </span>
         <a
-          href={service.resolvedLiveUrl}
+          href={url}
           target="_blank"
           rel="noopener noreferrer"
           className="ml-auto rounded px-1.5 py-0.5 text-[var(--muted)] hover:bg-white/5 hover:text-foreground"
@@ -247,20 +243,41 @@ function LiveTab({
         </a>
       </div>
       <div className="relative flex-1">
-        {!loaded && (
-          <div className="absolute inset-0 flex items-center justify-center text-xs text-[var(--muted)]">
-            로딩 중...
+        {blocked && !loaded ? (
+          <div className="flex h-full flex-col items-center justify-center gap-3 px-6 text-center">
+            <span className="text-3xl">🚫</span>
+            <h3 className="text-base font-medium">이 사이트는 임베드를 차단합니다</h3>
+            <p className="max-w-md text-xs leading-relaxed text-[var(--muted)]">
+              X-Frame-Options 또는 CSP frame-ancestors 정책으로 iframe 안에서
+              표시될 수 없습니다. 새 탭에서 직접 열어주세요.
+            </p>
+            <a
+              href={url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-2 rounded-md bg-[var(--accent)] px-4 py-2 text-xs font-medium text-black hover:bg-[var(--accent)]/90"
+            >
+              ↗ 새 탭에서 열기
+            </a>
           </div>
+        ) : (
+          <>
+            {!loaded && (
+              <div className="absolute inset-0 flex items-center justify-center text-xs text-[var(--muted)]">
+                로딩 중...
+              </div>
+            )}
+            <iframe
+              key={iframeKey}
+              src={url}
+              title={service.resolvedTitle}
+              onLoad={() => setLoaded(true)}
+              className="h-full w-full border-0"
+              sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-modals allow-presentation"
+              referrerPolicy="no-referrer-when-downgrade"
+            />
+          </>
         )}
-        <iframe
-          key={iframeKey}
-          src={service.resolvedLiveUrl}
-          title={service.resolvedTitle}
-          onLoad={onLoad}
-          className="h-full w-full border-0"
-          sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-modals allow-presentation"
-          referrerPolicy="no-referrer-when-downgrade"
-        />
       </div>
     </div>
   );
@@ -280,6 +297,7 @@ function SpecTab({ service }: { service: Service }) {
   const [activePath, setActivePath] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!service.exists) return;
     let cancelled = false;
     setDocs(null);
     setError(null);
@@ -300,7 +318,22 @@ function SpecTab({ service }: { service: Service }) {
     return () => {
       cancelled = true;
     };
-  }, [service.repo]);
+  }, [service.repo, service.exists]);
+
+  if (!service.exists) {
+    return (
+      <div className="flex h-full flex-col items-center justify-center gap-3 px-6 text-center text-xs">
+        <span className="text-2xl">📋</span>
+        <p className="text-[var(--muted)]">아직 만들어지지 않은 레포예요.</p>
+        <p className="max-w-md leading-relaxed text-[var(--muted)]">
+          <code className="rounded bg-white/5 px-1 font-mono">{service.repo}</code>
+          {" "}는 GitHub 에서 찾을 수 없거나 토큰으로 접근할 수 없습니다.
+          레포가 만들어지고 README.md / SPEC.md 등이 올라오면 여기에 자동으로
+          모입니다.
+        </p>
+      </div>
+    );
+  }
 
   if (error) {
     return (
@@ -565,6 +598,7 @@ function TreeTab({ service }: { service: Service }) {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!service.exists) return;
     let cancelled = false;
     setEntries(null);
     setError(null);
@@ -582,7 +616,20 @@ function TreeTab({ service }: { service: Service }) {
     return () => {
       cancelled = true;
     };
-  }, [service.repo]);
+  }, [service.repo, service.exists]);
+
+  if (!service.exists) {
+    return (
+      <div className="flex h-full flex-col items-center justify-center gap-3 px-6 text-center text-xs">
+        <span className="text-2xl">📁</span>
+        <p className="text-[var(--muted)]">아직 만들어지지 않은 레포예요.</p>
+        <p className="max-w-md leading-relaxed text-[var(--muted)]">
+          <code className="rounded bg-white/5 px-1 font-mono">{service.repo}</code>
+          {" "}는 GitHub 에서 찾을 수 없거나 토큰으로 접근할 수 없습니다.
+        </p>
+      </div>
+    );
+  }
 
   if (error) {
     return (
