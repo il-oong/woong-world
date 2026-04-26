@@ -5,6 +5,7 @@
     "icon": "🌐",
     "title": "Woong Hub",
     "description": "내 도구·서비스를 모아 둔 허브 (이 사이트)",
+    "liveUrl": "https://woong-world.vercel.app",
     "pinned": true
   },
   {

@@ -1,7 +1,9 @@
 import seed from "@/data/services.json";
 import { fetchRepo, fetchUserRepos } from "@/lib/github";
 import {
+  githubUrlFor,
   inferCategory,
+  pickLiveUrl,
   type Service,
   type ServiceSeed,
 } from "@/lib/types";
@@ -23,18 +25,22 @@ export async function GET() {
     repos.map(async (repo) => {
       const slug = repo.full_name;
       const s = seedBySlug.get(slug.toLowerCase());
-      const fallbackUrl = repo.html_url;
+      const githubUrl = githubUrlFor(slug);
+      const resolvedLiveUrl = pickLiveUrl(s?.liveUrl, s?.url, repo.homepage);
       return {
         repo: slug,
         category: s?.category ?? inferCategory(repo.topics),
         url: s?.url,
+        liveUrl: s?.liveUrl,
         icon: s?.icon,
         title: s?.title,
         description: s?.description,
         pinned: s?.pinned,
         resolvedTitle: s?.title ?? repo.name,
         resolvedDescription: s?.description ?? repo.description ?? "",
-        resolvedUrl: s?.url ?? (repo.homepage || fallbackUrl),
+        resolvedUrl: resolvedLiveUrl ?? githubUrl,
+        resolvedLiveUrl,
+        githubUrl,
         language: repo.language,
         topics: repo.topics ?? [],
         stars: repo.stargazers_count,
@@ -52,12 +58,15 @@ export async function GET() {
   for (const s of seeds) {
     if (fetchedSlugs.has(s.repo.toLowerCase())) continue;
     const repo = await fetchRepo(s.repo);
-    const fallbackUrl = `https://github.com/${s.repo}`;
+    const githubUrl = githubUrlFor(s.repo);
+    const resolvedLiveUrl = pickLiveUrl(s.liveUrl, s.url, repo?.homepage);
     curatedExtras.push({
       ...s,
       resolvedTitle: s.title ?? repo?.name ?? s.repo.split("/").pop() ?? s.repo,
       resolvedDescription: s.description ?? repo?.description ?? "",
-      resolvedUrl: s.url ?? repo?.homepage ?? fallbackUrl,
+      resolvedUrl: resolvedLiveUrl ?? githubUrl,
+      resolvedLiveUrl,
+      githubUrl,
       language: repo?.language ?? null,
       topics: repo?.topics ?? [],
       stars: repo?.stargazers_count,

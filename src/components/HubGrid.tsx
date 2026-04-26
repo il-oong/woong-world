@@ -160,8 +160,7 @@ export function HubGrid({ services: initialServices }: { services: Service[] }) 
 
       {preview && (
         <PreviewModal
-          url={preview.resolvedUrl}
-          title={preview.resolvedTitle}
+          service={preview}
           onClose={() => setPreview(null)}
         />
       )}

@@ -19,6 +19,7 @@ export type ServiceSeed = {
   repo: string;
   category: CategoryId;
   url?: string;
+  liveUrl?: string;
   icon?: string;
   title?: string;
   description?: string;
@@ -29,6 +30,8 @@ export type Service = ServiceSeed & {
   resolvedTitle: string;
   resolvedDescription: string;
   resolvedUrl: string;
+  resolvedLiveUrl: string | null;
+  githubUrl: string;
   language?: string | null;
   topics?: string[];
   stars?: number;
@@ -59,4 +62,23 @@ export function inferCategory(topics: string[] | undefined): CategoryId {
     if (hit) return hit;
   }
   return "workflow";
+}
+
+const GITHUB_URL_RE = /^https?:\/\/(www\.)?github\.com\//i;
+
+export function pickLiveUrl(
+  seedLive: string | undefined,
+  seedUrl: string | undefined,
+  repoHomepage: string | null | undefined,
+): string | null {
+  for (const candidate of [seedLive, seedUrl, repoHomepage]) {
+    if (!candidate) continue;
+    if (GITHUB_URL_RE.test(candidate)) continue;
+    return candidate;
+  }
+  return null;
+}
+
+export function githubUrlFor(repo: string): string {
+  return `https://github.com/${repo}`;
 }

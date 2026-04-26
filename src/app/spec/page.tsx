@@ -1,72 +1,11 @@
 import Link from "next/link";
+import { SPEC_FEATURES, SPEC_STATUS_STYLE } from "@/lib/spec";
 
 export const metadata = {
   title: "Spec — Woong Hub",
 };
 
-const FEATURES: {
-  title: string;
-  status: "done" | "wip" | "planned";
-  notes: string;
-}[] = [
-  {
-    title: "허브 메인 (서비스 카드 그리드)",
-    status: "done",
-    notes:
-      "GitHub 레포 메타데이터로 자동 enrich. 카테고리 필터, 검색, 즐겨찾기, ⌘K 팔레트.",
-  },
-  {
-    title: "iframe 프리뷰 모달",
-    status: "done",
-    notes: "카드 클릭 시 풀스크린 iframe. GitHub은 차단되니 폴백 화면.",
-  },
-  {
-    title: "Google Calendar 연동",
-    status: "done",
-    notes: "OAuth 로그인, 이벤트 조회/추가/삭제, 카테고리 색상 매핑.",
-  },
-  {
-    title: "카테고리 시스템",
-    status: "done",
-    notes: "인생 / 회사 / VFX / 앱개발 / 재즈. Calendar colorId + extendedProperties.",
-  },
-  {
-    title: "캘린더 크기 조절(S/M/L/XL)",
-    status: "done",
-    notes: "localStorage 기억. 홈 위젯과 풀 페이지 모두 지원.",
-  },
-  {
-    title: "주/월/년 계획 관리 (/plans)",
-    status: "done",
-    notes: "Upstash Redis 영속화. 카테고리별 분류, 체크리스트, 진행률, 메모.",
-  },
-  {
-    title: "Gemini AI 리뷰",
-    status: "done",
-    notes: "gemini-2.5-flash-lite. 개별 계획·전체 포트폴리오 두 모드.",
-  },
-  {
-    title: "채팅 비서 (뇌 대리)",
-    status: "done",
-    notes:
-      "우하단 플로팅 위젯. 캘린더+계획+업로드 파일을 컨텍스트로 받아 답변. 텍스트/마크다운/JSON/PDF/DOCX/이미지/URL 첨부. 봇이 일정·계획 액션 제안하면 사용자가 [승인]해서 실행.",
-  },
-  {
-    title: "게임풍 UI/UX 리스킨",
-    status: "planned",
-    notes: "픽셀/도트 폰트, 카드 모션, 사운드. 컴포넌트 구조는 그대로 두고 시각만 교체.",
-  },
-  {
-    title: "검색에 계획·일정도 포함",
-    status: "planned",
-    notes: "현재 ⌘K는 서비스만 검색. 추후 cross-cutting 검색.",
-  },
-  {
-    title: "공개 게시 (OAuth verification)",
-    status: "planned",
-    notes: "Google Cloud OAuth Production 전환. refresh token 7일 만료 해소.",
-  },
-];
+const FEATURES = SPEC_FEATURES;
 
 const ROUTES: { path: string; desc: string }[] = [
   { path: "/", desc: "허브 메인 — 서비스 그리드 + 캘린더 위젯 + 계획 카드" },
@@ -134,11 +73,7 @@ const TREE: { path: string; desc: string }[] = [
   { path: "src/data/services.json", desc: "큐레이션된 서비스 목록 (수동 편집)" },
 ];
 
-const STATUS_STYLE: Record<string, { label: string; color: string }> = {
-  done: { label: "DONE", color: "#46d6db" },
-  wip: { label: "WIP", color: "#ffa726" },
-  planned: { label: "PLANNED", color: "#a36ee0" },
-};
+const STATUS_STYLE = SPEC_STATUS_STYLE;
 
 export default function SpecPage() {
   return (
