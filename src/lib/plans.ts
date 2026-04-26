@@ -44,23 +44,31 @@ export type UpdatePlanInput = Partial<{
   notes: string;
 }>;
 
+function getRedisCreds(): { url: string; token: string } | null {
+  // Vercel Marketplace injects Upstash credentials as KV_REST_API_* by default,
+  // but direct Upstash signup uses UPSTASH_REDIS_REST_*. Accept either.
+  const url =
+    process.env.UPSTASH_REDIS_REST_URL ?? process.env.KV_REST_API_URL;
+  const token =
+    process.env.UPSTASH_REDIS_REST_TOKEN ?? process.env.KV_REST_API_TOKEN;
+  if (!url || !token) return null;
+  return { url, token };
+}
+
 export function isStorageConfigured(): boolean {
-  return Boolean(
-    process.env.UPSTASH_REDIS_REST_URL &&
-      process.env.UPSTASH_REDIS_REST_TOKEN,
-  );
+  return getRedisCreds() !== null;
 }
 
 let _redis: Redis | null = null;
 function redis(): Redis {
   if (_redis) return _redis;
-  if (!isStorageConfigured()) {
-    throw new Error("UPSTASH_REDIS_REST_URL / UPSTASH_REDIS_REST_TOKEN not set");
+  const creds = getRedisCreds();
+  if (!creds) {
+    throw new Error(
+      "Redis credentials not set (UPSTASH_REDIS_REST_URL/TOKEN or KV_REST_API_URL/TOKEN)",
+    );
   }
-  _redis = new Redis({
-    url: process.env.UPSTASH_REDIS_REST_URL!,
-    token: process.env.UPSTASH_REDIS_REST_TOKEN!,
-  });
+  _redis = new Redis({ url: creds.url, token: creds.token });
   return _redis;
 }
 
