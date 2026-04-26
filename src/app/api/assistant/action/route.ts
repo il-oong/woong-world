@@ -21,6 +21,7 @@ export async function POST(req: NextRequest) {
     messageId?: string;
     actionId?: string;
     decision?: "approve" | "reject";
+    params?: Record<string, unknown>;
   };
   try {
     body = (await req.json()) as typeof body;
@@ -42,12 +43,13 @@ export async function POST(req: NextRequest) {
     return Response.json({ ok: true, status: "rejected" });
   }
 
-  // approve → execute
+  // approve → execute (params override applied to Redis + used for execution)
   const r = await updateActionStatus(
     session.email,
     body.messageId,
     body.actionId,
     "approved",
+    body.params,
   );
   if (!r) return Response.json({ error: "not_found" }, { status: 404 });
 

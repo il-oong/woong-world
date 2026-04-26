@@ -138,6 +138,7 @@ export async function updateActionStatus(
   messageId: string,
   actionId: string,
   status: "approved" | "rejected",
+  paramsOverride?: Record<string, unknown>,
 ): Promise<{ message: ChatMessage; action: ProposedAction } | null> {
   const all = await loadChat(email);
   const idx = all.findIndex((m) => m.id === messageId);
@@ -147,6 +148,10 @@ export async function updateActionStatus(
   const action = msg.proposedActions.find((a) => a.id === actionId);
   if (!action) return null;
   action.status = status;
+  if (paramsOverride !== undefined) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (action as any).params = paramsOverride;
+  }
   all[idx] = { ...msg };
   await redis().set(chatKey(email), all);
   return { message: msg, action };

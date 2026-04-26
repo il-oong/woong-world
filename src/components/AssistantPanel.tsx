@@ -110,11 +110,12 @@ export function AssistantPanel({ onClose }: { onClose: () => void }) {
     messageId: string,
     actionId: string,
     decision: "approve" | "reject",
+    params?: Record<string, unknown>,
   ) => {
     const res = await fetch("/api/assistant/action", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ messageId, actionId, decision }),
+      body: JSON.stringify({ messageId, actionId, decision, params }),
     });
     if (!res.ok) {
       const data = (await res.json().catch(() => ({}))) as { error?: string };
