@@ -20,7 +20,8 @@
     "category": "ideas",
     "icon": "💡",
     "title": "Idea Notes",
-    "description": "떠오르는 아이디어 기록"
+    "description": "떠오르는 아이디어 기록",
+    "liveUrl": "https://ai-idea-note.vercel.app"
   },
   {
     "repo": "il-oong/dragon-raja",
