@@ -20,7 +20,6 @@ function scanEnvKeys() {
           {
             present: v.length > 0,
             length: v.length,
-            startsWith: v.length > 0 ? v.slice(0, 4) : null,
           },
         ];
       }),

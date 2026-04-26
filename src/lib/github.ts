@@ -43,4 +43,27 @@ export async function fetchUserRepos(username: string): Promise<GitHubRepo[]> {
   return repos.filter((r) => !r.fork && !r.archived);
 }
 
+export type RepoContent = {
+  name: string;
+  path: string;
+  type: "file" | "dir" | "symlink" | "submodule";
+  size: number;
+  html_url: string;
+};
+
+export async function fetchRepoContents(
+  slug: string,
+  path = "",
+): Promise<RepoContent[] | null> {
+  const url = `https://api.github.com/repos/${slug}/contents/${path}`;
+  const res = await fetch(url, {
+    headers: authHeaders(),
+    next: { revalidate: 600 },
+  });
+  if (!res.ok) return null;
+  const data = (await res.json()) as RepoContent[] | RepoContent;
+  if (!Array.isArray(data)) return null;
+  return data;
+}
+
 export type { GitHubRepo };
