@@ -10,6 +10,11 @@ import {
   toIso,
 } from "@/lib/calendar-util";
 import type { CalendarEvent } from "@/lib/google";
+import {
+  CATEGORIES,
+  categoryFromEvent,
+  type CategoryId,
+} from "@/lib/categories";
 import { CalendarMonthGrid } from "./CalendarMonthGrid";
 import { EventForm, type EventFormSubmit } from "./EventForm";
 
@@ -32,6 +37,12 @@ export function CalendarPanel({ variant = "full" }: { variant?: Variant }) {
   const [refresh, setRefresh] = useState(0);
   const [formOpen, setFormOpen] = useState(false);
   const [formKind, setFormKind] = useState<"timed" | "allday" | "project">("timed");
+  const [formCategory, setFormCategory] = useState<CategoryId | undefined>(
+    undefined,
+  );
+  const [activeCategories, setActiveCategories] = useState<Set<CategoryId>>(
+    () => new Set(CATEGORIES.map((c) => c.id)),
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -80,15 +91,41 @@ export function CalendarPanel({ variant = "full" }: { variant?: Variant }) {
     };
   }, [status?.connected, year, month, refresh]);
 
+  const visibleEvents = useMemo(() => {
+    return events.filter((ev) => {
+      const cat = categoryFromEvent(ev);
+      if (!cat) return activeCategories.size === CATEGORIES.length;
+      return activeCategories.has(cat.id);
+    });
+  }, [events, activeCategories]);
+
   const selectedEvents = useMemo(() => {
-    return events
+    return visibleEvents
       .filter((ev) => eventOnDay(ev, selectedIso))
       .sort((a, b) => {
         const aTime = a.start.dateTime ?? a.start.date ?? "";
         const bTime = b.start.dateTime ?? b.start.date ?? "";
         return aTime.localeCompare(bTime);
       });
-  }, [events, selectedIso]);
+  }, [visibleEvents, selectedIso]);
+
+  const toggleCategory = (id: CategoryId) => {
+    setActiveCategories((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const openFormFor = (
+    categoryId: CategoryId,
+    kind: "timed" | "allday" | "project" = "timed",
+  ) => {
+    setFormCategory(categoryId);
+    setFormKind(kind);
+    setFormOpen(true);
+  };
 
   const goPrev = () => {
     if (month === 0) {
@@ -227,6 +264,7 @@ SESSION_SECRET=at-least-32-chars-of-random-data`}</pre>
           <button
             type="button"
             onClick={() => {
+              setFormCategory(undefined);
               setFormKind("timed");
               setFormOpen(true);
             }}
@@ -237,6 +275,7 @@ SESSION_SECRET=at-least-32-chars-of-random-data`}</pre>
           <button
             type="button"
             onClick={() => {
+              setFormCategory(undefined);
               setFormKind("project");
               setFormOpen(true);
             }}
@@ -259,6 +298,50 @@ SESSION_SECRET=at-least-32-chars-of-random-data`}</pre>
         </div>
       </div>
 
+      <div className="flex flex-wrap items-center gap-1.5">
+        {CATEGORIES.map((cat) => {
+          const active = activeCategories.has(cat.id);
+          return (
+            <div
+              key={cat.id}
+              className="group flex items-stretch overflow-hidden rounded-full border transition"
+              style={{
+                borderColor: active ? cat.border : "var(--border)",
+                background: active ? cat.bg : "transparent",
+                opacity: active ? 1 : 0.45,
+              }}
+            >
+              <button
+                type="button"
+                onClick={() => toggleCategory(cat.id)}
+                className="flex items-center gap-1.5 px-3 py-1 text-xs"
+                style={{ color: active ? cat.color : "var(--muted)" }}
+                title={active ? `${cat.label} 숨기기` : `${cat.label} 표시`}
+              >
+                <span
+                  className="inline-block h-2 w-2 rounded-full"
+                  style={{ background: cat.color }}
+                />
+                {cat.label}
+              </button>
+              <button
+                type="button"
+                onClick={() => openFormFor(cat.id, "timed")}
+                className="border-l px-2 text-xs leading-none transition hover:bg-white/5"
+                style={{
+                  borderColor: active ? cat.border : "var(--border)",
+                  color: active ? cat.color : "var(--muted)",
+                }}
+                aria-label={`${cat.label}에 일정 추가`}
+                title={`${cat.label}에 일정 추가`}
+              >
+                +
+              </button>
+            </div>
+          );
+        })}
+      </div>
+
       <div
         className={
           variant === "full"
@@ -269,7 +352,7 @@ SESSION_SECRET=at-least-32-chars-of-random-data`}</pre>
         <CalendarMonthGrid
           year={year}
           month={month}
-          events={events}
+          events={visibleEvents}
           selectedIso={selectedIso}
           onSelect={setSelectedIso}
           size={variant === "compact" ? "sm" : "md"}
@@ -295,13 +378,23 @@ SESSION_SECRET=at-least-32-chars-of-random-data`}</pre>
             </p>
           )}
 
-          {selectedEvents.map((ev) => (
+          {selectedEvents.map((ev) => {
+            const cat = categoryFromEvent(ev);
+            return (
             <div
               key={ev.id}
               className="group flex flex-col gap-1 rounded-lg border border-[var(--border)] bg-white/[0.02] p-2.5"
+              style={cat ? { borderLeft: `3px solid ${cat.color}` } : undefined}
             >
               <div className="flex items-start justify-between gap-2">
-                <span className="text-sm font-medium text-foreground">
+                <span className="flex items-center gap-2 text-sm font-medium text-foreground">
+                  {cat && (
+                    <span
+                      className="inline-block h-2 w-2 shrink-0 rounded-full"
+                      style={{ background: cat.color }}
+                      aria-label={cat.label}
+                    />
+                  )}
                   {ev.summary ?? "(제목 없음)"}
                 </span>
                 <button
@@ -344,7 +437,8 @@ SESSION_SECRET=at-least-32-chars-of-random-data`}</pre>
                 </p>
               )}
             </div>
-          ))}
+            );
+          })}
         </div>
       </div>
 
@@ -352,6 +446,7 @@ SESSION_SECRET=at-least-32-chars-of-random-data`}</pre>
         open={formOpen}
         defaultDate={selectedIso}
         defaultKind={formKind}
+        defaultCategoryId={formCategory}
         onClose={() => setFormOpen(false)}
         onSubmit={handleCreate}
       />

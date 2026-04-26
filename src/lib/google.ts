@@ -3,6 +3,7 @@ import {
   writeSession,
   type GoogleSession,
 } from "./session";
+import { getCategory, type CategoryId } from "./categories";
 
 const TOKEN_URL = "https://oauth2.googleapis.com/token";
 const CALENDAR_API = "https://www.googleapis.com/calendar/v3";
@@ -29,6 +30,10 @@ export type CalendarEvent = {
   start: { date?: string; dateTime?: string; timeZone?: string };
   end: { date?: string; dateTime?: string; timeZone?: string };
   htmlLink?: string;
+  colorId?: string;
+  extendedProperties?: {
+    private?: { category?: string };
+  };
   reminders?: {
     useDefault?: boolean;
     overrides?: { method: "email" | "popup"; minutes: number }[];
@@ -42,6 +47,7 @@ export type CreateEventInput = {
   start: string;
   end: string;
   reminderMinutes?: number | null;
+  categoryId?: CategoryId;
 };
 
 function required(name: string): string {
@@ -174,6 +180,12 @@ export async function createEvent(
       useDefault: false,
       overrides: [{ method: "popup", minutes: input.reminderMinutes }],
     };
+  }
+
+  if (input.categoryId) {
+    const category = getCategory(input.categoryId);
+    body.colorId = category.colorId;
+    body.extendedProperties = { private: { category: category.id } };
   }
 
   const res = await fetch(`${CALENDAR_API}/calendars/primary/events`, {

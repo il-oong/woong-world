@@ -7,6 +7,7 @@ import {
   eventOnDay,
 } from "@/lib/calendar-util";
 import type { CalendarEvent } from "@/lib/google";
+import { categoryFromEvent } from "@/lib/categories";
 
 export function CalendarMonthGrid({
   year,
@@ -88,15 +89,24 @@ export function CalendarMonthGrid({
                 {cell.date.getDate()}
               </span>
 
-              {size === "md" && dayEvents.slice(0, 3).map((ev) => (
-                <span
-                  key={ev.id}
-                  className="block w-full truncate rounded bg-[var(--accent)]/15 px-1 py-0.5 text-[10px] text-[var(--accent)]"
-                  title={ev.summary ?? ""}
-                >
-                  {ev.summary ?? "(제목 없음)"}
-                </span>
-              ))}
+              {size === "md" && dayEvents.slice(0, 3).map((ev) => {
+                const cat = categoryFromEvent(ev);
+                const color = cat?.color;
+                return (
+                  <span
+                    key={ev.id}
+                    className="block w-full truncate rounded px-1 py-0.5 text-[10px]"
+                    style={
+                      color
+                        ? { background: `${color}26`, color }
+                        : { background: "color-mix(in oklab, var(--accent) 15%, transparent)", color: "var(--accent)" }
+                    }
+                    title={ev.summary ?? ""}
+                  >
+                    {ev.summary ?? "(제목 없음)"}
+                  </span>
+                );
+              })}
               {size === "md" && dayEvents.length > 3 && (
                 <span className="text-[10px] text-[var(--muted)]">
                   +{dayEvents.length - 3} more
@@ -104,7 +114,26 @@ export function CalendarMonthGrid({
               )}
 
               {size === "sm" && dayEvents.length > 0 && (
-                <span className="absolute bottom-1 left-1/2 h-1 w-1 -translate-x-1/2 rounded-full bg-[var(--accent)]" />
+                <span className="absolute bottom-1 left-1/2 flex -translate-x-1/2 gap-0.5">
+                  {Array.from(
+                    new Set(
+                      dayEvents
+                        .map((ev) => categoryFromEvent(ev)?.color)
+                        .filter((c): c is string => Boolean(c)),
+                    ),
+                  )
+                    .slice(0, 4)
+                    .map((c, i) => (
+                      <span
+                        key={`${c}-${i}`}
+                        className="h-1 w-1 rounded-full"
+                        style={{ background: c }}
+                      />
+                    ))}
+                  {dayEvents.every((ev) => !categoryFromEvent(ev)) && (
+                    <span className="h-1 w-1 rounded-full bg-[var(--accent)]" />
+                  )}
+                </span>
               )}
             </button>
           );
