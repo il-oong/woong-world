@@ -9,6 +9,48 @@ import {
 import type { CalendarEvent } from "@/lib/google";
 import { categoryFromEvent } from "@/lib/categories";
 
+export type CalendarSize = "sm" | "md" | "lg" | "xl";
+
+const SIZE_CONFIG: Record<
+  CalendarSize,
+  {
+    cellHeight: string;
+    dayLabel: string;
+    eventText: string;
+    maxEvents: number;
+    showLabels: boolean;
+  }
+> = {
+  sm: {
+    cellHeight: "min-h-[42px]",
+    dayLabel: "text-[10px]",
+    eventText: "text-[9px]",
+    maxEvents: 0,
+    showLabels: false,
+  },
+  md: {
+    cellHeight: "min-h-[80px]",
+    dayLabel: "text-xs",
+    eventText: "text-[10px]",
+    maxEvents: 3,
+    showLabels: true,
+  },
+  lg: {
+    cellHeight: "min-h-[110px]",
+    dayLabel: "text-sm",
+    eventText: "text-[11px]",
+    maxEvents: 4,
+    showLabels: true,
+  },
+  xl: {
+    cellHeight: "min-h-[150px]",
+    dayLabel: "text-base",
+    eventText: "text-xs",
+    maxEvents: 6,
+    showLabels: true,
+  },
+};
+
 export function CalendarMonthGrid({
   year,
   month,
@@ -22,7 +64,7 @@ export function CalendarMonthGrid({
   events: CalendarEvent[];
   selectedIso?: string;
   onSelect?: (iso: string) => void;
-  size?: "sm" | "md";
+  size?: CalendarSize;
 }) {
   const cells = useMemo(() => buildMonthGrid(year, month), [year, month]);
 
@@ -37,8 +79,7 @@ export function CalendarMonthGrid({
     return map;
   }, [cells, events]);
 
-  const cellHeight = size === "sm" ? "min-h-[42px]" : "min-h-[80px]";
-  const dayLabelSize = size === "sm" ? "text-[10px]" : "text-xs";
+  const cfg = SIZE_CONFIG[size];
 
   return (
     <div className="overflow-hidden rounded-xl border border-[var(--border)]">
@@ -67,14 +108,14 @@ export function CalendarMonthGrid({
               key={cell.iso}
               type="button"
               onClick={() => onSelect?.(cell.iso)}
-              className={`${cellHeight} relative flex flex-col items-start gap-1 border-b border-r border-[var(--border)] p-1.5 text-left transition last:border-r-0 ${
+              className={`${cfg.cellHeight} relative flex flex-col items-start gap-1 border-b border-r border-[var(--border)] p-1.5 text-left transition last:border-r-0 ${
                 cell.inMonth ? "bg-transparent" : "bg-white/[0.015]"
               } ${onSelect ? "hover:bg-white/[0.04]" : "cursor-default"} ${
                 isSelected ? "ring-1 ring-inset ring-[var(--accent)]/60" : ""
               }`}
             >
               <span
-                className={`${dayLabelSize} font-mono ${
+                className={`${cfg.dayLabel} font-mono ${
                   cell.isToday
                     ? "rounded bg-[var(--accent)] px-1.5 py-0.5 font-medium text-black"
                     : cell.inMonth
@@ -89,13 +130,13 @@ export function CalendarMonthGrid({
                 {cell.date.getDate()}
               </span>
 
-              {size === "md" && dayEvents.slice(0, 3).map((ev) => {
+              {cfg.showLabels && dayEvents.slice(0, cfg.maxEvents).map((ev) => {
                 const cat = categoryFromEvent(ev);
                 const color = cat?.color;
                 return (
                   <span
                     key={ev.id}
-                    className="block w-full truncate rounded px-1 py-0.5 text-[10px]"
+                    className={`block w-full truncate rounded px-1 py-0.5 ${cfg.eventText}`}
                     style={
                       color
                         ? { background: `${color}26`, color }
@@ -107,13 +148,13 @@ export function CalendarMonthGrid({
                   </span>
                 );
               })}
-              {size === "md" && dayEvents.length > 3 && (
-                <span className="text-[10px] text-[var(--muted)]">
-                  +{dayEvents.length - 3} more
+              {cfg.showLabels && dayEvents.length > cfg.maxEvents && (
+                <span className={`${cfg.eventText} text-[var(--muted)]`}>
+                  +{dayEvents.length - cfg.maxEvents} more
                 </span>
               )}
 
-              {size === "sm" && dayEvents.length > 0 && (
+              {!cfg.showLabels && dayEvents.length > 0 && (
                 <span className="absolute bottom-1 left-1/2 flex -translate-x-1/2 gap-0.5">
                   {Array.from(
                     new Set(

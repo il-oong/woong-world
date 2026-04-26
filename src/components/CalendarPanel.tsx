@@ -15,8 +15,17 @@ import {
   categoryFromEvent,
   type CategoryId,
 } from "@/lib/categories";
-import { CalendarMonthGrid } from "./CalendarMonthGrid";
+import { CalendarMonthGrid, type CalendarSize } from "./CalendarMonthGrid";
 import { EventForm, type EventFormSubmit } from "./EventForm";
+
+const SIZE_STORAGE_KEY = "wh-calendar-size";
+const SIZE_STEPS: CalendarSize[] = ["sm", "md", "lg", "xl"];
+const SIZE_LABEL: Record<CalendarSize, string> = {
+  sm: "S",
+  md: "M",
+  lg: "L",
+  xl: "XL",
+};
 
 type Status =
   | { configured: false; connected: false }
@@ -41,6 +50,29 @@ export function CalendarPanel({ variant = "full" }: { variant?: Variant }) {
     undefined,
   );
   const [activeTab, setActiveTab] = useState<CategoryId | "all">("all");
+  const [size, setSize] = useState<CalendarSize>(() => {
+    if (variant === "compact") return "sm";
+    if (typeof window === "undefined") return "md";
+    const stored = window.localStorage.getItem(SIZE_STORAGE_KEY);
+    return stored && SIZE_STEPS.includes(stored as CalendarSize)
+      ? (stored as CalendarSize)
+      : "md";
+  });
+
+  const changeSize = (next: CalendarSize) => {
+    setSize(next);
+    if (variant === "full" && typeof window !== "undefined") {
+      window.localStorage.setItem(SIZE_STORAGE_KEY, next);
+    }
+  };
+
+  const sizeIndex = SIZE_STEPS.indexOf(size);
+  const zoomOut = () => {
+    if (sizeIndex > 0) changeSize(SIZE_STEPS[sizeIndex - 1]);
+  };
+  const zoomIn = () => {
+    if (sizeIndex < SIZE_STEPS.length - 1) changeSize(SIZE_STEPS[sizeIndex + 1]);
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -273,6 +305,33 @@ SESSION_SECRET=at-least-32-chars-of-random-data`}</pre>
             + 프로젝트
           </button>
           {variant === "full" && (
+            <div className="ml-1 flex items-center overflow-hidden rounded-md border border-[var(--border)]">
+              <button
+                type="button"
+                onClick={zoomOut}
+                disabled={sizeIndex === 0}
+                aria-label="작게"
+                title="작게"
+                className="px-2 py-1 text-xs text-[var(--muted)] hover:bg-white/5 hover:text-foreground disabled:opacity-30"
+              >
+                −
+              </button>
+              <span className="border-x border-[var(--border)] px-2 py-1 font-mono text-[10px] text-[var(--muted)]">
+                {SIZE_LABEL[size]}
+              </span>
+              <button
+                type="button"
+                onClick={zoomIn}
+                disabled={sizeIndex === SIZE_STEPS.length - 1}
+                aria-label="크게"
+                title="크게"
+                className="px-2 py-1 text-xs text-[var(--muted)] hover:bg-white/5 hover:text-foreground disabled:opacity-30"
+              >
+                +
+              </button>
+            </div>
+          )}
+          {variant === "full" && (
             <div className="ml-2 flex items-center gap-2 border-l border-[var(--border)] pl-2 text-[11px] text-[var(--muted)]">
               {status.email && <span>{status.email}</span>}
               <button
@@ -309,7 +368,9 @@ SESSION_SECRET=at-least-32-chars-of-random-data`}</pre>
       <div
         className={
           variant === "full"
-            ? "grid gap-4 lg:grid-cols-[2fr_1fr]"
+            ? size === "xl"
+              ? "grid gap-4"
+              : "grid gap-4 lg:grid-cols-[2fr_1fr]"
             : "grid gap-4"
         }
       >
@@ -319,7 +380,7 @@ SESSION_SECRET=at-least-32-chars-of-random-data`}</pre>
           events={visibleEvents}
           selectedIso={selectedIso}
           onSelect={setSelectedIso}
-          size={variant === "compact" ? "sm" : "md"}
+          size={size}
         />
 
         <div className="flex flex-col gap-2 rounded-xl border border-[var(--border)] bg-[var(--card)] p-4">
