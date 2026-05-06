@@ -1,0 +1,33 @@
+{
+  "name": "Woong Hub",
+  "short_name": "Woong Hub",
+  "description": "내가 만든 모든 도구와 서비스를 한 곳에",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#09090d",
+  "theme_color": "#09090d",
+  "orientation": "any",
+  "lang": "ko",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "청약알리미",
+      "short_name": "청약",
+      "url": "/cheongak",
+      "icons": [{ "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml" }]
+    },
+    {
+      "name": "캘린더",
+      "short_name": "캘린더",
+      "url": "/calendar",
+      "icons": [{ "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml" }]
+    }
+  ]
+}

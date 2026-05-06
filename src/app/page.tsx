@@ -64,25 +64,46 @@ export default async function HubPage() {
 
         <div className="mb-10 grid gap-4 lg:grid-cols-[2fr_1fr]">
           <CalendarWidget />
-          <Link
-            href="/plans"
-            className="group flex flex-col justify-between rounded-xl border border-[var(--border)] bg-[var(--card)] p-5 transition hover:border-[var(--accent)]/50"
-          >
-            <div>
-              <p className="font-mono text-[10px] uppercase tracking-[0.3em] text-[var(--accent)]">
-                woong / plans
-              </p>
-              <h2 className="mt-2 text-base font-medium">계획 관리</h2>
-              <p className="mt-1 text-xs leading-relaxed text-[var(--muted)]">
-                주간 / 월간 / 연간 계획을 카테고리별로 정리하고 Gemini로
-                보완점을 받습니다.
-              </p>
-            </div>
-            <div className="mt-4 flex items-center justify-between text-[11px] text-[var(--muted)] group-hover:text-foreground">
-              <span>인생 · 회사 · VFX · 앱개발 · 재즈</span>
-              <span>→</span>
-            </div>
-          </Link>
+          <div className="flex flex-col gap-4">
+            <Link
+              href="/plans"
+              className="group flex flex-col justify-between rounded-xl border border-[var(--border)] bg-[var(--card)] p-5 transition hover:border-[var(--accent)]/50"
+            >
+              <div>
+                <p className="font-mono text-[10px] uppercase tracking-[0.3em] text-[var(--accent)]">
+                  woong / plans
+                </p>
+                <h2 className="mt-2 text-base font-medium">계획 관리</h2>
+                <p className="mt-1 text-xs leading-relaxed text-[var(--muted)]">
+                  주간 / 월간 / 연간 계획을 카테고리별로 정리하고 Gemini로
+                  보완점을 받습니다.
+                </p>
+              </div>
+              <div className="mt-4 flex items-center justify-between text-[11px] text-[var(--muted)] group-hover:text-foreground">
+                <span>인생 · 회사 · VFX · 앱개발 · 재즈</span>
+                <span>→</span>
+              </div>
+            </Link>
+            <Link
+              href="/cheongak"
+              className="group flex flex-col justify-between rounded-xl border border-[var(--border)] bg-[var(--card)] p-5 transition hover:border-[var(--accent)]/50"
+            >
+              <div>
+                <p className="font-mono text-[10px] uppercase tracking-[0.3em] text-[var(--accent)]">
+                  woong / cheongak
+                </p>
+                <h2 className="mt-2 text-base font-medium">청약알리미 🏠</h2>
+                <p className="mt-1 text-xs leading-relaxed text-[var(--muted)]">
+                  내 조건에 맞는 청약만 골라서 알림으로 알려드려요.
+                  지역 · 무주택 · 통장 횟수로 필터링합니다.
+                </p>
+              </div>
+              <div className="mt-4 flex items-center justify-between text-[11px] text-[var(--muted)] group-hover:text-foreground">
+                <span>🔔 맞춤 알림 · 신청 바로가기</span>
+                <span>→</span>
+              </div>
+            </Link>
+          </div>
         </div>
 
         <HubGrid services={services} />
