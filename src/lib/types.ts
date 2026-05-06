@@ -24,6 +24,8 @@ export type ServiceSeed = {
   title?: string;
   description?: string;
   pinned?: boolean;
+  internal?: boolean;
+  path?: string;
 };
 
 export type Service = ServiceSeed & {

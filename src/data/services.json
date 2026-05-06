@@ -9,6 +9,34 @@
     "pinned": true
   },
   {
+    "repo": "internal/cheongak",
+    "internal": true,
+    "path": "/cheongak",
+    "category": "workflow",
+    "icon": "🏠",
+    "title": "청약알리미",
+    "description": "내 조건에 맞는 청약만 골라서 알림으로 알려드려요. 가점 계산기 포함.",
+    "pinned": true
+  },
+  {
+    "repo": "internal/calendar",
+    "internal": true,
+    "path": "/calendar",
+    "category": "workflow",
+    "icon": "📅",
+    "title": "일정 관리",
+    "description": "Google Calendar 연동 — 일정 조회·생성·관리를 한 곳에서."
+  },
+  {
+    "repo": "internal/plans",
+    "internal": true,
+    "path": "/plans",
+    "category": "workflow",
+    "icon": "📋",
+    "title": "계획 관리",
+    "description": "주간·월간·연간 계획을 카테고리별로 정리하고 Gemini로 보완점을 받습니다."
+  },
+  {
     "repo": "il-oong/prompts",
     "category": "prompts",
     "icon": "📝",

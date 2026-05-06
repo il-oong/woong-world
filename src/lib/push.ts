@@ -41,6 +41,18 @@ export async function getAllSubs(): Promise<PushSub[]> {
   });
 }
 
+const CHEONGAK_SNAPSHOT_KEY = "cheongak:snapshot";
+
+export async function getCheongakSnapshot(): Promise<string[]> {
+  const raw = await redis.get<string>(CHEONGAK_SNAPSHOT_KEY);
+  if (!raw) return [];
+  try { return JSON.parse(raw) as string[]; } catch { return []; }
+}
+
+export async function saveCheongakSnapshot(ids: string[]): Promise<void> {
+  await redis.set(CHEONGAK_SNAPSHOT_KEY, JSON.stringify(ids));
+}
+
 export async function sendToAll(payload: { title: string; body: string; url?: string }) {
   initVapid();
   const subs = await getAllSubs();

@@ -7,7 +7,9 @@ type Profile = {
   name: string;
   region: string;
   isHomeless: boolean;
+  homelessYears: number;
   savingsMonths: number;
+  dependents: number;
   income: "low" | "mid" | "high";
   preferredAreas: string[];
 };
@@ -16,10 +18,44 @@ const DEFAULT_PROFILE: Profile = {
   name: "",
   region: "전체",
   isHomeless: true,
+  homelessYears: 3,
   savingsMonths: 24,
+  dependents: 0,
   income: "mid",
   preferredAreas: [],
 };
+
+// 가점제 점수 계산 (최대 84점)
+function calcGajeom(p: Profile): number {
+  // 무주택 기간 점수 (최대 32점)
+  const homelessScore = p.isHomeless
+    ? Math.min(32, p.homelessYears <= 0 ? 2 : p.homelessYears >= 15 ? 32 : 2 + Math.floor(p.homelessYears) * 2)
+    : 0;
+
+  // 부양가족 수 점수 (최대 35점: 0명=5, 1명=10, ... 6명 이상=35)
+  const depScore = Math.min(35, 5 + Math.min(p.dependents, 6) * 5);
+
+  // 청약통장 가입기간 점수 (최대 17점)
+  const years = p.savingsMonths / 12;
+  const savingsScore = years < 1 ? 1
+    : years < 2 ? 2
+    : years < 3 ? 3
+    : years < 4 ? 4
+    : years < 5 ? 5
+    : years < 6 ? 6
+    : years < 7 ? 7
+    : years < 8 ? 8
+    : years < 9 ? 9
+    : years < 10 ? 10
+    : years < 11 ? 11
+    : years < 12 ? 12
+    : years < 13 ? 13
+    : years < 14 ? 14
+    : years < 15 ? 15
+    : 17;
+
+  return homelessScore + depScore + savingsScore;
+}
 
 const REGIONS = ["전체", "서울", "경기", "인천", "부산", "대구", "광주", "대전", "울산", "세종", "강원", "충북", "충남", "전북", "전남", "경북", "경남", "제주"];
 const AREAS = ["39㎡", "49㎡", "59㎡", "74㎡", "84㎡", "101㎡", "114㎡", "120㎡ 이상"];
@@ -152,6 +188,8 @@ export function CheongakClient() {
     setEditingProfile(false);
   };
 
+  const gajeom = calcGajeom(profile);
+
   const scored = [...items]
     .map((item) => ({ item, score: matchScore(item, profile) }))
     .sort((a, b) => b.score - a.score || new Date(a.item.startDate).getTime() - new Date(b.item.startDate).getTime());
@@ -167,6 +205,14 @@ export function CheongakClient() {
           <p className="mt-1 text-sm text-[var(--muted)]">
             내 조건에 맞는 청약만 골라서 알려드려요
           </p>
+          {profile.isHomeless && (
+            <div className="mt-3 inline-flex items-center gap-2 rounded-lg border border-[var(--accent)]/20 bg-[var(--accent)]/5 px-3 py-1.5 text-xs">
+              <span className="text-[var(--muted)]">예상 가점</span>
+              <span className="font-mono text-lg font-bold text-[var(--accent)]">{gajeom}</span>
+              <span className="text-[var(--muted)]">/ 84점</span>
+              <GajeomBar score={gajeom} />
+            </div>
+          )}
         </div>
         <div className="flex items-center gap-2">
           <PushButton state={pushState} loading={pushLoading} onSubscribe={subscribePush} onUnsubscribe={unsubscribePush} />
@@ -428,18 +474,52 @@ function ProfileModal({
             </div>
           </div>
 
+          {draft.isHomeless && (
+            <label className="flex flex-col gap-1.5">
+              <span className="text-xs text-[var(--muted)]">무주택 기간: <strong>{draft.homelessYears}년</strong> (가점 최대 32점)</span>
+              <input
+                type="range" min={0} max={15} step={1}
+                value={draft.homelessYears}
+                onChange={(e) => setDraft({ ...draft, homelessYears: parseInt(e.target.value) })}
+                className="accent-[var(--accent)]"
+              />
+              <div className="flex justify-between text-[10px] text-[var(--muted)]">
+                <span>0년</span><span>5년</span><span>10년</span><span>15년+</span>
+              </div>
+            </label>
+          )}
+
           <label className="flex flex-col gap-1.5">
-            <span className="text-xs text-[var(--muted)]">청약통장 납입횟수: <strong>{draft.savingsMonths}개월</strong></span>
+            <span className="text-xs text-[var(--muted)]">부양가족 수: <strong>{draft.dependents}명</strong> (가점 최대 35점)</span>
             <input
-              type="range" min={0} max={120} step={6}
+              type="range" min={0} max={6} step={1}
+              value={draft.dependents}
+              onChange={(e) => setDraft({ ...draft, dependents: parseInt(e.target.value) })}
+              className="accent-[var(--accent)]"
+            />
+            <div className="flex justify-between text-[10px] text-[var(--muted)]">
+              <span>0명</span><span>1명</span><span>2명</span><span>3명</span><span>4명</span><span>5명</span><span>6명+</span>
+            </div>
+          </label>
+
+          <label className="flex flex-col gap-1.5">
+            <span className="text-xs text-[var(--muted)]">청약통장 납입횟수: <strong>{draft.savingsMonths}개월</strong> (가점 최대 17점)</span>
+            <input
+              type="range" min={0} max={180} step={6}
               value={draft.savingsMonths}
               onChange={(e) => setDraft({ ...draft, savingsMonths: parseInt(e.target.value) })}
               className="accent-[var(--accent)]"
             />
             <div className="flex justify-between text-[10px] text-[var(--muted)]">
-              <span>0</span><span>12</span><span>24</span><span>60</span><span>120개월</span>
+              <span>0</span><span>24</span><span>60</span><span>120</span><span>180개월</span>
             </div>
           </label>
+
+          <div className="rounded-lg border border-[var(--accent)]/20 bg-[var(--accent)]/5 px-3 py-2.5 text-xs">
+            <span className="text-[var(--muted)]">예상 가점 </span>
+            <span className="font-mono text-base font-bold text-[var(--accent)]">{calcGajeom(draft)}</span>
+            <span className="text-[var(--muted)]"> / 84점</span>
+          </div>
 
           <div className="flex flex-col gap-1.5">
             <span className="text-xs text-[var(--muted)]">소득 기준</span>
@@ -490,6 +570,16 @@ function ProfileModal({
           </button>
         </div>
       </div>
+    </div>
+  );
+}
+
+function GajeomBar({ score }: { score: number }) {
+  const pct = Math.round((score / 84) * 100);
+  const color = pct >= 60 ? "#34d399" : pct >= 40 ? "#fbbf24" : "#a78bfa";
+  return (
+    <div className="h-1.5 w-16 overflow-hidden rounded-full bg-white/10">
+      <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: color }} />
     </div>
   );
 }

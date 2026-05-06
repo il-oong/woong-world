@@ -9,11 +9,26 @@ import {
 } from "@/lib/types";
 import { HubGrid } from "@/components/HubGrid";
 import { CalendarWidget } from "@/components/CalendarWidget";
+import { DailySummary } from "@/components/DailySummary";
 
 async function loadServices(): Promise<Service[]> {
   const seeds = seed as ServiceSeed[];
   return Promise.all(
     seeds.map(async (s) => {
+      if (s.internal) {
+        return {
+          ...s,
+          resolvedTitle: s.title ?? s.repo.split("/").pop() ?? s.repo,
+          resolvedDescription: s.description ?? "",
+          resolvedUrl: s.path ?? "/",
+          resolvedLiveUrl: s.path ?? null,
+          githubUrl: "",
+          language: null,
+          topics: [],
+          exists: true,
+          curated: true,
+        };
+      }
       const repo = await fetchRepo(s.repo);
       const githubUrl = githubUrlFor(s.repo);
       const resolvedLiveUrl = pickLiveUrl(s.liveUrl, s.url, repo?.homepage);
@@ -61,6 +76,10 @@ export default async function HubPage() {
             </div>
           )}
         </header>
+
+        <div className="mb-4">
+          <DailySummary />
+        </div>
 
         <div className="mb-10 grid gap-4 lg:grid-cols-[2fr_1fr]">
           <CalendarWidget />
