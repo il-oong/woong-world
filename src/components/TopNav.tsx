@@ -5,6 +5,7 @@ const ITEMS = [
   { href: "/calendar", label: "일정" },
   { href: "/plans", label: "계획" },
   { href: "/cheongak", label: "청약" },
+  { href: "/settings", label: "설정" },
 ];
 
 export function TopNav() {
