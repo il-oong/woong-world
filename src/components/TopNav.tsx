@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 const ITEMS = [
-  { href: "/", label: "허브" },
+  { href: "/", label: "홈" },
   { href: "/calendar", label: "일정" },
   { href: "/plans", label: "계획" },
 ];
@@ -14,7 +14,7 @@ export function TopNav() {
           href="/"
           className="mr-3 font-mono text-[11px] uppercase tracking-[0.25em] text-[var(--accent)]"
         >
-          woong-hub
+          비서
         </Link>
         <div className="flex flex-1 items-center gap-1 text-xs">
           {ITEMS.map((it) => (

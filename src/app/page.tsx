@@ -1,100 +1,76 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import seed from "@/data/services.json";
-import { fetchRepo } from "@/lib/github";
-import {
-  githubUrlFor,
-  pickLiveUrl,
-  type Service,
-  type ServiceSeed,
-} from "@/lib/types";
-import { HubGrid } from "@/components/HubGrid";
 import { CalendarWidget } from "@/components/CalendarWidget";
+import { BriefingPlayer } from "@/components/BriefingPlayer";
+import { SecretarySetup } from "@/components/SecretarySetup";
+import type { SecretaryProfile } from "@/lib/secretary";
 
-async function loadServices(): Promise<Service[]> {
-  const seeds = seed as ServiceSeed[];
-  return Promise.all(
-    seeds.map(async (s) => {
-      const repo = await fetchRepo(s.repo);
-      const githubUrl = githubUrlFor(s.repo);
-      const resolvedLiveUrl = pickLiveUrl(s.liveUrl, s.url, repo?.homepage);
-      return {
-        ...s,
-        resolvedTitle: s.title ?? repo?.name ?? s.repo.split("/").pop() ?? s.repo,
-        resolvedDescription: s.description ?? repo?.description ?? "",
-        resolvedUrl: resolvedLiveUrl ?? githubUrl,
-        resolvedLiveUrl,
-        githubUrl,
-        language: repo?.language ?? null,
-        topics: repo?.topics ?? [],
-        stars: repo?.stargazers_count,
-        pushedAt: repo?.pushed_at ?? null,
-        isPrivate: repo?.private,
-        exists: repo !== null,
-        curated: true,
-      };
-    }),
-  );
-}
+export default function HomePage() {
+  const [profile, setProfile] = useState<SecretaryProfile | null | undefined>(undefined);
 
-export default async function HubPage() {
-  const services = await loadServices();
-  const pinned = services.filter((s) => s.pinned);
+  useEffect(() => {
+    fetch("/api/secretary")
+      .then((r) => (r.ok ? (r.json() as Promise<{ profile: SecretaryProfile | null }>) : null))
+      .then((d) => setProfile(d?.profile ?? null))
+      .catch(() => setProfile(null));
+  }, []);
+
+  if (profile === undefined) {
+    return (
+      <div className="flex min-h-[60vh] items-center justify-center">
+        <span className="animate-pulse text-sm text-[var(--muted)]">불러오는 중...</span>
+      </div>
+    );
+  }
 
   return (
-    <div className="relative">
-      <div className="bg-grid pointer-events-none absolute inset-0 -z-10" />
+    <>
+      {profile === null && (
+        <SecretarySetup onSave={(p) => setProfile(p)} />
+      )}
 
-      <div className="mx-auto max-w-6xl px-6 py-12 md:py-16">
-        <header className="mb-10 md:mb-12">
-          <p className="font-mono text-xs uppercase tracking-[0.3em] text-[var(--accent)]">
-            woong-hub
-          </p>
-          <h1 className="mt-3 text-4xl font-semibold tracking-tight md:text-5xl">
-            woong-hub
-          </h1>
-          {pinned.length > 0 && (
-            <div className="mt-6 flex items-center gap-2 text-xs text-[var(--muted)]">
-              <span className="inline-block h-1.5 w-1.5 rounded-full bg-[var(--accent)]" />
-              <span>
-                pinned: {pinned.map((p) => p.resolvedTitle).join(" · ")}
-              </span>
-            </div>
-          )}
-        </header>
+      <div className="relative">
+        <div className="bg-grid pointer-events-none absolute inset-0 -z-10" />
+        <div className="mx-auto max-w-4xl px-6 py-12 md:py-16">
+          <header className="mb-8">
+            <p className="font-mono text-xs uppercase tracking-[0.3em] text-[var(--accent)]">
+              biseo / home
+            </p>
+            <h1 className="mt-3 text-4xl font-semibold tracking-tight md:text-5xl">
+              안녕하세요{profile?.name ? `, ${profile.name}` : ""}
+            </h1>
+            <p className="mt-2 text-sm text-[var(--muted)]">오늘도 좋은 하루 되세요.</p>
+          </header>
 
-        <div className="mb-10 grid gap-4 lg:grid-cols-[2fr_1fr]">
-          <CalendarWidget />
-          <Link
-            href="/plans"
-            className="group flex flex-col justify-between rounded-xl border border-[var(--border)] bg-[var(--card)] p-5 transition hover:border-[var(--accent)]/50"
-          >
-            <div>
-              <p className="font-mono text-[10px] uppercase tracking-[0.3em] text-[var(--accent)]">
-                woong / plans
-              </p>
-              <h2 className="mt-2 text-base font-medium">계획 관리</h2>
-              <p className="mt-1 text-xs leading-relaxed text-[var(--muted)]">
-                주간 / 월간 / 연간 계획을 카테고리별로 정리하고 Gemini로
-                보완점을 받습니다.
-              </p>
-            </div>
-            <div className="mt-4 flex items-center justify-between text-[11px] text-[var(--muted)] group-hover:text-foreground">
-              <span>인생 · 회사 · VFX · 앱개발 · 재즈</span>
-              <span>→</span>
-            </div>
-          </Link>
+          <div className="mb-6">
+            <BriefingPlayer secretaryName={profile?.name ?? "비서"} />
+          </div>
+
+          <div className="grid gap-4 lg:grid-cols-[2fr_1fr]">
+            <CalendarWidget />
+            <Link
+              href="/plans"
+              className="group flex flex-col justify-between rounded-xl border border-[var(--border)] bg-[var(--card)] p-5 transition hover:border-[var(--accent)]/50"
+            >
+              <div>
+                <p className="font-mono text-[10px] uppercase tracking-[0.3em] text-[var(--accent)]">
+                  biseo / plans
+                </p>
+                <h2 className="mt-2 text-base font-medium">계획 관리</h2>
+                <p className="mt-1 text-xs leading-relaxed text-[var(--muted)]">
+                  주간 / 월간 / 연간 계획을 카테고리별로 정리하고 Gemini로 보완점을 받습니다.
+                </p>
+              </div>
+              <div className="mt-4 flex items-center justify-between text-[11px] text-[var(--muted)] group-hover:text-foreground">
+                <span>인생 · 회사 · VFX · 앱개발 · 재즈</span>
+                <span>→</span>
+              </div>
+            </Link>
+          </div>
         </div>
-
-        <HubGrid services={services} />
-
-        <footer className="mt-20 border-t border-[var(--border)] pt-6 text-xs text-[var(--muted)]">
-          서비스 추가는{" "}
-          <code className="rounded bg-white/5 px-1.5 py-0.5 font-mono text-[11px]">
-            src/data/services.json
-          </code>{" "}
-          에 항목을 더하세요.
-        </footer>
       </div>
-    </div>
+    </>
   );
 }

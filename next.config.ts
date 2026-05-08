@@ -20,8 +20,8 @@ const securityHeaders = [
       "script-src 'self' 'unsafe-inline'",
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
       "font-src 'self' https://fonts.gstatic.com data:",
-      "img-src 'self' data: blob: https://avatars.githubusercontent.com https://github.com",
-      "connect-src 'self' https://api.github.com",
+      "img-src 'self' data: blob:",
+      "connect-src 'self'",
     ].join("; "),
   },
 ];

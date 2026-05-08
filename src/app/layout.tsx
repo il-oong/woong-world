@@ -8,8 +8,8 @@ const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Woong Hub",
-  description: "내가 만든 모든 도구와 서비스를 한 곳에",
+  title: "비서",
+  description: "나만의 AI 일정 비서",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
