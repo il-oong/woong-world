@@ -5,22 +5,27 @@ export const dynamic = "force-dynamic";
 
 export async function POST(req: Request) {
   let text: string;
+  let correction: string | undefined;
   try {
     const formData = await req.formData();
     const file = formData.get("file") as File | null;
     if (!file) return Response.json({ error: "file_required" }, { status: 400 });
     text = await file.text();
+    const c = formData.get("correction");
+    if (c && typeof c === "string" && c.trim()) correction = c.trim();
   } catch {
     return Response.json({ error: "invalid_form" }, { status: 400 });
   }
 
-  const standard = parseCsv(text);
-  if (standard.length > 0) {
-    return Response.json({ events: standard, source: "csv" });
+  if (!correction) {
+    const standard = parseCsv(text);
+    if (standard.length > 0) {
+      return Response.json({ events: standard, source: "csv" });
+    }
   }
 
   try {
-    const events = await parseEventsFromSheet(text);
+    const events = await parseEventsFromSheet(text, correction);
     return Response.json({ events, source: "gemini" });
   } catch (e) {
     return Response.json(
