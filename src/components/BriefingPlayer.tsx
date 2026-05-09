@@ -1,12 +1,11 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 
 type State = "idle" | "loading" | "ready" | "playing" | "paused" | "done" | "error";
 
 export function BriefingPlayer({ secretaryName }: { secretaryName: string }) {
   const [state, setState] = useState<State>("idle");
-  const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [script, setScript] = useState<string | null>(null);
   const [scriptOpen, setScriptOpen] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
@@ -19,9 +18,18 @@ export function BriefingPlayer({ secretaryName }: { secretaryName: string }) {
       const res = await fetch("/api/briefing", { method: "POST" });
       const data = (await res.json()) as { audioUrl?: string; script?: string; error?: string };
       if (!res.ok) throw new Error(data.error ?? "생성 실패");
-      setAudioUrl(data.audioUrl!);
+
+      const audio = new Audio(data.audioUrl!);
+      audio.addEventListener("ended", () => setState("done"));
+      audioRef.current = audio;
       setScript(data.script ?? null);
-      setState("ready");
+
+      try {
+        await audio.play();
+        setState("playing");
+      } catch {
+        setState("ready");
+      }
     } catch (e) {
       setErrorMsg(e instanceof Error ? e.message : "오류 발생");
       setState("error");
@@ -41,18 +49,9 @@ export function BriefingPlayer({ secretaryName }: { secretaryName: string }) {
   }
 
   function pause() {
-    if (!audioRef.current) return;
-    audioRef.current.pause();
+    audioRef.current?.pause();
     setState("paused");
   }
-
-  useEffect(() => {
-    const audio = audioRef.current;
-    if (!audio) return;
-    const onEnd = () => setState("done");
-    audio.addEventListener("ended", onEnd);
-    return () => audio.removeEventListener("ended", onEnd);
-  }, [audioUrl]);
 
   return (
     <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-5">
@@ -62,10 +61,6 @@ export function BriefingPlayer({ secretaryName }: { secretaryName: string }) {
       <h2 className="mt-2 text-base font-medium">
         {secretaryName}의 오늘 브리핑
       </h2>
-
-      {audioUrl && (
-        <audio ref={audioRef} src={audioUrl} preload="auto" className="hidden" />
-      )}
 
       <div className="mt-4 flex items-center gap-3">
         {state === "idle" || state === "error" ? (

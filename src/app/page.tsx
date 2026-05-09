@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { CalendarWidget } from "@/components/CalendarWidget";
 import { BriefingPlayer } from "@/components/BriefingPlayer";
-import { BriefingTokenCard } from "@/components/BriefingTokenCard";
 import { SecretarySetup } from "@/components/SecretarySetup";
 import { PushSubscribeButton } from "@/components/PushSubscribeButton";
 import type { SecretaryProfile } from "@/lib/secretary";
@@ -113,9 +112,8 @@ export default function HomePage() {
             )}
           </header>
 
-          <div className="mb-6 flex flex-col gap-3">
+          <div className="mb-6">
             <BriefingPlayer secretaryName={profile?.name ?? "비서"} />
-            <BriefingTokenCard />
           </div>
 
           <div className="grid gap-4 lg:grid-cols-[2fr_1fr]">
