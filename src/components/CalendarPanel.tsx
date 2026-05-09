@@ -231,18 +231,22 @@ export function CalendarPanel({ variant = "full" }: { variant?: Variant }) {
     setRefresh((v) => v + 1);
   };
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = async (id: string, calendarId?: string) => {
     if (!confirm("이 일정을 삭제할까요?")) return;
-    const res = await fetch(`/api/google/events/${encodeURIComponent(id)}`, {
-      method: "DELETE",
-    });
+    const calId = calendarId ?? (selectedCalendarId !== "all" ? selectedCalendarId : "primary");
+    const res = await fetch(
+      `/api/google/events/${encodeURIComponent(id)}?calendarId=${encodeURIComponent(calId)}`,
+      { method: "DELETE" },
+    );
     if (!res.ok) { alert("삭제 실패"); return; }
     setRefresh((v) => v + 1);
   };
 
   const handleUpdate = async (input: EventFormSubmit) => {
     if (!editingEvent) return;
-    const calendarId = editingEvent.calendarId ?? "primary";
+    const calendarId =
+      editingEvent.calendarId ??
+      (selectedCalendarId !== "all" ? selectedCalendarId : "primary");
     const res = await fetch(`/api/google/events/${encodeURIComponent(editingEvent.id)}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
@@ -782,7 +786,7 @@ SESSION_SECRET=at-least-32-chars-of-random-data`}</pre>
                   </span>
                   <button
                     type="button"
-                    onClick={(e) => { e.stopPropagation(); handleDelete(ev.id); }}
+                    onClick={(e) => { e.stopPropagation(); handleDelete(ev.id, ev.calendarId); }}
                     aria-label="Delete event"
                     className="opacity-0 transition group-hover:opacity-100 text-[var(--muted)] hover:text-rose-300"
                   >

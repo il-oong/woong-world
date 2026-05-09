@@ -25,7 +25,7 @@ export async function PUT(
 }
 
 export async function DELETE(
-  _req: Request,
+  req: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
   const session = await getValidSession();
@@ -33,8 +33,9 @@ export async function DELETE(
     return Response.json({ error: "not_connected" }, { status: 401 });
   }
   const { id } = await params;
+  const calendarId = new URL(req.url).searchParams.get("calendarId") ?? "primary";
   try {
-    await deleteEvent(session, id);
+    await deleteEvent(session, id, calendarId);
     return Response.json({ ok: true });
   } catch (e) {
     return Response.json(
