@@ -423,6 +423,21 @@ SESSION_SECRET=at-least-32-chars-of-random-data`}</pre>
             + 프로젝트
           </button>
           {variant === "full" && (
+            <button
+              type="button"
+              onClick={() => setCatMgmtOpen((o) => !o)}
+              aria-label="카테고리 관리"
+              title="카테고리 관리"
+              className={`rounded-md border px-2.5 py-1.5 text-xs transition ${
+                catMgmtOpen
+                  ? "border-[var(--accent)]/60 bg-[var(--accent)]/10 text-[var(--accent)]"
+                  : "border-[var(--border)] text-[var(--muted)] hover:border-[var(--accent)]/40 hover:text-foreground"
+              }`}
+            >
+              ⚙ 카테고리
+            </button>
+          )}
+          {variant === "full" && (
             <div className="ml-1 flex items-center overflow-hidden rounded-md border border-[var(--border)]">
               <button
                 type="button"
@@ -580,15 +595,6 @@ SESSION_SECRET=at-least-32-chars-of-random-data`}</pre>
             onClick={() => setActiveTab(cat.id)}
           />
         ))}
-        {variant === "full" && (
-          <button
-            type="button"
-            onClick={() => setCatMgmtOpen((o) => !o)}
-            className="ml-auto rounded-md border border-dashed border-[var(--border)] px-2.5 py-1 text-[11px] text-[var(--muted)] hover:border-[var(--accent)]/50 hover:text-foreground transition"
-          >
-            카테고리 관리
-          </button>
-        )}
       </div>
 
       {/* ── 카테고리 관리 패널 ── */}
@@ -783,6 +789,7 @@ SESSION_SECRET=at-least-32-chars-of-random-data`}</pre>
         defaultDate={selectedIso}
         defaultKind={formKind}
         defaultCategoryId={formCategory}
+        categories={categories}
         onClose={() => setFormOpen(false)}
         onSubmit={handleCreate}
       />
@@ -790,6 +797,7 @@ SESSION_SECRET=at-least-32-chars-of-random-data`}</pre>
       <EventForm
         open={editingEvent !== null}
         initialEvent={editingEvent ?? undefined}
+        categories={categories}
         onClose={() => setEditingEvent(null)}
         onSubmit={handleUpdate}
       />

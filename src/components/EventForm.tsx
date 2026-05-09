@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { toIso } from "@/lib/calendar-util";
-import { CATEGORIES, type CategoryId } from "@/lib/categories";
+import { CATEGORIES, type Category, type CategoryId } from "@/lib/categories";
 import type { CalendarEvent } from "@/lib/google";
 
 type EventKind = "timed" | "allday" | "project";
@@ -89,6 +89,7 @@ export function EventForm({
   defaultKind = "timed",
   defaultCategoryId,
   initialEvent,
+  categories,
   onClose,
   onSubmit,
 }: {
@@ -97,6 +98,7 @@ export function EventForm({
   defaultKind?: EventKind;
   defaultCategoryId?: CategoryId;
   initialEvent?: CalendarEvent;
+  categories?: Category[];
   onClose: () => void;
   onSubmit: (input: EventFormSubmit) => Promise<void>;
 }) {
@@ -107,6 +109,7 @@ export function EventForm({
       defaultKind={defaultKind}
       defaultCategoryId={defaultCategoryId}
       initialEvent={initialEvent}
+      categories={categories ?? CATEGORIES}
       onClose={onClose}
       onSubmit={onSubmit}
     />
@@ -118,6 +121,7 @@ function FormBody({
   defaultKind,
   defaultCategoryId,
   initialEvent,
+  categories,
   onClose,
   onSubmit,
 }: {
@@ -125,6 +129,7 @@ function FormBody({
   defaultKind: EventKind;
   defaultCategoryId?: CategoryId;
   initialEvent?: CalendarEvent;
+  categories: Category[];
   onClose: () => void;
   onSubmit: (input: EventFormSubmit) => Promise<void>;
 }) {
@@ -134,7 +139,7 @@ function FormBody({
   const today = defaultDate ?? toIso(new Date());
   const [kind, setKind] = useState<EventKind>(parsed?.kind ?? defaultKind);
   const [categoryId, setCategoryId] = useState<CategoryId>(
-    parsed?.categoryId ?? defaultCategoryId ?? CATEGORIES[0].id,
+    parsed?.categoryId ?? defaultCategoryId ?? (categories[0]?.id ?? CATEGORIES[0].id),
   );
   const [summary, setSummary] = useState(parsed?.summary ?? "");
   const [description, setDescription] = useState(parsed?.description ?? "");
@@ -237,7 +242,7 @@ function FormBody({
 
           <Field label="카테고리">
             <div className="flex flex-wrap gap-1.5">
-              {CATEGORIES.map((cat) => {
+              {categories.map((cat) => {
                 const active = categoryId === cat.id;
                 return (
                   <button
