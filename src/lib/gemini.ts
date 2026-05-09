@@ -413,7 +413,7 @@ export async function generateBriefingScript(
 주인님의 하루를 자연스럽고 따뜻하게 브리핑해줘.
 
 규칙:
-- 반드시 "${secretaryName}입니다" 또는 "${secretaryName}이에요"로 자기소개 시작
+- 반드시 "안녕하세요, 저는 ${secretaryName}입니다" 또는 "안녕하세요, ${secretaryName}예요"로 시작
 - 오늘 날짜와 요일 언급
 - 오늘 일정과 내일 일정을 간결하게 정리
 - 진행 중인 계획 중 신경 써야 할 것 1~2개 언급

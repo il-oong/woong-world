@@ -18,16 +18,30 @@ Windows 전용 스크립트: `dev.bat`, `desktop-dev.bat`
 
 `.env.local`에 아래 변수가 없으면 기능이 동작하지 않는다.
 
-| 변수 | 용도 |
-|------|------|
-| `GEMINI_API_KEY` | AI 어시스턴트 (Google Gemini 2.5-flash-lite) |
-| `GOOGLE_CLIENT_ID` | Google OAuth |
-| `GOOGLE_CLIENT_SECRET` | Google OAuth |
-| `GOOGLE_REDIRECT_URI` | OAuth 콜백 URL |
-| `SESSION_SECRET` | JWT 암호화 (32바이트 이상) |
-| `UPSTASH_REDIS_REST_URL` | Redis (채팅 기록, 플랜 저장) |
-| `UPSTASH_REDIS_REST_TOKEN` | Redis 인증 |
-| `GITHUB_TOKEN` | GitHub API rate limit 우회 (선택) |
+### 기본 (필수)
+
+| 변수 | 용도 | 발급 위치 |
+|------|------|-----------|
+| `GEMINI_API_KEY` | AI 어시스턴트 (Google Gemini 2.5-flash-lite) | Google AI Studio |
+| `GOOGLE_CLIENT_ID` | Google OAuth | Google Cloud Console → 사용자 인증 정보 |
+| `GOOGLE_CLIENT_SECRET` | Google OAuth | Google Cloud Console → 사용자 인증 정보 |
+| `GOOGLE_REDIRECT_URI` | OAuth 콜백 URL | 직접 입력 (로컬: `http://localhost:3000/api/google/callback`) |
+| `SESSION_SECRET` | JWT 암호화 (32바이트 이상) | `openssl rand -hex 32` |
+| `UPSTASH_REDIS_REST_URL` | Redis | Upstash 콘솔 → 프로젝트 → REST API |
+| `UPSTASH_REDIS_REST_TOKEN` | Redis 인증 | Upstash 콘솔 → 프로젝트 → REST API |
+
+### 브리핑 음성 (필수)
+
+| 변수 | 용도 | 발급 위치 |
+|------|------|-----------|
+| `GOOGLE_TTS_API_KEY` | 음성 합성 (Google Cloud TTS) | Google Cloud Console → API 키 (Cloud Text-to-Speech API 활성화 필요) |
+| `BLOB_READ_WRITE_TOKEN` | 음성 MP3 파일 저장 | Vercel 대시보드 → Storage → Blob → 스토어 생성 후 자동 주입 |
+
+### 선택
+
+| 변수 | 용도 | 발급 위치 |
+|------|------|-----------|
+| `GITHUB_TOKEN` | GitHub API rate limit 우회 | GitHub → Settings → Developer settings → Personal access tokens |
 
 ## Architecture
 

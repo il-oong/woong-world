@@ -28,10 +28,15 @@ export function BriefingPlayer({ secretaryName }: { secretaryName: string }) {
     }
   }
 
-  function play() {
-    if (!audioRef.current) return;
-    audioRef.current.play();
-    setState("playing");
+  async function play() {
+    const audio = audioRef.current;
+    if (!audio) return;
+    try {
+      await audio.play();
+      setState("playing");
+    } catch {
+      setState("paused");
+    }
   }
 
   function pause() {
