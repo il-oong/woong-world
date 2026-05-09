@@ -379,29 +379,41 @@ export async function chatWithAssistant(input: {
 // 브리핑 스크립트 생성
 // =====================================================================
 
-export async function generateBriefingScript(
-  secretaryName: string,
-  events: CalendarEvent[],
-  plans: Plan[],
-): Promise<string> {
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) throw new Error("GEMINI_API_KEY not set");
+export type BriefingMode = "daily" | "weekly" | "monthly";
 
-  const today = toIso(new Date());
-  const tomorrow = toIso(new Date(Date.now() + 86_400_000));
+export function getBriefingMode(now = new Date()): BriefingMode {
+  if (now.getDate() === 1) return "monthly";
+  if (now.getDay() === 1) return "weekly"; // Monday
+  return "daily";
+}
 
-  const todayEvents = events.filter((ev) => eventOnDay(ev, today));
-  const tomorrowEvents = events.filter((ev) => eventOnDay(ev, tomorrow));
+function fmtEventList(evs: CalendarEvent[]): string {
+  if (evs.length === 0) return "  없음";
+  return evs
+    .map((ev) => {
+      const time = formatTimeRange(ev);
+      return `  · ${ev.summary ?? "(제목 없음)"}${time ? ` (${time})` : ""}`;
+    })
+    .join("\n");
+}
 
-  const fmtEvents = (evs: CalendarEvent[]) =>
-    evs.length === 0
-      ? "  없음"
-      : evs
-          .map((ev) => {
-            const time = formatTimeRange(ev);
-            return `  · ${ev.summary ?? "(제목 없음)"}${time ? ` (${time})` : ""}`;
-          })
-          .join("\n");
+function eventsInRange(events: CalendarEvent[], from: string, to: string): CalendarEvent[] {
+  return events.filter((ev) => {
+    const d = ev.start.date ?? ev.start.dateTime?.slice(0, 10) ?? "";
+    return d >= from && d <= to;
+  });
+}
+
+function isoOffset(base: Date, days: number): string {
+  const d = new Date(base);
+  d.setDate(d.getDate() + days);
+  return toIso(d);
+}
+
+function buildDailyBlock(events: CalendarEvent[], plans: Plan[], now: Date): string {
+  const today = toIso(now);
+  const tomorrow = isoOffset(now, 1);
+  const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"];
 
   const activePlans = plans
     .filter((p) => !p.items.every((i) => i.done))
@@ -409,28 +421,99 @@ export async function generateBriefingScript(
     .map((p) => `  · [${p.period}] ${p.title} (${p.items.filter((i) => !i.done).length}개 남음)`)
     .join("\n") || "  없음";
 
+  return `[오늘: ${today} ${WEEKDAYS[now.getDay()]}요일]
+오늘 일정:
+${fmtEventList(events.filter((ev) => eventOnDay(ev, today)))}
+
+내일 일정:
+${fmtEventList(events.filter((ev) => eventOnDay(ev, tomorrow)))}
+
+진행 중인 계획:
+${activePlans}`;
+}
+
+function buildWeeklyBlock(events: CalendarEvent[], plans: Plan[], now: Date): string {
+  const mon = new Date(now);
+  mon.setDate(now.getDate() - ((now.getDay() + 6) % 7));
+  const sun = isoOffset(mon, 6);
+  const weekEvents = eventsInRange(events, toIso(mon), sun);
+
+  const weeklyPlans = plans
+    .filter((p) => p.period === "weekly" && !p.items.every((i) => i.done))
+    .slice(0, 5)
+    .map((p) => {
+      const done = p.items.filter((i) => i.done).length;
+      return `  · ${p.title} (${done}/${p.items.length} 완료)`;
+    })
+    .join("\n") || "  없음";
+
+  return `[이번 주: ${toIso(mon)} ~ ${sun}]
+이번 주 일정:
+${fmtEventList(weekEvents)}
+
+주간 목표:
+${weeklyPlans}`;
+}
+
+function buildMonthlyBlock(events: CalendarEvent[], plans: Plan[], now: Date): string {
+  const y = now.getFullYear();
+  const m = now.getMonth();
+  const firstDay = toIso(new Date(y, m, 1));
+  const lastDay = toIso(new Date(y, m + 1, 0));
+  const monthEvents = eventsInRange(events, firstDay, lastDay);
+
+  const monthlyPlans = plans
+    .filter((p) => (p.period === "monthly" || p.period === "yearly") && !p.items.every((i) => i.done))
+    .slice(0, 5)
+    .map((p) => {
+      const done = p.items.filter((i) => i.done).length;
+      return `  · [${p.period}] ${p.title} (${done}/${p.items.length} 완료)`;
+    })
+    .join("\n") || "  없음";
+
+  return `[이번 달: ${y}년 ${m + 1}월]
+이달 주요 일정:
+${fmtEventList(monthEvents.slice(0, 10))}
+
+월간/연간 목표:
+${monthlyPlans}`;
+}
+
+export async function generateBriefingScript(
+  secretaryName: string,
+  events: CalendarEvent[],
+  plans: Plan[],
+  mode?: BriefingMode,
+): Promise<string> {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) throw new Error("GEMINI_API_KEY not set");
+
+  const now = new Date();
+  const resolvedMode = mode ?? getBriefingMode(now);
+
+  const sections: string[] = [];
+  if (resolvedMode === "monthly") sections.push(buildMonthlyBlock(events, plans, now));
+  if (resolvedMode === "monthly" || resolvedMode === "weekly") sections.push(buildWeeklyBlock(events, plans, now));
+  sections.push(buildDailyBlock(events, plans, now));
+
+  const modeLabel =
+    resolvedMode === "monthly" ? "월간+주간+일간" :
+    resolvedMode === "weekly" ? "주간+일간" : "일간";
+
+  const maxTokens = resolvedMode === "monthly" ? 700 : resolvedMode === "weekly" ? 500 : 400;
+
   const systemPrompt = `너는 "${secretaryName}"이라는 이름의 AI 비서야.
-주인님의 하루를 자연스럽고 따뜻하게 브리핑해줘.
+주인님의 ${modeLabel} 브리핑을 자연스럽고 따뜻하게 읽어줘.
 
 규칙:
-- 반드시 "안녕하세요, 저는 ${secretaryName}입니다" 또는 "안녕하세요, ${secretaryName}예요"로 시작
+- "안녕하세요, 저는 ${secretaryName}입니다" 또는 "${secretaryName}예요"로 시작
 - 오늘 날짜와 요일 언급
-- 오늘 일정과 내일 일정을 간결하게 정리
-- 진행 중인 계획 중 신경 써야 할 것 1~2개 언급
+- 제공된 데이터 순서대로 브리핑 (월간 → 주간 → 일간)
+- 각 섹션 자연스럽게 이어서 읽히도록 구성
 - 짧고 자연스러운 마무리 인사
-- 전체 300자 내외, 음성으로 읽기 좋게 작성
-- JSON, 마크다운, 특수문자 없이 순수 텍스트만`;
+- 음성으로 읽기 좋게, JSON/마크다운/특수문자 없이 순수 텍스트`;
 
-  const userPrompt = `오늘: ${today} (${["일", "월", "화", "수", "목", "금", "토"][new Date().getDay()]}요일)
-
-[오늘 일정]
-${fmtEvents(todayEvents)}
-
-[내일 일정]
-${fmtEvents(tomorrowEvents)}
-
-[진행 중인 계획]
-${activePlans}`;
+  const userPrompt = sections.join("\n\n");
 
   const res = await fetch(`${ENDPOINT}?key=${apiKey}`, {
     method: "POST",
@@ -438,7 +521,7 @@ ${activePlans}`;
     body: JSON.stringify({
       systemInstruction: { parts: [{ text: systemPrompt }] },
       contents: [{ role: "user", parts: [{ text: userPrompt }] }],
-      generationConfig: { temperature: 0.9, maxOutputTokens: 400 },
+      generationConfig: { temperature: 0.9, maxOutputTokens: maxTokens },
     }),
   });
 
