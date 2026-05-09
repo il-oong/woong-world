@@ -67,7 +67,7 @@ export function CalendarWidget() {
   useEffect(() => {
     if (!status?.connected) return;
     let cancelled = false;
-    const { from, to } = monthRange(year, month);
+    const { from, to } = monthRange(year, month + 1);
     fetch(
       `/api/google/events?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`,
     )

@@ -38,6 +38,8 @@ export type CalendarEvent = {
     useDefault?: boolean;
     overrides?: { method: "email" | "popup"; minutes: number }[];
   };
+  /** 여러 캘린더 조회 시 출처 캘린더 ID */
+  calendarId?: string;
 };
 
 export type CreateEventInput = {
@@ -48,6 +50,16 @@ export type CreateEventInput = {
   end: string;
   reminderMinutes?: number | null;
   categoryId?: CategoryId;
+  calendarId?: string;
+};
+
+export type UserCalendar = {
+  id: string;
+  summary: string;
+  description?: string;
+  backgroundColor?: string;
+  primary?: boolean;
+  accessRole: string;
 };
 
 function required(name: string): string {
@@ -139,12 +151,51 @@ export async function getValidSession(): Promise<GoogleSession | null> {
   }
 }
 
+export async function listCalendars(session: GoogleSession): Promise<UserCalendar[]> {
+  const res = await fetch(`${CALENDAR_API}/users/me/calendarList?maxResults=50`, {
+    headers: { Authorization: `Bearer ${session.accessToken}` },
+    cache: "no-store",
+  });
+  if (!res.ok) throw new Error(`CalendarList failed: ${res.status}`);
+  const data = (await res.json()) as { items?: UserCalendar[] };
+  return (data.items ?? []).filter((c) => c.accessRole === "owner" || c.accessRole === "writer");
+}
+
+export async function createCalendar(
+  session: GoogleSession,
+  summary: string,
+  description?: string,
+): Promise<UserCalendar> {
+  const res = await fetch(`${CALENDAR_API}/calendars`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${session.accessToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ summary, description }),
+  });
+  if (!res.ok) throw new Error(`CreateCalendar failed: ${res.status}`);
+  return res.json();
+}
+
+export async function deleteCalendar(
+  session: GoogleSession,
+  calendarId: string,
+): Promise<void> {
+  const res = await fetch(
+    `${CALENDAR_API}/calendars/${encodeURIComponent(calendarId)}`,
+    { method: "DELETE", headers: { Authorization: `Bearer ${session.accessToken}` } },
+  );
+  if (!res.ok && res.status !== 404) throw new Error(`DeleteCalendar failed: ${res.status}`);
+}
+
 export async function listEvents(
   session: GoogleSession,
   timeMin: string,
   timeMax: string,
+  calendarId = "primary",
 ): Promise<CalendarEvent[]> {
-  const url = new URL(`${CALENDAR_API}/calendars/primary/events`);
+  const url = new URL(`${CALENDAR_API}/calendars/${encodeURIComponent(calendarId)}/events`);
   url.searchParams.set("timeMin", timeMin);
   url.searchParams.set("timeMax", timeMax);
   url.searchParams.set("singleEvents", "true");
@@ -158,6 +209,31 @@ export async function listEvents(
   if (!res.ok) throw new Error(`List failed: ${res.status}`);
   const data = (await res.json()) as { items?: CalendarEvent[] };
   return data.items ?? [];
+}
+
+export async function listAllCalendarsEvents(
+  session: GoogleSession,
+  timeMin: string,
+  timeMax: string,
+  calendarIds: string[],
+): Promise<(CalendarEvent & { calendarId: string })[]> {
+  const results = await Promise.allSettled(
+    calendarIds.map((id) =>
+      listEvents(session, timeMin, timeMax, id).then((evs) =>
+        evs.map((ev) => ({ ...ev, calendarId: id })),
+      ),
+    ),
+  );
+  return results
+    .filter((r): r is PromiseFulfilledResult<(CalendarEvent & { calendarId: string })[]> =>
+      r.status === "fulfilled",
+    )
+    .flatMap((r) => r.value)
+    .sort((a, b) => {
+      const ta = a.start.dateTime ?? a.start.date ?? "";
+      const tb = b.start.dateTime ?? b.start.date ?? "";
+      return ta.localeCompare(tb);
+    });
 }
 
 export async function createEvent(
@@ -191,7 +267,8 @@ export async function createEvent(
     body.extendedProperties = { private: { category: category.id } };
   }
 
-  const res = await fetch(`${CALENDAR_API}/calendars/primary/events`, {
+  const calId = encodeURIComponent(input.calendarId ?? "primary");
+  const res = await fetch(`${CALENDAR_API}/calendars/${calId}/events`, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${session.accessToken}`,
@@ -209,9 +286,11 @@ export async function createEvent(
 export async function deleteEvent(
   session: GoogleSession,
   eventId: string,
+  calendarId = "primary",
 ): Promise<void> {
+  const calId = encodeURIComponent(calendarId);
   const res = await fetch(
-    `${CALENDAR_API}/calendars/primary/events/${encodeURIComponent(eventId)}`,
+    `${CALENDAR_API}/calendars/${calId}/events/${encodeURIComponent(eventId)}`,
     {
       method: "DELETE",
       headers: { Authorization: `Bearer ${session.accessToken}` },

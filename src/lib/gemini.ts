@@ -374,3 +374,80 @@ export async function chatWithAssistant(input: {
   const { cleanText, actions } = parseActions(raw);
   return { text: cleanText || raw, proposedActions: actions };
 }
+
+// =====================================================================
+// 브리핑 스크립트 생성
+// =====================================================================
+
+export async function generateBriefingScript(
+  secretaryName: string,
+  events: CalendarEvent[],
+  plans: Plan[],
+): Promise<string> {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) throw new Error("GEMINI_API_KEY not set");
+
+  const today = toIso(new Date());
+  const tomorrow = toIso(new Date(Date.now() + 86_400_000));
+
+  const todayEvents = events.filter((ev) => eventOnDay(ev, today));
+  const tomorrowEvents = events.filter((ev) => eventOnDay(ev, tomorrow));
+
+  const fmtEvents = (evs: CalendarEvent[]) =>
+    evs.length === 0
+      ? "  없음"
+      : evs
+          .map((ev) => {
+            const time = formatTimeRange(ev);
+            return `  · ${ev.summary ?? "(제목 없음)"}${time ? ` (${time})` : ""}`;
+          })
+          .join("\n");
+
+  const activePlans = plans
+    .filter((p) => !p.items.every((i) => i.done))
+    .slice(0, 5)
+    .map((p) => `  · [${p.period}] ${p.title} (${p.items.filter((i) => !i.done).length}개 남음)`)
+    .join("\n") || "  없음";
+
+  const systemPrompt = `너는 "${secretaryName}"이라는 이름의 AI 비서야.
+주인님의 하루를 자연스럽고 따뜻하게 브리핑해줘.
+
+규칙:
+- 반드시 "${secretaryName}입니다" 또는 "${secretaryName}이에요"로 자기소개 시작
+- 오늘 날짜와 요일 언급
+- 오늘 일정과 내일 일정을 간결하게 정리
+- 진행 중인 계획 중 신경 써야 할 것 1~2개 언급
+- 짧고 자연스러운 마무리 인사
+- 전체 300자 내외, 음성으로 읽기 좋게 작성
+- JSON, 마크다운, 특수문자 없이 순수 텍스트만`;
+
+  const userPrompt = `오늘: ${today} (${["일", "월", "화", "수", "목", "금", "토"][new Date().getDay()]}요일)
+
+[오늘 일정]
+${fmtEvents(todayEvents)}
+
+[내일 일정]
+${fmtEvents(tomorrowEvents)}
+
+[진행 중인 계획]
+${activePlans}`;
+
+  const res = await fetch(`${ENDPOINT}?key=${apiKey}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      systemInstruction: { parts: [{ text: systemPrompt }] },
+      contents: [{ role: "user", parts: [{ text: userPrompt }] }],
+      generationConfig: { temperature: 0.9, maxOutputTokens: 400 },
+    }),
+  });
+
+  if (!res.ok) {
+    const t = await res.text();
+    throw new Error(`Gemini ${res.status}: ${t.slice(0, 300)}`);
+  }
+  const data = (await res.json()) as {
+    candidates?: { content?: { parts?: { text?: string }[] } }[];
+  };
+  return data.candidates?.[0]?.content?.parts?.[0]?.text ?? "(브리핑을 생성할 수 없습니다)";
+}

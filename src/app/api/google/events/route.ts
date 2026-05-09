@@ -3,6 +3,8 @@ import {
   createEvent,
   getValidSession,
   listEvents,
+  listAllCalendarsEvents,
+  listCalendars,
   type CreateEventInput,
 } from "@/lib/google";
 
@@ -23,8 +25,16 @@ export async function GET(req: NextRequest) {
     url.searchParams.get("to") ??
     new Date(now.getFullYear(), now.getMonth() + 2, 0, 23, 59, 59).toISOString();
 
+  const calendarId = url.searchParams.get("calendarId");
+
   try {
-    const events = await listEvents(session, timeMin, timeMax);
+    let events;
+    if (calendarId === "all") {
+      const cals = await listCalendars(session);
+      events = await listAllCalendarsEvents(session, timeMin, timeMax, cals.map((c) => c.id));
+    } else {
+      events = await listEvents(session, timeMin, timeMax, calendarId ?? "primary");
+    }
     return Response.json({ events });
   } catch (e) {
     return Response.json(

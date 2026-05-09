@@ -2,7 +2,7 @@ import Link from "next/link";
 import { PlansPanel } from "@/components/PlansPanel";
 
 export const metadata = {
-  title: "Plans — Woong Hub",
+  title: "계획 — 비서",
 };
 
 export default function PlansPage() {
@@ -13,7 +13,7 @@ export default function PlansPage() {
         <header className="mb-8 flex items-baseline justify-between">
           <div>
             <p className="font-mono text-xs uppercase tracking-[0.3em] text-[var(--accent)]">
-              woong / hub / plans
+              biseo / plans
             </p>
             <h1 className="mt-2 text-3xl font-semibold tracking-tight">
               계획 관리
@@ -27,7 +27,7 @@ export default function PlansPage() {
               일정 →
             </Link>
             <Link href="/" className="text-[var(--muted)] hover:text-foreground">
-              ← 허브로
+              ← 홈
             </Link>
           </div>
         </header>
