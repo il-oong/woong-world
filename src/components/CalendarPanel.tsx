@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   MONTH_LABELS,
   eventOnDay,
@@ -9,7 +9,7 @@ import {
   monthRange,
   toIso,
 } from "@/lib/calendar-util";
-import type { CalendarEvent } from "@/lib/google";
+import type { CalendarEvent, UserCalendar } from "@/lib/google";
 import {
   CATEGORIES,
   categoryFromEvent,
@@ -46,9 +46,7 @@ export function CalendarPanel({ variant = "full" }: { variant?: Variant }) {
   const [refresh, setRefresh] = useState(0);
   const [formOpen, setFormOpen] = useState(false);
   const [formKind, setFormKind] = useState<"timed" | "allday" | "project">("timed");
-  const [formCategory, setFormCategory] = useState<CategoryId | undefined>(
-    undefined,
-  );
+  const [formCategory, setFormCategory] = useState<CategoryId | undefined>(undefined);
   const [activeTab, setActiveTab] = useState<CategoryId | "all">("all");
   const [size, setSize] = useState<CalendarSize>(() => {
     if (variant === "compact") return "sm";
@@ -58,6 +56,15 @@ export function CalendarPanel({ variant = "full" }: { variant?: Variant }) {
       ? (stored as CalendarSize)
       : "md";
   });
+
+  // 멀티 캘린더
+  const [calendars, setCalendars] = useState<UserCalendar[]>([]);
+  const [selectedCalendarId, setSelectedCalendarId] = useState<string>("all");
+  const [calendarSectionOpen, setCalendarSectionOpen] = useState(false);
+  const [newCalName, setNewCalName] = useState("");
+  const [newCalFormOpen, setNewCalFormOpen] = useState(false);
+  const [calendarSaving, setCalendarSaving] = useState(false);
+  const newCalInputRef = useRef<HTMLInputElement>(null);
 
   const changeSize = (next: CalendarSize) => {
     setSize(next);
@@ -84,17 +91,29 @@ export function CalendarPanel({ variant = "full" }: { variant?: Variant }) {
       .catch(() => {
         if (!cancelled) setStatus({ configured: false, connected: false });
       });
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, [refresh]);
 
   useEffect(() => {
     if (!status?.connected) return;
     let cancelled = false;
+    fetch("/api/google/calendars")
+      .then((r) => r.ok ? (r.json() as Promise<{ calendars: UserCalendar[] }>) : null)
+      .then((data) => {
+        if (!cancelled && data?.calendars) setCalendars(data.calendars);
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [status?.connected, refresh]);
+
+  useEffect(() => {
+    if (!status?.connected) return;
+    let cancelled = false;
+    setEventsLoading(true);
     const { from, to } = monthRange(year, month + 1);
+    const calParam = selectedCalendarId === "all" ? "all" : selectedCalendarId;
     fetch(
-      `/api/google/events?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`,
+      `/api/google/events?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}&calendarId=${encodeURIComponent(calParam)}`,
     )
       .then(async (r) => {
         if (!r.ok) {
@@ -116,10 +135,8 @@ export function CalendarPanel({ variant = "full" }: { variant?: Variant }) {
           setEventsLoading(false);
         }
       });
-    return () => {
-      cancelled = true;
-    };
-  }, [status?.connected, year, month, refresh]);
+    return () => { cancelled = true; };
+  }, [status?.connected, year, month, selectedCalendarId, refresh]);
 
   const activeCategory = useMemo(
     () =>
@@ -154,20 +171,12 @@ export function CalendarPanel({ variant = "full" }: { variant?: Variant }) {
   };
 
   const goPrev = () => {
-    if (month === 0) {
-      setMonth(11);
-      setYear((y) => y - 1);
-    } else {
-      setMonth((m) => m - 1);
-    }
+    if (month === 0) { setMonth(11); setYear((y) => y - 1); }
+    else setMonth((m) => m - 1);
   };
   const goNext = () => {
-    if (month === 11) {
-      setMonth(0);
-      setYear((y) => y + 1);
-    } else {
-      setMonth((m) => m + 1);
-    }
+    if (month === 11) { setMonth(0); setYear((y) => y + 1); }
+    else setMonth((m) => m + 1);
   };
   const goToday = () => {
     const now = new Date();
@@ -177,10 +186,12 @@ export function CalendarPanel({ variant = "full" }: { variant?: Variant }) {
   };
 
   const handleCreate = async (input: EventFormSubmit) => {
+    const calendarId =
+      selectedCalendarId === "all" ? "primary" : selectedCalendarId;
     const res = await fetch("/api/google/events", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(input),
+      body: JSON.stringify({ ...input, calendarId }),
     });
     if (!res.ok) {
       const data = (await res.json()) as { error?: string };
@@ -194,10 +205,40 @@ export function CalendarPanel({ variant = "full" }: { variant?: Variant }) {
     const res = await fetch(`/api/google/events/${encodeURIComponent(id)}`, {
       method: "DELETE",
     });
-    if (!res.ok) {
-      alert("삭제 실패");
-      return;
+    if (!res.ok) { alert("삭제 실패"); return; }
+    setRefresh((v) => v + 1);
+  };
+
+  const handleCreateCalendar = async () => {
+    if (!newCalName.trim()) return;
+    setCalendarSaving(true);
+    try {
+      const res = await fetch("/api/google/calendars", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ summary: newCalName.trim() }),
+      });
+      if (!res.ok) throw new Error("생성 실패");
+      const data = (await res.json()) as { calendar: UserCalendar };
+      setCalendars((prev) => [...prev, data.calendar]);
+      setSelectedCalendarId(data.calendar.id);
+      setNewCalName("");
+      setNewCalFormOpen(false);
+    } catch {
+      alert("캘린더 생성 실패");
+    } finally {
+      setCalendarSaving(false);
     }
+  };
+
+  const handleDeleteCalendar = async (cal: UserCalendar) => {
+    if (!confirm(`"${cal.summary}" 캘린더를 삭제할까요?\n이 캘린더의 모든 일정이 삭제됩니다.`)) return;
+    const res = await fetch(`/api/google/calendars/${encodeURIComponent(cal.id)}`, {
+      method: "DELETE",
+    });
+    if (!res.ok) { alert("캘린더 삭제 실패"); return; }
+    setCalendars((prev) => prev.filter((c) => c.id !== cal.id));
+    if (selectedCalendarId === cal.id) setSelectedCalendarId("all");
     setRefresh((v) => v + 1);
   };
 
@@ -205,6 +246,7 @@ export function CalendarPanel({ variant = "full" }: { variant?: Variant }) {
     if (!confirm("Google Calendar 연결을 해제할까요?")) return;
     await fetch("/api/google/disconnect", { method: "POST" });
     setEvents([]);
+    setCalendars([]);
     setRefresh((v) => v + 1);
   };
 
@@ -254,8 +296,14 @@ SESSION_SECRET=at-least-32-chars-of-random-data`}</pre>
     );
   }
 
+  const selectedCalLabel =
+    selectedCalendarId === "all"
+      ? "전체"
+      : (calendars.find((c) => c.id === selectedCalendarId)?.summary ?? selectedCalendarId);
+
   return (
     <div className="flex flex-col gap-4">
+      {/* ── 상단: 월 네비게이션 + 버튼 ── */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <button
@@ -291,9 +339,7 @@ SESSION_SECRET=at-least-32-chars-of-random-data`}</pre>
             type="button"
             onClick={() => openForm("timed")}
             className="rounded-md px-3 py-1.5 text-xs font-medium text-black transition"
-            style={{
-              background: activeCategory?.color ?? "var(--accent)",
-            }}
+            style={{ background: activeCategory?.color ?? "var(--accent)" }}
           >
             + 일정{activeCategory ? ` · ${activeCategory.label}` : ""}
           </button>
@@ -346,6 +392,105 @@ SESSION_SECRET=at-least-32-chars-of-random-data`}</pre>
         </div>
       </div>
 
+      {/* ── 캘린더 선택 섹션 ── */}
+      {variant === "full" && calendars.length > 0 && (
+        <div className="rounded-lg border border-[var(--border)] bg-[var(--card)]">
+          <button
+            type="button"
+            onClick={() => setCalendarSectionOpen((o) => !o)}
+            className="flex w-full items-center justify-between px-3 py-2 text-xs text-[var(--muted)] hover:text-foreground transition"
+          >
+            <span className="flex items-center gap-1.5">
+              <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                <line x1="16" y1="2" x2="16" y2="6" />
+                <line x1="8" y1="2" x2="8" y2="6" />
+                <line x1="3" y1="10" x2="21" y2="10" />
+              </svg>
+              캘린더
+              <span
+                className="rounded px-1.5 py-0.5 text-[10px]"
+                style={{ background: "rgba(94,234,212,0.1)", color: "var(--accent)" }}
+              >
+                {selectedCalLabel}
+              </span>
+            </span>
+            <span className="text-[10px]">{calendarSectionOpen ? "▲" : "▼"}</span>
+          </button>
+
+          {calendarSectionOpen && (
+            <div className="border-t border-[var(--border)] px-3 pb-3 pt-2">
+              <div className="flex flex-wrap gap-1.5">
+                <CalPill
+                  label="전체"
+                  active={selectedCalendarId === "all"}
+                  onClick={() => setSelectedCalendarId("all")}
+                />
+                {calendars.map((cal) => (
+                  <CalPill
+                    key={cal.id}
+                    label={cal.summary}
+                    color={cal.backgroundColor ?? undefined}
+                    active={selectedCalendarId === cal.id}
+                    isPrimary={cal.primary}
+                    onClick={() => setSelectedCalendarId(cal.id)}
+                    onDelete={cal.primary ? undefined : () => handleDeleteCalendar(cal)}
+                  />
+                ))}
+
+                {/* 새 캘린더 버튼 */}
+                {!newCalFormOpen && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setNewCalFormOpen(true);
+                      setTimeout(() => newCalInputRef.current?.focus(), 50);
+                    }}
+                    className="flex items-center gap-1 rounded-full border border-dashed border-[var(--border)] px-3 py-1 text-xs text-[var(--muted)] hover:border-[var(--accent)]/50 hover:text-foreground transition"
+                  >
+                    + 새 캘린더
+                  </button>
+                )}
+              </div>
+
+              {newCalFormOpen && (
+                <div className="mt-2 flex items-center gap-2">
+                  <input
+                    ref={newCalInputRef}
+                    type="text"
+                    value={newCalName}
+                    onChange={(e) => setNewCalName(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") handleCreateCalendar();
+                      if (e.key === "Escape") { setNewCalFormOpen(false); setNewCalName(""); }
+                    }}
+                    placeholder="캘린더 이름"
+                    maxLength={50}
+                    className="min-w-0 flex-1 rounded-md border border-[var(--border)] bg-white/5 px-2.5 py-1.5 text-xs text-foreground placeholder:text-[var(--muted)] focus:border-[var(--accent)]/60 focus:outline-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleCreateCalendar}
+                    disabled={calendarSaving || !newCalName.trim()}
+                    className="rounded-md bg-[var(--accent)] px-3 py-1.5 text-xs font-medium text-black disabled:opacity-50"
+                  >
+                    {calendarSaving ? "..." : "생성"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setNewCalFormOpen(false); setNewCalName(""); }}
+                    className="rounded-md border border-[var(--border)] px-2.5 py-1.5 text-xs text-[var(--muted)] hover:bg-white/5"
+                  >
+                    취소
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── 카테고리 탭 ── */}
       <div className="flex flex-wrap items-center gap-1 rounded-lg border border-[var(--border)] bg-[var(--card)] p-1">
         <TabButton
           label="전체"
@@ -365,6 +510,7 @@ SESSION_SECRET=at-least-32-chars-of-random-data`}</pre>
         ))}
       </div>
 
+      {/* ── 캘린더 그리드 + 이벤트 목록 ── */}
       <div
         className={
           variant === "full"
@@ -397,6 +543,12 @@ SESSION_SECRET=at-least-32-chars-of-random-data`}</pre>
             </div>
           )}
 
+          {eventsLoading && (
+            <p className="py-2 text-center text-xs text-[var(--muted)] animate-pulse">
+              불러오는 중...
+            </p>
+          )}
+
           {selectedEvents.length === 0 && !eventsLoading && (
             <p className="py-4 text-center text-xs text-[var(--muted)]">
               일정 없음
@@ -405,63 +557,69 @@ SESSION_SECRET=at-least-32-chars-of-random-data`}</pre>
 
           {selectedEvents.map((ev) => {
             const cat = categoryFromEvent(ev);
+            const calName = ev.calendarId
+              ? (calendars.find((c) => c.id === ev.calendarId)?.summary ?? null)
+              : null;
             return (
-            <div
-              key={ev.id}
-              className="group flex flex-col gap-1 rounded-lg border border-[var(--border)] bg-white/[0.02] p-2.5"
-              style={cat ? { borderLeft: `3px solid ${cat.color}` } : undefined}
-            >
-              <div className="flex items-start justify-between gap-2">
-                <span className="flex items-center gap-2 text-sm font-medium text-foreground">
-                  {cat && (
-                    <span
-                      className="inline-block h-2 w-2 shrink-0 rounded-full"
-                      style={{ background: cat.color }}
-                      aria-label={cat.label}
-                    />
-                  )}
-                  {ev.summary ?? "(제목 없음)"}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => handleDelete(ev.id)}
-                  aria-label="Delete event"
-                  className="opacity-0 transition group-hover:opacity-100 text-[var(--muted)] hover:text-rose-300"
-                >
-                  <svg
-                    viewBox="0 0 24 24"
-                    className="h-4 w-4"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    aria-hidden
-                  >
-                    <polyline points="3 6 5 6 21 6" />
-                    <path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6" />
-                    <path d="M10 11v6M14 11v6" />
-                    <path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2" />
-                  </svg>
-                </button>
-              </div>
-              <div className="flex flex-wrap items-center gap-2 text-[11px] text-[var(--muted)]">
-                <span className="font-mono">{formatTimeRange(ev)}</span>
-                {isAllDay(ev) && (
-                  <span className="rounded bg-white/5 px-1.5 py-0.5">all-day</span>
-                )}
-                {ev.reminders?.overrides?.[0] && (
-                  <span className="rounded bg-[var(--accent)]/10 px-1.5 py-0.5 text-[var(--accent)]">
-                    🔔 {formatReminder(ev.reminders.overrides[0].minutes)}
+              <div
+                key={ev.id}
+                className="group flex flex-col gap-1 rounded-lg border border-[var(--border)] bg-white/[0.02] p-2.5"
+                style={cat ? { borderLeft: `3px solid ${cat.color}` } : undefined}
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <span className="flex items-center gap-2 text-sm font-medium text-foreground">
+                    {cat && (
+                      <span
+                        className="inline-block h-2 w-2 shrink-0 rounded-full"
+                        style={{ background: cat.color }}
+                        aria-label={cat.label}
+                      />
+                    )}
+                    {ev.summary ?? "(제목 없음)"}
                   </span>
+                  <button
+                    type="button"
+                    onClick={() => handleDelete(ev.id)}
+                    aria-label="Delete event"
+                    className="opacity-0 transition group-hover:opacity-100 text-[var(--muted)] hover:text-rose-300"
+                  >
+                    <svg
+                      viewBox="0 0 24 24"
+                      className="h-4 w-4"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      aria-hidden
+                    >
+                      <polyline points="3 6 5 6 21 6" />
+                      <path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6" />
+                      <path d="M10 11v6M14 11v6" />
+                      <path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2" />
+                    </svg>
+                  </button>
+                </div>
+                <div className="flex flex-wrap items-center gap-2 text-[11px] text-[var(--muted)]">
+                  <span className="font-mono">{formatTimeRange(ev)}</span>
+                  {isAllDay(ev) && (
+                    <span className="rounded bg-white/5 px-1.5 py-0.5">all-day</span>
+                  )}
+                  {calName && selectedCalendarId === "all" && (
+                    <span className="rounded bg-white/5 px-1.5 py-0.5">{calName}</span>
+                  )}
+                  {ev.reminders?.overrides?.[0] && (
+                    <span className="rounded bg-[var(--accent)]/10 px-1.5 py-0.5 text-[var(--accent)]">
+                      🔔 {formatReminder(ev.reminders.overrides[0].minutes)}
+                    </span>
+                  )}
+                </div>
+                {ev.description && (
+                  <p className="line-clamp-2 text-xs text-[var(--muted)]">
+                    {ev.description}
+                  </p>
                 )}
               </div>
-              {ev.description && (
-                <p className="line-clamp-2 text-xs text-[var(--muted)]">
-                  {ev.description}
-                </p>
-              )}
-            </div>
             );
           })}
         </div>
@@ -522,5 +680,62 @@ function TabButton({
       )}
       {label}
     </button>
+  );
+}
+
+function CalPill({
+  label,
+  color,
+  active,
+  isPrimary,
+  onClick,
+  onDelete,
+}: {
+  label: string;
+  color?: string;
+  active: boolean;
+  isPrimary?: boolean;
+  onClick: () => void;
+  onDelete?: () => void;
+}) {
+  return (
+    <div className="group relative flex items-center">
+      <button
+        type="button"
+        onClick={onClick}
+        className="flex items-center gap-1.5 rounded-full px-3 py-1 text-xs transition"
+        style={{
+          background: active
+            ? "color-mix(in oklab, var(--accent) 12%, transparent)"
+            : "rgba(255,255,255,0.04)",
+          color: active ? "var(--accent)" : "var(--muted)",
+          border: `1px solid ${active ? "color-mix(in oklab, var(--accent) 40%, transparent)" : "rgba(255,255,255,0.08)"}`,
+        }}
+      >
+        {color && (
+          <span
+            className="inline-block h-2 w-2 shrink-0 rounded-full"
+            style={{ background: color }}
+          />
+        )}
+        {label}
+        {isPrimary && (
+          <span className="text-[9px] text-[var(--muted)]">기본</span>
+        )}
+      </button>
+      {onDelete && (
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); onDelete(); }}
+          aria-label={`${label} 캘린더 삭제`}
+          className="absolute -right-1 -top-1 hidden h-4 w-4 items-center justify-center rounded-full bg-[#0a0a0f] text-[var(--muted)] ring-1 ring-[var(--border)] hover:text-rose-400 group-hover:flex"
+        >
+          <svg viewBox="0 0 24 24" className="h-2.5 w-2.5" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden>
+            <line x1="18" y1="6" x2="6" y2="18" />
+            <line x1="6" y1="6" x2="18" y2="18" />
+          </svg>
+        </button>
+      )}
+    </div>
   );
 }

@@ -1,4 +1,7 @@
+"use client";
+
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 
 const ITEMS = [
   { href: "/", label: "홈" },
@@ -7,6 +10,8 @@ const ITEMS = [
 ];
 
 export function TopNav() {
+  const pathname = usePathname();
+
   return (
     <nav className="sticky top-0 z-30 border-b border-[var(--border)] bg-[#0b0b0f]/80 backdrop-blur">
       <div className="mx-auto flex h-12 max-w-6xl items-center gap-1 px-6">
@@ -17,15 +22,25 @@ export function TopNav() {
           비서
         </Link>
         <div className="flex flex-1 items-center gap-1 text-xs">
-          {ITEMS.map((it) => (
-            <Link
-              key={it.href}
-              href={it.href}
-              className="rounded-md px-2.5 py-1.5 text-[var(--muted)] transition hover:bg-white/5 hover:text-foreground"
-            >
-              {it.label}
-            </Link>
-          ))}
+          {ITEMS.map((it) => {
+            const active =
+              it.href === "/"
+                ? pathname === "/"
+                : pathname.startsWith(it.href);
+            return (
+              <Link
+                key={it.href}
+                href={it.href}
+                className="rounded-md px-2.5 py-1.5 transition"
+                style={{
+                  color: active ? "var(--foreground)" : "var(--muted)",
+                  background: active ? "rgba(255,255,255,0.06)" : "transparent",
+                }}
+              >
+                {it.label}
+              </Link>
+            );
+          })}
         </div>
         <a
           href="https://github.com/il-oong"

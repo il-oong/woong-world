@@ -62,8 +62,7 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const calendarId = url.searchParams.get("calendarId");
-    const event = await createEvent(session, { ...body, calendarId: calendarId ?? undefined });
+    const event = await createEvent(session, body);
     return Response.json({ event });
   } catch (e) {
     return Response.json(
