@@ -136,7 +136,7 @@ export function CsvImport({ onImported }: { onImported?: () => void }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm px-4">
-      <div className="w-full max-w-lg rounded-2xl border border-[var(--border)] bg-[#101015] p-6 shadow-2xl">
+      <div className="w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-2xl border border-[var(--border)] bg-[#101015] p-6 shadow-2xl">
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-base font-semibold">일정 임포트</h2>
           <button onClick={() => { setOpen(false); reset(); }} className="text-xs text-[var(--muted)] hover:text-foreground">✕ 닫기</button>

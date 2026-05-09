@@ -394,16 +394,28 @@ export async function parseEventsFromSheet(rawText: string, year?: number): Prom
 
   const today = toIso(new Date());
   const yearHint = year ? `연도가 없으면 ${year}년으로 처리` : `연도가 없으면 오늘(${today}) 기준으로 가장 가까운 미래 날짜로 추론`;
-  const prompt = `아래는 스프레드시트 또는 CSV 데이터야. 어떤 형식이든(주간 그리드, 월간 표, 단순 목록 등) 분석해서 캘린더 이벤트 목록으로 변환해줘.
+  const prompt = `아래는 스프레드시트 또는 CSV 데이터야. 형식에 맞게 분석해서 캘린더 이벤트 목록으로 변환해줘.
 
-규칙:
-- 날짜가 없거나 추론 불가능한 행은 제외
-- 날짜는 반드시 YYYY-MM-DD 형식
-- ${yearHint}
-- startTime, endTime은 HH:mm 형식 (없으면 생략)
-- summary는 이벤트 제목/내용
-- category는 원본 텍스트 그대로 (없으면 생략)
-- location은 장소 (없으면 생략)
+=== 달력/그리드 형식일 때 반드시 지켜야 할 규칙 ===
+1. 요일 헤더 행(SUN/MON/TUE/WED/THU/FRI/SAT 또는 일/월/화/수/목/금/토)으로 열(column) 순서를 파악한다
+2. 날짜 숫자만 있는 행(예: 12,13,14,15,16,17,18)은 날짜 레이블 행이다 — 이 행 자체는 이벤트가 아니다
+3. 이벤트 셀의 날짜 = 같은 열에서 가장 가까운 위쪽 날짜 레이블 숫자
+   예) 요일 헤더: SUN=col1, MON=col2, TUE=col3, WED=col4 ...
+       날짜 레이블: 19,20,21,22...
+       이벤트가 col4(WED)에 있으면 → 날짜는 22일 (19+3이 아니라 그 열의 레이블 숫자)
+4. 열 인덱스를 정확히 세서 날짜를 결정해야 한다. 한 칸도 어긋나면 안 된다
+
+=== 제외해야 할 항목 ===
+- 시트 제목, 면책 문구, 범례/설명 텍스트
+- PRODUCTION, DIRECTOR, CAST, 제작사 등 메타데이터 키-값 쌍
+- 요일 헤더 행, 날짜 숫자만 있는 행
+- 날짜가 없거나 추론 불가능한 항목
+
+=== 출력 규칙 ===
+- 날짜: YYYY-MM-DD (${yearHint})
+- startTime, endTime: HH:mm 형식, 없으면 생략
+- summary: 이벤트 제목/내용만 (메타데이터 제외)
+- category, location: 원본 그대로, 없으면 생략
 - 반드시 JSON 배열만 출력 (설명, 마크다운 없이):
 [{"summary":"...","date":"YYYY-MM-DD","startTime":"HH:mm","endTime":"HH:mm","category":"...","location":"..."},...]
 

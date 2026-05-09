@@ -209,6 +209,13 @@ export function CalendarPanel({ variant = "full" }: { variant?: Variant }) {
     setRefresh((v) => v + 1);
   };
 
+  const handleDeleteAllOnDate = async () => {
+    if (!confirm(`${selectedIso} 의 일정 ${selectedEvents.length}건을 모두 삭제할까요?`)) return;
+    const res = await fetch(`/api/google/events?date=${selectedIso}`, { method: "DELETE" });
+    if (!res.ok) { alert("삭제 실패"); return; }
+    setRefresh((v) => v + 1);
+  };
+
   const handleCreateCalendar = async () => {
     if (!newCalName.trim()) return;
     setCalendarSaving(true);
@@ -530,11 +537,21 @@ SESSION_SECRET=at-least-32-chars-of-random-data`}</pre>
         />
 
         <div className="flex flex-col gap-2 rounded-xl border border-[var(--border)] bg-[var(--card)] p-4">
-          <div className="mb-1 flex items-baseline justify-between">
+          <div className="mb-1 flex items-center justify-between gap-2">
             <h3 className="text-sm font-medium">{selectedIso}</h3>
-            <span className="text-xs text-[var(--muted)]">
-              {selectedEvents.length} 건
-            </span>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-[var(--muted)]">{selectedEvents.length} 건</span>
+              {selectedEvents.length > 0 && (
+                <button
+                  type="button"
+                  onClick={handleDeleteAllOnDate}
+                  className="rounded px-2 py-0.5 text-[11px] text-[var(--muted)] hover:bg-rose-500/10 hover:text-rose-400 transition"
+                  title={`${selectedIso} 일정 전체 삭제`}
+                >
+                  전체 삭제
+                </button>
+              )}
+            </div>
           </div>
 
           {eventsError && (
