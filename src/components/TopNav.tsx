@@ -7,6 +7,7 @@ const ITEMS = [
   { href: "/", label: "홈" },
   { href: "/calendar", label: "일정" },
   { href: "/plans", label: "계획" },
+  { href: "/guide", label: "설정 가이드" },
 ];
 
 export function TopNav() {
