@@ -78,6 +78,13 @@ export function CalendarPanel({ variant = "full" }: { variant?: Variant }) {
   const [calendarSaving, setCalendarSaving] = useState(false);
   const newCalInputRef = useRef<HTMLInputElement>(null);
 
+  // 캘린더 범위 삭제
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  const [bulkDeleteCalId, setBulkDeleteCalId] = useState("primary");
+  const [bulkDeleteFrom, setBulkDeleteFrom] = useState("");
+  const [bulkDeleteTo, setBulkDeleteTo] = useState("");
+  const [bulkDeleting, setBulkDeleting] = useState(false);
+
   const changeSize = (next: CalendarSize) => {
     setSize(next);
     if (variant === "full" && typeof window !== "undefined") {
@@ -314,6 +321,28 @@ export function CalendarPanel({ variant = "full" }: { variant?: Variant }) {
     setRefresh((v) => v + 1);
   };
 
+  const handleBulkDelete = async () => {
+    if (!bulkDeleteCalId || !bulkDeleteFrom || !bulkDeleteTo) return;
+    const calName = calendars.find((c) => c.id === bulkDeleteCalId)?.summary ?? bulkDeleteCalId;
+    if (!confirm(`"${calName}" 캘린더에서 ${bulkDeleteFrom} ~ ${bulkDeleteTo} 사이 일정을 모두 삭제할까요?`)) return;
+    setBulkDeleting(true);
+    try {
+      const res = await fetch(
+        `/api/google/events?calendarId=${encodeURIComponent(bulkDeleteCalId)}&dateFrom=${bulkDeleteFrom}&dateTo=${bulkDeleteTo}`,
+        { method: "DELETE" },
+      );
+      const data = (await res.json()) as { deleted?: number; error?: string };
+      if (!res.ok) throw new Error(data.error ?? "삭제 실패");
+      alert(`${data.deleted ?? 0}개 삭제됐습니다.`);
+      setBulkDeleteOpen(false);
+      setRefresh((v) => v + 1);
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "삭제 실패");
+    } finally {
+      setBulkDeleting(false);
+    }
+  };
+
   const disconnect = async () => {
     if (!confirm("Google Calendar 연결을 해제할까요?")) return;
     await fetch("/api/google/disconnect", { method: "POST" });
@@ -435,6 +464,21 @@ SESSION_SECRET=at-least-32-chars-of-random-data`}</pre>
               }`}
             >
               ⚙ 카테고리
+            </button>
+          )}
+          {variant === "full" && calendars.length > 0 && (
+            <button
+              type="button"
+              onClick={() => {
+                setBulkDeleteCalId(calendars.find((c) => !c.primary)?.id ?? calendars[0]?.id ?? "primary");
+                setBulkDeleteFrom("");
+                setBulkDeleteTo("");
+                setBulkDeleteOpen(true);
+              }}
+              title="특정 캘린더의 날짜 범위 일정 일괄 삭제"
+              className="rounded-md border border-[var(--border)] px-2.5 py-1.5 text-xs text-rose-400/60 hover:border-rose-400/40 hover:text-rose-400 transition"
+            >
+              🗑 범위 삭제
             </button>
           )}
           {variant === "full" && (
@@ -783,6 +827,88 @@ SESSION_SECRET=at-least-32-chars-of-random-data`}</pre>
           })}
         </div>
       </div>
+
+      {/* ── 범위 삭제 모달 ── */}
+      {bulkDeleteOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4"
+          onClick={() => setBulkDeleteOpen(false)}
+        >
+          <div
+            className="w-full max-w-sm rounded-xl border border-rose-500/30 bg-[#101015] p-5 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="text-sm font-medium text-rose-300">캘린더 일정 범위 삭제</h3>
+              <button
+                type="button"
+                onClick={() => setBulkDeleteOpen(false)}
+                className="text-xs text-[var(--muted)] hover:text-foreground"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="mb-3">
+              <label className="mb-1 block text-[11px] text-[var(--muted)]">캘린더</label>
+              <select
+                value={bulkDeleteCalId}
+                onChange={(e) => setBulkDeleteCalId(e.target.value)}
+                className="w-full rounded-md border border-[var(--border)] bg-[var(--card)] px-3 py-2 text-sm text-foreground focus:border-rose-400/50 focus:outline-none"
+              >
+                {calendars.map((cal) => (
+                  <option key={cal.id} value={cal.id}>
+                    {cal.summary}{cal.primary ? " (기본)" : ""}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="mb-4 grid grid-cols-2 gap-2">
+              <div>
+                <label className="mb-1 block text-[11px] text-[var(--muted)]">시작일</label>
+                <input
+                  type="date"
+                  value={bulkDeleteFrom}
+                  onChange={(e) => setBulkDeleteFrom(e.target.value)}
+                  className="w-full rounded-md border border-[var(--border)] bg-[var(--card)] px-3 py-2 text-sm focus:border-rose-400/50 focus:outline-none"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-[11px] text-[var(--muted)]">종료일</label>
+                <input
+                  type="date"
+                  value={bulkDeleteTo}
+                  onChange={(e) => setBulkDeleteTo(e.target.value)}
+                  className="w-full rounded-md border border-[var(--border)] bg-[var(--card)] px-3 py-2 text-sm focus:border-rose-400/50 focus:outline-none"
+                />
+              </div>
+            </div>
+
+            <p className="mb-4 text-[11px] text-rose-300/60">
+              선택한 캘린더에서 해당 날짜 범위의 일정이 모두 삭제됩니다. 되돌릴 수 없습니다.
+            </p>
+
+            <div className="flex items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setBulkDeleteOpen(false)}
+                className="rounded-md px-3 py-1.5 text-sm text-[var(--muted)] hover:text-foreground"
+              >
+                취소
+              </button>
+              <button
+                type="button"
+                onClick={handleBulkDelete}
+                disabled={!bulkDeleteCalId || !bulkDeleteFrom || !bulkDeleteTo || bulkDeleting}
+                className="rounded-md bg-rose-500 px-4 py-1.5 text-sm font-medium text-white hover:bg-rose-400 disabled:opacity-40"
+              >
+                {bulkDeleting ? "삭제 중..." : "삭제"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <EventForm
         open={formOpen}

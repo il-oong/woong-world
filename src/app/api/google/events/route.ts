@@ -52,24 +52,40 @@ export async function DELETE(req: NextRequest) {
   }
 
   const url = new URL(req.url);
-  const date = url.searchParams.get("date"); // YYYY-MM-DD
-  if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
-    return Response.json({ error: "date required (YYYY-MM-DD)" }, { status: 400 });
-  }
-
-  const timeMin = `${date}T00:00:00+09:00`;
-  const timeMax = `${date}T23:59:59+09:00`;
+  const date = url.searchParams.get("date");           // 단일 날짜 (YYYY-MM-DD)
+  const calendarId = url.searchParams.get("calendarId"); // 특정 캘린더 ID
+  const dateFrom = url.searchParams.get("dateFrom");   // 범위 삭제 시작
+  const dateTo = url.searchParams.get("dateTo");       // 범위 삭제 종료
 
   try {
-    const cals = await listCalendars(session);
-    const events = await listAllCalendarsEvents(
-      session, timeMin, timeMax,
-      cals.map((c) => c.id),
+    if (calendarId && dateFrom && dateTo) {
+      // 특정 캘린더 + 날짜 범위 일괄 삭제
+      const timeMin = `${dateFrom}T00:00:00+09:00`;
+      const timeMax = `${dateTo}T23:59:59+09:00`;
+      const events = await listEvents(session, timeMin, timeMax, calendarId);
+      await Promise.allSettled(events.map((ev) => deleteEvent(session, ev.id, calendarId)));
+      return Response.json({ deleted: events.length });
+    }
+
+    if (date && /^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      // 기존: 단일 날짜 전체 캘린더 삭제
+      const timeMin = `${date}T00:00:00+09:00`;
+      const timeMax = `${date}T23:59:59+09:00`;
+      const cals = await listCalendars(session);
+      const events = await listAllCalendarsEvents(
+        session, timeMin, timeMax,
+        cals.map((c) => c.id),
+      );
+      await Promise.allSettled(
+        events.map((ev) => deleteEvent(session, ev.id, ev.calendarId ?? "primary")),
+      );
+      return Response.json({ deleted: events.length });
+    }
+
+    return Response.json(
+      { error: "date 또는 (calendarId + dateFrom + dateTo) 필요" },
+      { status: 400 },
     );
-    await Promise.allSettled(
-      events.map((ev) => deleteEvent(session, ev.id, ev.calendarId ?? "primary")),
-    );
-    return Response.json({ deleted: events.length });
   } catch (e) {
     return Response.json(
       { error: e instanceof Error ? e.message : "delete_failed" },
