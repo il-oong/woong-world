@@ -3,7 +3,7 @@
 import { useRef, useState } from "react";
 import type { ParsedEvent } from "@/lib/gemini";
 
-type Step = "input" | "loading" | "preview" | "cal-select" | "importing" | "done";
+type Step = "input" | "instruct" | "loading" | "preview" | "cal-select" | "importing" | "done";
 type UserCalendar = { id: string; summary: string; backgroundColor?: string; primary?: boolean };
 type ImportResult = { succeeded: number; failed: number; errors: string[]; calendarName?: string };
 
@@ -13,6 +13,7 @@ export function CsvImport({ onImported }: { onImported?: () => void }) {
   const [loadingMsg, setLoadingMsg] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [sheetUrl, setSheetUrl] = useState("");
+  const [instructMsg, setInstructMsg] = useState("");
   const [allEvents, setAllEvents] = useState<ParsedEvent[]>([]);
   const [correctionMsg, setCorrectionMsg] = useState("");
   const [isReParsing, setIsReParsing] = useState(false);
@@ -28,6 +29,7 @@ export function CsvImport({ onImported }: { onImported?: () => void }) {
     setStep("input");
     setFile(null);
     setSheetUrl("");
+    setInstructMsg("");
     setAllEvents([]);
     setCorrectionMsg("");
     setIsReParsing(false);
@@ -56,36 +58,13 @@ export function CsvImport({ onImported }: { onImported?: () => void }) {
     }
   }
 
-  async function handleLoad(f: File, rawText?: string) {
-    setStep("loading");
-    setLoadingMsg("파일을 읽는 중...");
-    setError("");
-    try {
-      // 표준 CSV 먼저 시도
-      if (!rawText) rawText = await f.text();
-      const { parseCsv } = await import("@/lib/csv");
-      const standard = parseCsv(rawText);
-      if (standard.length > 0) {
-        setAllEvents(standard as ParsedEvent[]);
-        setStep("preview");
-        return;
-      }
-      // AI 파싱
-      setLoadingMsg("AI가 일정 인식 중...");
-      const events = await parseAndPreview(f);
-      setAllEvents(events);
-      setStep("preview");
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "오류 발생");
-      setStep("input");
-    }
-  }
-
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0];
     if (!f) return;
     setFile(f);
-    await handleLoad(f);
+    setInstructMsg("");
+    setError("");
+    setStep("instruct");
   }
 
   async function handleSheetLoad() {
@@ -103,10 +82,38 @@ export function CsvImport({ onImported }: { onImported?: () => void }) {
       const blob = new Blob([text], { type: "text/csv" });
       const f = new File([blob], "sheet.csv", { type: "text/csv" });
       setFile(f);
-      await handleLoad(f, text);
+      setInstructMsg("");
+      setStep("instruct");
     } catch (e) {
       setError(e instanceof Error ? e.message : "오류 발생");
       setStep("input");
+    }
+  }
+
+  async function handleInstructConfirm() {
+    if (!file) return;
+    setStep("loading");
+    setLoadingMsg("AI가 일정 인식 중...");
+    setError("");
+    try {
+      const instruction = instructMsg.trim();
+      if (!instruction) {
+        // 지시문 없으면 표준 CSV 먼저 시도
+        const rawText = await file.text();
+        const { parseCsv } = await import("@/lib/csv");
+        const standard = parseCsv(rawText);
+        if (standard.length > 0) {
+          setAllEvents(standard as ParsedEvent[]);
+          setStep("preview");
+          return;
+        }
+      }
+      const events = await parseAndPreview(file, instruction || undefined);
+      setAllEvents(events);
+      setStep("preview");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "오류 발생");
+      setStep("instruct");
     }
   }
 
@@ -254,6 +261,54 @@ export function CsvImport({ onImported }: { onImported?: () => void }) {
           </>
         )}
 
+        {/* ── Step: instruct ── */}
+        {step === "instruct" && file && (
+          <>
+            <div className="mb-4 flex items-center gap-2 rounded-lg border border-[var(--border)] bg-white/5 px-3 py-2.5">
+              <span className="text-sm text-[var(--accent)]">↑</span>
+              <span className="flex-1 truncate text-xs text-foreground">{file.name}</span>
+              <span className="shrink-0 text-[10px] text-[var(--muted)]">불러옴</span>
+            </div>
+
+            <div className="mb-4">
+              <label className="mb-1.5 block text-xs font-medium text-foreground">
+                이 시트에서 어떤 일정을 가져올까요?
+              </label>
+              <textarea
+                value={instructMsg}
+                onChange={(e) => setInstructMsg(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) handleInstructConfirm();
+                }}
+                rows={3}
+                autoFocus
+                placeholder={"예: VFX 관련 일정만 가져와줘\n예: 수요일이 20일이야, 날짜 기준으로 인식해줘\n예: 4월 일정만 / 전체 다 가져와도 돼"}
+                className="w-full resize-none rounded-lg border border-[var(--border)] bg-white/5 px-3 py-2 text-xs text-foreground placeholder:text-[var(--muted)]/60 focus:border-[var(--accent)]/60 focus:outline-none"
+              />
+              <p className="mt-1 text-[10px] text-[var(--muted)]">
+                비워두면 AI가 자동으로 전체 인식합니다. 힌트를 주면 더 정확해집니다.
+              </p>
+            </div>
+
+            {error && <p className="mb-3 text-xs text-red-400">{error}</p>}
+
+            <div className="flex items-center justify-between">
+              <button
+                onClick={() => { setStep("input"); setFile(null); setError(""); }}
+                className="text-xs text-[var(--muted)] hover:text-foreground"
+              >
+                ← 다시 선택
+              </button>
+              <button
+                onClick={handleInstructConfirm}
+                className="rounded-lg bg-[var(--accent)] px-5 py-2 text-sm font-semibold text-black hover:opacity-90"
+              >
+                확인 →
+              </button>
+            </div>
+          </>
+        )}
+
         {/* ── Step: loading / importing ── */}
         {(step === "loading" || step === "importing") && (
           <div className="flex flex-col items-center gap-4 py-10">
@@ -317,7 +372,7 @@ export function CsvImport({ onImported }: { onImported?: () => void }) {
 
             <div className="flex items-center justify-between">
               <button
-                onClick={() => { setStep("input"); setAllEvents([]); }}
+                onClick={() => { setStep("instruct"); setAllEvents([]); }}
                 className="text-xs text-[var(--muted)] hover:text-foreground"
               >
                 ← 다시 선택
