@@ -5,7 +5,6 @@ import Link from "next/link";
 import { CalendarWidget } from "@/components/CalendarWidget";
 import { BriefingPlayer } from "@/components/BriefingPlayer";
 import { SecretarySetup } from "@/components/SecretarySetup";
-import { PushSubscribeButton } from "@/components/PushSubscribeButton";
 import type { SecretaryProfile } from "@/lib/secretary";
 
 export default function HomePage() {
