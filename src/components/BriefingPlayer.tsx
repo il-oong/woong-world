@@ -34,8 +34,9 @@ export function BriefingPlayer({ secretaryName }: { secretaryName: string }) {
     try {
       await audio.play();
       setState("playing");
-    } catch {
-      setState("paused");
+    } catch (e) {
+      setErrorMsg(e instanceof Error ? e.message : "재생 실패");
+      setState("error");
     }
   }
 
