@@ -2,27 +2,69 @@
 
 import { useRef, useState } from "react";
 import type { CsvRow } from "@/lib/csv";
+import type { ParsedEvent } from "@/lib/gemini";
 
 type ImportResult = { succeeded: number; failed: number; errors: string[]; calendarName?: string };
+type LoadingStage = "idle" | "loading-sheet" | "ai-parsing" | "importing";
+
+function stagLabel(stage: LoadingStage): string {
+  if (stage === "loading-sheet") return "시트 불러오는 중...";
+  if (stage === "ai-parsing") return "AI가 일정 인식 중...";
+  if (stage === "importing") return "캘린더에 등록 중...";
+  return "";
+}
 
 export function CsvImport({ onImported }: { onImported?: () => void }) {
   const [open, setOpen] = useState(false);
   const [preview, setPreview] = useState<CsvRow[] | null>(null);
+  const [aiPreview, setAiPreview] = useState<ParsedEvent[] | null>(null);
   const [file, setFile] = useState<File | null>(null);
   const [sheetUrl, setSheetUrl] = useState("");
   const [projectName, setProjectName] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [stage, setStage] = useState<LoadingStage>("idle");
   const [result, setResult] = useState<ImportResult | null>(null);
   const [error, setError] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
 
+  const loading = stage !== "idle";
+
   function reset() {
     setPreview(null);
+    setAiPreview(null);
     setFile(null);
     setSheetUrl("");
     setProjectName("");
+    setStage("idle");
     setResult(null);
     setError("");
+  }
+
+  async function runPreview(f: File, text: string) {
+    const { parseCsv } = await import("@/lib/csv");
+    const rows = parseCsv(text).slice(0, 5);
+    if (rows.length > 0) {
+      setPreview(rows);
+      setAiPreview(null);
+      return;
+    }
+    // 표준 파서 실패 → AI 미리보기
+    setStage("ai-parsing");
+    try {
+      const fd = new FormData();
+      fd.append("file", f);
+      const res = await fetch("/api/calendar/import/preview", { method: "POST", body: fd });
+      const data = (await res.json()) as { events?: ParsedEvent[]; error?: string };
+      if (!res.ok || !data.events?.length) {
+        setError(data.error ?? "AI가 일정을 인식하지 못했습니다. 형식을 확인해주세요.");
+        setFile(null);
+      } else {
+        setAiPreview(data.events.slice(0, 5));
+        setPreview(null);
+      }
+    } catch {
+      setError("AI 미리보기 요청에 실패했습니다.");
+      setFile(null);
+    }
   }
 
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -31,16 +73,19 @@ export function CsvImport({ onImported }: { onImported?: () => void }) {
     setFile(f);
     setError("");
     setResult(null);
+    setStage("loading-sheet");
     const text = await f.text();
-    const { parseCsv } = await import("@/lib/csv");
-    const rows = parseCsv(text).slice(0, 5);
-    setPreview(rows.length > 0 ? rows : null);
+    await runPreview(f, text);
+    setStage("idle");
   }
 
   async function handleSheetLoad() {
     if (!sheetUrl.trim()) return;
-    setLoading(true);
+    setStage("loading-sheet");
     setError("");
+    setFile(null);
+    setPreview(null);
+    setAiPreview(null);
     try {
       const csvUrl = toSheetCsvUrl(sheetUrl.trim());
       if (!csvUrl) throw new Error("올바른 구글 시트 URL이 아닙니다.");
@@ -48,20 +93,19 @@ export function CsvImport({ onImported }: { onImported?: () => void }) {
       if (!res.ok) throw new Error(await res.text());
       const text = await res.text();
       const blob = new Blob([text], { type: "text/csv" });
-      setFile(new File([blob], "sheet.csv", { type: "text/csv" }));
-      const { parseCsv } = await import("@/lib/csv");
-      const rows = parseCsv(text).slice(0, 5);
-      setPreview(rows.length > 0 ? rows : null);
+      const f = new File([blob], "sheet.csv", { type: "text/csv" });
+      setFile(f);
+      await runPreview(f, text);
     } catch (e) {
       setError(e instanceof Error ? e.message : "오류 발생");
     } finally {
-      setLoading(false);
+      setStage("idle");
     }
   }
 
   async function handleImport() {
     if (!file) return;
-    setLoading(true);
+    setStage("importing");
     setError("");
     try {
       const formData = new FormData();
@@ -75,7 +119,7 @@ export function CsvImport({ onImported }: { onImported?: () => void }) {
     } catch (e) {
       setError(e instanceof Error ? e.message : "오류 발생");
     } finally {
-      setLoading(false);
+      setStage("idle");
     }
   }
 
@@ -133,7 +177,7 @@ export function CsvImport({ onImported }: { onImported?: () => void }) {
             {/* CSV 파일 업로드 */}
             <div
               className="mb-4 cursor-pointer rounded-lg border border-dashed border-[var(--border)] p-4 text-center transition hover:border-[var(--accent)]/50"
-              onClick={() => inputRef.current?.click()}
+              onClick={() => !loading && inputRef.current?.click()}
             >
               <input ref={inputRef} type="file" accept=".csv,.txt" className="hidden" onChange={handleFileChange} />
               <p className="text-xs text-[var(--muted)]">
@@ -141,21 +185,31 @@ export function CsvImport({ onImported }: { onImported?: () => void }) {
               </p>
             </div>
 
+            {/* 로딩 애니메이션 */}
+            {loading && (
+              <div className="mb-4 flex items-center gap-2 rounded-lg border border-[var(--border)] bg-white/3 px-3 py-2.5">
+                <span className="inline-block h-3.5 w-3.5 animate-spin rounded-full border-2 border-[var(--accent)] border-t-transparent" />
+                <span className="text-xs text-[var(--muted)]">{stagLabel(stage)}</span>
+              </div>
+            )}
+
             {/* CSV 형식 안내 */}
-            <details className="mb-4">
-              <summary className="cursor-pointer text-[10px] text-[var(--muted)] hover:text-foreground">
-                CSV 형식 보기
-              </summary>
-              <pre className="mt-2 overflow-x-auto rounded bg-black/30 p-2 font-mono text-[10px] text-[var(--muted)]">
+            {!loading && !file && (
+              <details className="mb-4">
+                <summary className="cursor-pointer text-[10px] text-[var(--muted)] hover:text-foreground">
+                  CSV 형식 보기
+                </summary>
+                <pre className="mt-2 overflow-x-auto rounded bg-black/30 p-2 font-mono text-[10px] text-[var(--muted)]">
 {`제목,날짜,시작시간,종료시간,카테고리,장소
 팀 회의,2026-05-10,10:00,11:00,회사,회의실 A
 헬스,2026-05-10,07:00,,인생,
 기획서 마감,2026-05-15,,,앱개발,`}
-              </pre>
-            </details>
+                </pre>
+              </details>
+            )}
 
-            {/* 미리보기 */}
-            {file && preview && preview.length > 0 && (
+            {/* 표준 파서 미리보기 */}
+            {!loading && file && preview && preview.length > 0 && (
               <div className="mb-4">
                 <p className="mb-1.5 text-xs text-[var(--muted)]">미리보기 (최대 5행)</p>
                 <div className="overflow-hidden rounded-lg border border-[var(--border)] text-[11px]">
@@ -170,14 +224,29 @@ export function CsvImport({ onImported }: { onImported?: () => void }) {
                 </div>
               </div>
             )}
-            {file && !preview && (
-              <div className="mb-4 rounded-lg border border-[var(--accent)]/20 bg-[var(--accent)]/5 px-3 py-2.5 text-[11px] text-[var(--accent)]">
-                ✦ 복잡한 형식 감지 — 등록 시 AI가 자동으로 일정을 추출합니다
+
+            {/* AI 미리보기 */}
+            {!loading && file && aiPreview && aiPreview.length > 0 && (
+              <div className="mb-4">
+                <p className="mb-1.5 flex items-center gap-1.5 text-xs text-[var(--accent)]">
+                  <span>✦ AI 인식 결과</span>
+                  <span className="text-[var(--muted)]">(최대 5행)</span>
+                </p>
+                <div className="overflow-hidden rounded-lg border border-[var(--accent)]/20 text-[11px]">
+                  {aiPreview.map((row, i) => (
+                    <div key={i} className={`flex gap-3 px-3 py-2 ${i !== 0 ? "border-t border-[var(--accent)]/10" : ""}`}>
+                      <span className="flex-1 truncate font-medium">{row.summary}</span>
+                      <span className="text-[var(--muted)]">{row.date}</span>
+                      {row.startTime && <span className="text-[var(--muted)]">{row.startTime}</span>}
+                      {row.category && <span className="text-[var(--accent)]">{row.category}</span>}
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
 
-            {/* 프로젝트명 (파일 로드 후 표시) */}
-            {file && (
+            {/* 프로젝트명 */}
+            {!loading && file && (
               <div className="mb-4">
                 <label className="mb-1.5 block text-xs text-[var(--muted)]">
                   캘린더 탭 이름 <span className="text-[10px]">(비워두면 기본 캘린더에 추가)</span>
@@ -191,7 +260,7 @@ export function CsvImport({ onImported }: { onImported?: () => void }) {
                 />
                 {projectName.trim() && (
                   <p className="mt-1 text-[10px] text-[var(--muted)]">
-                    구글 캘린더에 <strong className="text-foreground">"{projectName.trim()}"</strong> 탭이 생성됩니다. 탭 삭제 시 이벤트도 전부 삭제됩니다.
+                    구글 캘린더에 <strong className="text-foreground">"{projectName.trim()}"</strong> 탭이 생성됩니다.
                   </p>
                 )}
               </div>
@@ -204,7 +273,7 @@ export function CsvImport({ onImported }: { onImported?: () => void }) {
               disabled={!file || loading}
               className="w-full rounded-lg bg-[var(--accent)] py-2.5 text-sm font-semibold text-black transition hover:opacity-90 disabled:opacity-40"
             >
-              {loading ? "임포트 중..." : "캘린더에 등록"}
+              캘린더에 등록
             </button>
           </>
         ) : (

@@ -55,6 +55,8 @@ export async function POST(req: Request) {
 
   for (const row of rows) {
     try {
+      // 줄바꿈/탭 등 제어문자 정규화 (Google API 400 방지)
+      row.summary = row.summary.replace(/[\r\n\t]+/g, " ").trim();
       const categoryId = mapCategory(row.category);
       const hasTime = row.startTime && /^\d{2}:\d{2}$/.test(row.startTime);
 
