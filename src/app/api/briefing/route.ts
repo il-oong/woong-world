@@ -47,9 +47,9 @@ export async function POST() {
     const dateStr = now.toISOString().slice(0, 10);
     const safeEmail = session.email.replace(/[^a-zA-Z0-9]/g, "_");
     const { url: audioUrl } = await put(
-      `briefings/${safeEmail}/${dateStr}.mp3`,
+      `briefings/${safeEmail}/${dateStr}-${Date.now()}.mp3`,
       audioBuffer,
-      { access: "public", contentType: "audio/mpeg", allowOverwrite: true },
+      { access: "public", contentType: "audio/mpeg" },
     );
 
     return Response.json({ audioUrl, script });
