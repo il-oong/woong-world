@@ -17,9 +17,6 @@ export function SecretarySetup({
   const [voiceId, setVoiceId] = useState<VoiceId>(
     initialProfile?.voiceId ?? "ko-KR-Wavenet-A",
   );
-  const [briefingHour, setBriefingHour] = useState(
-    initialProfile?.briefingHour ?? 8,
-  );
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
@@ -34,7 +31,7 @@ export function SecretarySetup({
         body: JSON.stringify({
           name: name.trim(),
           voiceId,
-          briefingHour,
+          briefingHour: 8,
           briefingMinute: 0,
         }),
       });
@@ -61,7 +58,7 @@ export function SecretarySetup({
             </h2>
             <p className="mt-1 text-sm text-[var(--muted)]">
               {isEditing
-                ? "이름, 목소리, 브리핑 시간을 변경할 수 있습니다."
+                ? "이름과 목소리를 변경할 수 있습니다."
                 : "이름과 목소리를 설정하면 매일 브리핑해드립니다."}
             </p>
           </div>
@@ -115,23 +112,6 @@ export function SecretarySetup({
                 </button>
               ))}
             </div>
-          </div>
-
-          <div>
-            <label className="mb-1.5 block text-xs text-[var(--muted)]">
-              브리핑 시간
-            </label>
-            <select
-              value={briefingHour}
-              onChange={(e) => setBriefingHour(Number(e.target.value))}
-              className="w-full rounded-lg border border-[var(--border)] bg-[#101015] px-3 py-2.5 text-sm text-foreground focus:border-[var(--accent)]/60 focus:outline-none"
-            >
-              {Array.from({ length: 24 }, (_, i) => (
-                <option key={i} value={i}>
-                  {String(i).padStart(2, "0")}:00
-                </option>
-              ))}
-            </select>
           </div>
 
           {error && <p className="text-xs text-red-400">{error}</p>}
