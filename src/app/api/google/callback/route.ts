@@ -30,8 +30,11 @@ export async function GET(req: NextRequest) {
   try {
     const tokens = await exchangeCode(code);
     if (!tokens.refresh_token) {
-      home.searchParams.set("err", "no_refresh_token");
-      return NextResponse.redirect(home);
+      // Google doesn't return refresh_token on re-auth without prompt=consent.
+      // Auto-retry with consent screen instead of showing an error.
+      const retryUrl = new URL("/api/google/auth", url.origin);
+      retryUrl.searchParams.set("force", "1");
+      return NextResponse.redirect(retryUrl);
     }
     const email = await fetchUserEmail(tokens.access_token);
     const session = {
