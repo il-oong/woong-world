@@ -16,7 +16,7 @@ export async function GET(req: NextRequest) {
   const expected = await readStateCookie();
   await clearStateCookie();
 
-  const home = new URL("/calendar", url.origin);
+  const home = new URL("/", url.origin);
 
   if (error) {
     home.searchParams.set("err", error);
