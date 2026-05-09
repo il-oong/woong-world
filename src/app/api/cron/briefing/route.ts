@@ -82,7 +82,7 @@ export async function GET(req: NextRequest) {
       const { url: audioUrl } = await put(
         `briefings/${safeEmail}/${dateStr}-auto.mp3`,
         audioBuffer,
-        { access: "public", contentType: "audio/mpeg" },
+        { access: "public", contentType: "audio/mpeg", allowOverwrite: true },
       );
 
       await saveBriefingCache(email, { audioUrl, script, generatedAt: Date.now() });

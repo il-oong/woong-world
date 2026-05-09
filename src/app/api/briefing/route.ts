@@ -43,7 +43,7 @@ export async function POST() {
     const { url: audioUrl } = await put(
       `briefings/${safeEmail}/${dateStr}.mp3`,
       audioBuffer,
-      { access: "public", contentType: "audio/mpeg" },
+      { access: "public", contentType: "audio/mpeg", allowOverwrite: true },
     );
 
     return Response.json({ audioUrl, script });
