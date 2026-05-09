@@ -1,4 +1,4 @@
-import { getValidSession, createEvent } from "@/lib/google";
+import { getValidSession, createCalendar, createEvent } from "@/lib/google";
 import { parseCsv, mapCategory } from "@/lib/csv";
 import { parseEventsFromSheet, type ParsedEvent } from "@/lib/gemini";
 
@@ -11,14 +11,14 @@ export async function POST(req: Request) {
   }
 
   let text: string;
-  let yearHint: number | undefined;
+  let projectName: string | undefined;
   try {
     const formData = await req.formData();
     const file = formData.get("file") as File | null;
     if (!file) return Response.json({ error: "file_required" }, { status: 400 });
     text = await file.text();
-    const y = formData.get("year");
-    if (y && !isNaN(Number(y))) yearHint = Number(y);
+    const pn = formData.get("projectName");
+    if (pn && typeof pn === "string" && pn.trim()) projectName = pn.trim();
   } catch {
     return Response.json({ error: "invalid_form" }, { status: 400 });
   }
@@ -29,13 +29,24 @@ export async function POST(req: Request) {
 
   if (rows.length === 0) {
     try {
-      rows = await parseEventsFromSheet(text, yearHint);
+      rows = await parseEventsFromSheet(text);
       usedGemini = true;
     } catch {
       return Response.json({ error: "no_valid_rows" }, { status: 400 });
     }
     if (rows.length === 0) {
       return Response.json({ error: "no_valid_rows" }, { status: 400 });
+    }
+  }
+
+  // 프로젝트명이 있으면 새 캘린더 탭 생성
+  let targetCalendarId: string | undefined;
+  if (projectName) {
+    try {
+      const newCal = await createCalendar(session, projectName);
+      targetCalendarId = newCal.id;
+    } catch {
+      return Response.json({ error: "캘린더 탭 생성 실패" }, { status: 500 });
     }
   }
 
@@ -63,6 +74,7 @@ export async function POST(req: Request) {
           start: `${row.date}T${row.startTime}`,
           end: `${row.date}T${endTime}`,
           categoryId,
+          calendarId: targetCalendarId,
         });
       } else {
         await createEvent(session, {
@@ -72,6 +84,7 @@ export async function POST(req: Request) {
           start: row.date,
           end: row.date,
           categoryId,
+          calendarId: targetCalendarId,
         });
       }
       succeeded++;
@@ -80,5 +93,11 @@ export async function POST(req: Request) {
     }
   }
 
-  return Response.json({ succeeded, failed: errors.length, errors, usedGemini });
+  return Response.json({
+    succeeded,
+    failed: errors.length,
+    errors,
+    usedGemini,
+    calendarName: projectName,
+  });
 }

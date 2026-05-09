@@ -3,13 +3,14 @@
 import { useRef, useState } from "react";
 import type { CsvRow } from "@/lib/csv";
 
-type ImportResult = { succeeded: number; failed: number; errors: string[] };
+type ImportResult = { succeeded: number; failed: number; errors: string[]; calendarName?: string };
 
 export function CsvImport({ onImported }: { onImported?: () => void }) {
   const [open, setOpen] = useState(false);
   const [preview, setPreview] = useState<CsvRow[] | null>(null);
   const [file, setFile] = useState<File | null>(null);
   const [sheetUrl, setSheetUrl] = useState("");
+  const [projectName, setProjectName] = useState("");
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<ImportResult | null>(null);
   const [error, setError] = useState("");
@@ -19,6 +20,7 @@ export function CsvImport({ onImported }: { onImported?: () => void }) {
     setPreview(null);
     setFile(null);
     setSheetUrl("");
+    setProjectName("");
     setResult(null);
     setError("");
   }
@@ -64,6 +66,7 @@ export function CsvImport({ onImported }: { onImported?: () => void }) {
     try {
       const formData = new FormData();
       formData.append("file", file);
+      if (projectName.trim()) formData.append("projectName", projectName.trim());
       const res = await fetch("/api/calendar/import", { method: "POST", body: formData });
       const data = (await res.json()) as ImportResult & { error?: string };
       if (!res.ok) throw new Error(data.error ?? "임포트 실패");
@@ -173,6 +176,27 @@ export function CsvImport({ onImported }: { onImported?: () => void }) {
               </div>
             )}
 
+            {/* 프로젝트명 (파일 로드 후 표시) */}
+            {file && (
+              <div className="mb-4">
+                <label className="mb-1.5 block text-xs text-[var(--muted)]">
+                  캘린더 탭 이름 <span className="text-[10px]">(비워두면 기본 캘린더에 추가)</span>
+                </label>
+                <input
+                  type="text"
+                  value={projectName}
+                  onChange={(e) => setProjectName(e.target.value)}
+                  placeholder="예: MV 촬영 일정, 2026 상반기..."
+                  className="w-full rounded-lg border border-[var(--border)] bg-white/5 px-3 py-2 text-xs text-foreground placeholder:text-[var(--muted)] focus:border-[var(--accent)]/60 focus:outline-none"
+                />
+                {projectName.trim() && (
+                  <p className="mt-1 text-[10px] text-[var(--muted)]">
+                    구글 캘린더에 <strong className="text-foreground">"{projectName.trim()}"</strong> 탭이 생성됩니다. 탭 삭제 시 이벤트도 전부 삭제됩니다.
+                  </p>
+                )}
+              </div>
+            )}
+
             {error && <p className="mb-3 text-xs text-red-400">{error}</p>}
 
             <button
@@ -187,6 +211,9 @@ export function CsvImport({ onImported }: { onImported?: () => void }) {
           <div className="text-center">
             <p className="text-2xl">✓</p>
             <p className="mt-2 text-base font-semibold">임포트 완료</p>
+            {result.calendarName && (
+              <p className="mt-1 text-xs text-[var(--accent)]">"{result.calendarName}" 캘린더 탭에 등록됨</p>
+            )}
             <p className="mt-1 text-sm text-[var(--muted)]">
               {result.succeeded}개 성공{result.failed > 0 ? ` · ${result.failed}개 실패` : ""}
             </p>
@@ -209,8 +236,6 @@ export function CsvImport({ onImported }: { onImported?: () => void }) {
 }
 
 function toSheetCsvUrl(url: string): string | null {
-  // https://docs.google.com/spreadsheets/d/{ID}/edit#gid=0
-  // → https://docs.google.com/spreadsheets/d/{ID}/export?format=csv&gid=0
   const match = url.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
   if (!match) return null;
   const id = match[1];
