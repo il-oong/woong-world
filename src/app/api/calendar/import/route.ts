@@ -1,5 +1,6 @@
 import { getValidSession, createEvent } from "@/lib/google";
 import { parseCsv, mapCategory } from "@/lib/csv";
+import { parseEventsFromSheet, type ParsedEvent } from "@/lib/gemini";
 
 export const dynamic = "force-dynamic";
 
@@ -10,18 +11,32 @@ export async function POST(req: Request) {
   }
 
   let text: string;
+  let yearHint: number | undefined;
   try {
     const formData = await req.formData();
     const file = formData.get("file") as File | null;
     if (!file) return Response.json({ error: "file_required" }, { status: 400 });
     text = await file.text();
+    const y = formData.get("year");
+    if (y && !isNaN(Number(y))) yearHint = Number(y);
   } catch {
     return Response.json({ error: "invalid_form" }, { status: 400 });
   }
 
-  const rows = parseCsv(text);
+  // 표준 파서 시도 → 실패 시 Gemini로 폴백
+  let rows: ParsedEvent[] = parseCsv(text);
+  let usedGemini = false;
+
   if (rows.length === 0) {
-    return Response.json({ error: "no_valid_rows" }, { status: 400 });
+    try {
+      rows = await parseEventsFromSheet(text, yearHint);
+      usedGemini = true;
+    } catch {
+      return Response.json({ error: "no_valid_rows" }, { status: 400 });
+    }
+    if (rows.length === 0) {
+      return Response.json({ error: "no_valid_rows" }, { status: 400 });
+    }
   }
 
   let succeeded = 0;
@@ -65,5 +80,5 @@ export async function POST(req: Request) {
     }
   }
 
-  return Response.json({ succeeded, failed: errors.length, errors });
+  return Response.json({ succeeded, failed: errors.length, errors, usedGemini });
 }
