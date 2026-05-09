@@ -2,11 +2,11 @@ import { getValidSession, deleteCalendar } from "@/lib/google";
 
 export async function DELETE(
   _req: Request,
-  ctx: RouteContext<"/api/google/calendars/[id]">,
+  { params }: { params: Promise<{ id: string }> },
 ) {
   const session = await getValidSession();
   if (!session) return Response.json({ error: "not_connected" }, { status: 401 });
-  const { id } = await ctx.params;
+  const { id } = await params;
   if (id === "primary") return Response.json({ error: "cannot_delete_primary" }, { status: 400 });
   try {
     await deleteCalendar(session, decodeURIComponent(id));
