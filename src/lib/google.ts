@@ -12,7 +12,7 @@ const TZ = "Asia/Seoul";
 export const SCOPES = [
   "openid",
   "email",
-  "https://www.googleapis.com/auth/calendar.events",
+  "https://www.googleapis.com/auth/calendar",
 ].join(" ");
 
 type TokenResponse = {
