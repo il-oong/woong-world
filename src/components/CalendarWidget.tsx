@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { CalendarMonthGrid, type CalendarSize } from "./CalendarMonthGrid";
 import {
   eventOnDay,
@@ -13,7 +13,6 @@ import {
 import type { CalendarEvent, UserCalendar } from "@/lib/google";
 
 const SIZE_STORAGE_KEY = "wh-home-calendar-size";
-const CAL_FILTER_KEY = "wh-home-calendar-filter";
 const SIZE_STEPS: CalendarSize[] = ["sm", "md", "lg"];
 const SIZE_LABEL: Record<CalendarSize, string> = {
   sm: "S",
@@ -35,6 +34,7 @@ export function CalendarWidget() {
   const [calendars, setCalendars] = useState<UserCalendar[]>([]);
   const [enabledIds, setEnabledIds] = useState<Set<string>>(new Set());
   const [status, setStatus] = useState<Status | null>(null);
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [size, setSize] = useState<CalendarSize>(() => {
     if (typeof window === "undefined") return "md";
     const stored = window.localStorage.getItem(SIZE_STORAGE_KEY);
@@ -56,14 +56,20 @@ export function CalendarWidget() {
     setEnabledIds((prev) => {
       const next = new Set(prev);
       if (next.has(id)) {
-        if (next.size === 1) return prev; // 최소 1개는 켜둬야 함
+        if (next.size === 1) return prev;
         next.delete(id);
       } else {
         next.add(id);
       }
-      if (typeof window !== "undefined") {
-        window.localStorage.setItem(CAL_FILTER_KEY, JSON.stringify([...next]));
-      }
+      const ids = [...next];
+      if (saveTimer.current) clearTimeout(saveTimer.current);
+      saveTimer.current = setTimeout(() => {
+        fetch("/api/google/calendars/filter", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ids }),
+        }).catch(() => {});
+      }, 500);
       return next;
     });
   };
@@ -72,40 +78,32 @@ export function CalendarWidget() {
     let cancelled = false;
     fetch("/api/google/status")
       .then((r) => r.json() as Promise<Status>)
-      .then((data) => {
-        if (!cancelled) setStatus(data);
-      })
-      .catch(() => {
-        if (!cancelled) setStatus({ configured: false, connected: false });
-      });
+      .then((data) => { if (!cancelled) setStatus(data); })
+      .catch(() => { if (!cancelled) setStatus({ configured: false, connected: false }); });
     return () => { cancelled = true; };
   }, []);
 
   useEffect(() => {
     if (!status?.connected) return;
     let cancelled = false;
-    fetch("/api/google/calendars")
-      .then((r) => (r.ok ? r.json() as Promise<{ calendars: UserCalendar[] }> : null))
-      .then((data) => {
-        if (!cancelled && data?.calendars) {
-          setCalendars(data.calendars);
-          const saved = typeof window !== "undefined"
-            ? window.localStorage.getItem(CAL_FILTER_KEY)
-            : null;
-          if (saved) {
-            try {
-              const ids = JSON.parse(saved) as string[];
-              const valid = ids.filter((id) => data.calendars.some((c) => c.id === id));
-              setEnabledIds(valid.length > 0 ? new Set(valid) : new Set(data.calendars.map((c) => c.id)));
-            } catch {
-              setEnabledIds(new Set(data.calendars.map((c) => c.id)));
-            }
-          } else {
-            setEnabledIds(new Set(data.calendars.map((c) => c.id)));
-          }
-        }
-      })
-      .catch(() => {});
+
+    Promise.all([
+      fetch("/api/google/calendars").then((r) => r.ok ? r.json() as Promise<{ calendars: UserCalendar[] }> : null),
+      fetch("/api/google/calendars/filter").then((r) => r.ok ? r.json() as Promise<{ ids: string[] | null }> : null),
+    ]).then(([calData, filterData]) => {
+      if (cancelled || !calData?.calendars) return;
+      const cals = calData.calendars;
+      setCalendars(cals);
+      const allIds = cals.map((c) => c.id);
+      const saved = filterData?.ids;
+      if (saved && saved.length > 0) {
+        const valid = saved.filter((id) => allIds.includes(id));
+        setEnabledIds(valid.length > 0 ? new Set(valid) : new Set(allIds));
+      } else {
+        setEnabledIds(new Set(allIds));
+      }
+    }).catch(() => {});
+
     return () => { cancelled = true; };
   }, [status?.connected]);
 
@@ -116,10 +114,8 @@ export function CalendarWidget() {
     fetch(
       `/api/google/events?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}&calendarId=all`,
     )
-      .then((r) => (r.ok ? (r.json() as Promise<{ events: CalendarEvent[] }>) : null))
-      .then((data) => {
-        if (!cancelled && data) setEvents(data.events);
-      })
+      .then((r) => (r.ok ? r.json() as Promise<{ events: CalendarEvent[] }> : null))
+      .then((data) => { if (!cancelled && data) setEvents(data.events); })
       .catch(() => {});
     return () => { cancelled = true; };
   }, [status?.connected, year, month]);
@@ -252,12 +248,8 @@ export function CalendarWidget() {
             </div>
           )}
 
-          <CalendarMonthGrid
-            year={year}
-            month={month}
-            events={filteredEvents}
-            size={size}
-          />
+          <CalendarMonthGrid year={year} month={month} events={filteredEvents} size={size} />
+
           <div className="mt-3 space-y-1.5">
             <p className="text-[10px] font-mono uppercase tracking-wider text-[var(--muted)]">
               오늘 · {todayIso}
@@ -275,10 +267,7 @@ export function CalendarWidget() {
               ))
             )}
             {todayEvents.length > 4 && (
-              <Link
-                href="/calendar"
-                className="text-[11px] text-[var(--muted)] hover:text-foreground"
-              >
+              <Link href="/calendar" className="text-[11px] text-[var(--muted)] hover:text-foreground">
                 +{todayEvents.length - 4}개 더 →
               </Link>
             )}

@@ -1,10 +1,11 @@
 import { type NextRequest } from "next/server";
 import { getEmailFromToken } from "@/lib/briefing-token";
 import { getSessionFromRedis, updateSessionInRedis } from "@/lib/session-store";
-import { refreshSession, listEvents } from "@/lib/google";
+import { refreshSession, listAllCalendarsEvents, listCalendars } from "@/lib/google";
 import { listPlans } from "@/lib/plans";
 import { getProfile } from "@/lib/secretary";
 import { generateBriefingScript } from "@/lib/gemini";
+import { getCalendarFilter } from "@/lib/calendar-filter";
 
 export const dynamic = "force-dynamic";
 
@@ -33,10 +34,15 @@ export async function GET(req: NextRequest) {
     const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
     const dayAfterEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 2, 23, 59, 59).toISOString();
 
-    const [events, plans] = await Promise.all([
-      listEvents(session, todayStart, dayAfterEnd),
+    const [calFilter, allCals, plans] = await Promise.all([
+      getCalendarFilter(email),
+      listCalendars(session),
       listPlans(email),
     ]);
+    const calIds = calFilter
+      ? calFilter.filter((id) => allCals.some((c) => c.id === id))
+      : allCals.map((c) => c.id);
+    const events = await listAllCalendarsEvents(session, todayStart, dayAfterEnd, calIds);
 
     const script = await generateBriefingScript(name, events, plans);
     return new Response(script, { headers: { "Content-Type": "text/plain; charset=utf-8" } });

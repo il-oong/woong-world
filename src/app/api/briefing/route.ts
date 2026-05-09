@@ -1,9 +1,10 @@
-import { getValidSession, listEvents } from "@/lib/google";
+import { getValidSession, listEvents, listAllCalendarsEvents, listCalendars } from "@/lib/google";
 import { listPlans } from "@/lib/plans";
 import { getProfile, isStorageConfigured } from "@/lib/secretary";
 import { generateBriefingScript } from "@/lib/gemini";
 import { synthesize, isTtsConfigured } from "@/lib/tts";
 import { put } from "@vercel/blob";
+import { getCalendarFilter } from "@/lib/calendar-filter";
 
 export const dynamic = "force-dynamic";
 
@@ -30,10 +31,15 @@ export async function POST() {
       now.getFullYear(), now.getMonth(), now.getDate() + 2, 23, 59, 59,
     ).toISOString();
 
-    const [events, plans] = await Promise.all([
-      listEvents(session, todayStart, dayAfterTomorrowEnd),
+    const [calFilter, allCals, plans] = await Promise.all([
+      getCalendarFilter(session.email),
+      listCalendars(session),
       listPlans(session.email),
     ]);
+    const calIds = calFilter
+      ? calFilter.filter((id) => allCals.some((c) => c.id === id))
+      : allCals.map((c) => c.id);
+    const events = await listAllCalendarsEvents(session, todayStart, dayAfterTomorrowEnd, calIds);
 
     const script = await generateBriefingScript(secretaryName, events, plans);
     const audioBuffer = await synthesize(script, voiceId);
