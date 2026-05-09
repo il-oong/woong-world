@@ -376,6 +376,70 @@ export async function chatWithAssistant(input: {
 }
 
 // =====================================================================
+// CSV / 스프레드시트 → 캘린더 이벤트 파싱
+// =====================================================================
+
+export type ParsedEvent = {
+  summary: string;
+  date: string;       // YYYY-MM-DD
+  startTime?: string; // HH:mm
+  endTime?: string;   // HH:mm
+  category?: string;
+  location?: string;
+};
+
+export async function parseEventsFromSheet(rawText: string, year?: number): Promise<ParsedEvent[]> {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) throw new Error("GEMINI_API_KEY not set");
+
+  const today = toIso(new Date());
+  const yearHint = year ? `연도가 없으면 ${year}년으로 처리` : `연도가 없으면 오늘(${today}) 기준으로 가장 가까운 미래 날짜로 추론`;
+  const prompt = `아래는 스프레드시트 또는 CSV 데이터야. 어떤 형식이든(주간 그리드, 월간 표, 단순 목록 등) 분석해서 캘린더 이벤트 목록으로 변환해줘.
+
+규칙:
+- 날짜가 없거나 추론 불가능한 행은 제외
+- 날짜는 반드시 YYYY-MM-DD 형식
+- ${yearHint}
+- startTime, endTime은 HH:mm 형식 (없으면 생략)
+- summary는 이벤트 제목/내용
+- category는 원본 텍스트 그대로 (없으면 생략)
+- location은 장소 (없으면 생략)
+- 반드시 JSON 배열만 출력 (설명, 마크다운 없이):
+[{"summary":"...","date":"YYYY-MM-DD","startTime":"HH:mm","endTime":"HH:mm","category":"...","location":"..."},...]
+
+데이터:
+${rawText.slice(0, 8000)}`;
+
+  const res = await fetch(`${ENDPOINT}?key=${apiKey}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      contents: [{ role: "user", parts: [{ text: prompt }] }],
+      generationConfig: { temperature: 0.1, responseMimeType: "application/json" },
+    }),
+  });
+
+  if (!res.ok) {
+    const t = await res.text();
+    throw new Error(`Gemini ${res.status}: ${t.slice(0, 200)}`);
+  }
+
+  const data = (await res.json()) as {
+    candidates?: { content?: { parts?: { text?: string }[] } }[];
+  };
+  const text = data.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+  if (!text) throw new Error("Gemini 응답 없음");
+
+  try {
+    const cleaned = text.replace(/^```(?:json)?\s*|\s*```$/g, "").trim();
+    const parsed = JSON.parse(cleaned) as ParsedEvent[];
+    return Array.isArray(parsed) ? parsed.filter((e) => e.summary && e.date) : [];
+  } catch {
+    throw new Error("Gemini 응답 파싱 실패");
+  }
+}
+
+// =====================================================================
 // 브리핑 스크립트 생성
 // =====================================================================
 
