@@ -132,6 +132,22 @@ export async function fetchUserEmail(accessToken: string): Promise<string | null
   return data.email ?? null;
 }
 
+export async function refreshSession(
+  session: GoogleSession,
+): Promise<GoogleSession | null> {
+  try {
+    const tokens = await refreshAccessToken(session.refreshToken);
+    return {
+      accessToken: tokens.access_token,
+      refreshToken: tokens.refresh_token ?? session.refreshToken,
+      expiresAt: Date.now() + tokens.expires_in * 1000,
+      email: session.email,
+    };
+  } catch {
+    return null;
+  }
+}
+
 export async function getValidSession(): Promise<GoogleSession | null> {
   const session = await readSession();
   if (!session) return null;

@@ -16,14 +16,14 @@ async function userEmail(): Promise<string | null> {
 
 export async function GET(
   _req: Request,
-  ctx: RouteContext<"/api/plans/[id]">,
+  { params }: { params: Promise<{ id: string }> },
 ) {
   if (!isStorageConfigured()) {
     return Response.json({ error: "storage_not_configured" }, { status: 503 });
   }
   const email = await userEmail();
   if (!email) return Response.json({ error: "not_connected" }, { status: 401 });
-  const { id } = await ctx.params;
+  const { id } = await params;
   const plan = await getPlan(email, id);
   if (!plan) return Response.json({ error: "not_found" }, { status: 404 });
   return Response.json({ plan });
@@ -31,14 +31,14 @@ export async function GET(
 
 export async function PATCH(
   req: Request,
-  ctx: RouteContext<"/api/plans/[id]">,
+  { params }: { params: Promise<{ id: string }> },
 ) {
   if (!isStorageConfigured()) {
     return Response.json({ error: "storage_not_configured" }, { status: 503 });
   }
   const email = await userEmail();
   if (!email) return Response.json({ error: "not_connected" }, { status: 401 });
-  const { id } = await ctx.params;
+  const { id } = await params;
 
   let body: UpdatePlanInput;
   try {
@@ -54,14 +54,14 @@ export async function PATCH(
 
 export async function DELETE(
   _req: Request,
-  ctx: RouteContext<"/api/plans/[id]">,
+  { params }: { params: Promise<{ id: string }> },
 ) {
   if (!isStorageConfigured()) {
     return Response.json({ error: "storage_not_configured" }, { status: 503 });
   }
   const email = await userEmail();
   if (!email) return Response.json({ error: "not_connected" }, { status: 401 });
-  const { id } = await ctx.params;
+  const { id } = await params;
   const ok = await deletePlan(email, id);
   if (!ok) return Response.json({ error: "not_found" }, { status: 404 });
   return Response.json({ ok: true });

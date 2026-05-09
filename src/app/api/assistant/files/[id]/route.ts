@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 
 export async function DELETE(
   _req: Request,
-  ctx: RouteContext<"/api/assistant/files/[id]">,
+  { params }: { params: Promise<{ id: string }> },
 ) {
   if (!isAssistantStorageConfigured()) {
     return Response.json({ error: "storage_not_configured" }, { status: 503 });
@@ -18,7 +18,7 @@ export async function DELETE(
   if (!session?.email) {
     return Response.json({ error: "not_connected" }, { status: 401 });
   }
-  const { id } = await ctx.params;
+  const { id } = await params;
   const file = await removeFile(session.email, id);
   if (!file) return Response.json({ error: "not_found" }, { status: 404 });
   await deleteBlob(file.blobUrl);

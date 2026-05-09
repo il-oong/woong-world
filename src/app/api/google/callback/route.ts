@@ -5,6 +5,7 @@ import {
   readStateCookie,
   writeSession,
 } from "@/lib/session";
+import { saveSessionToRedis } from "@/lib/session-store";
 
 export async function GET(req: NextRequest) {
   const url = new URL(req.url);
@@ -33,12 +34,14 @@ export async function GET(req: NextRequest) {
       return NextResponse.redirect(home);
     }
     const email = await fetchUserEmail(tokens.access_token);
-    await writeSession({
+    const session = {
       accessToken: tokens.access_token,
       refreshToken: tokens.refresh_token,
       expiresAt: Date.now() + tokens.expires_in * 1000,
       email: email ?? undefined,
-    });
+    };
+    await writeSession(session);
+    await saveSessionToRedis(session).catch(() => {});
     home.searchParams.set("connected", "1");
     return NextResponse.redirect(home);
   } catch (e) {
