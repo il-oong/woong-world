@@ -157,6 +157,8 @@ export function CsvImport({ onImported }: { onImported?: () => void }) {
     try {
       const formData = new FormData();
       formData.append("file", file);
+      // 미리보기 결과를 그대로 전달해 재파싱 방지
+      formData.append("events", JSON.stringify(allEvents));
       if (newCalMode && newCalName.trim()) {
         formData.append("projectName", newCalName.trim());
       } else if (selectedCalId && selectedCalId !== "primary") {

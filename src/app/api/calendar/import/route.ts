@@ -10,14 +10,22 @@ export async function POST(req: Request) {
     return Response.json({ error: "not_connected" }, { status: 401 });
   }
 
-  let text: string;
+  let text: string = "";
   let projectName: string | undefined;
   let directCalendarId: string | undefined;
+  let previewedEvents: ParsedEvent[] | null = null;
   try {
     const formData = await req.formData();
+    const eventsJson = formData.get("events");
+    if (eventsJson && typeof eventsJson === "string") {
+      try {
+        const parsed = JSON.parse(eventsJson) as ParsedEvent[];
+        if (Array.isArray(parsed) && parsed.length > 0) previewedEvents = parsed;
+      } catch { /* ignore */ }
+    }
     const file = formData.get("file") as File | null;
-    if (!file) return Response.json({ error: "file_required" }, { status: 400 });
-    text = await file.text();
+    if (!previewedEvents && !file) return Response.json({ error: "file_required" }, { status: 400 });
+    if (file) text = await file.text();
     const pn = formData.get("projectName");
     if (pn && typeof pn === "string" && pn.trim()) projectName = pn.trim();
     const ci = formData.get("calendarId");
@@ -28,19 +36,24 @@ export async function POST(req: Request) {
     return Response.json({ error: "invalid_form" }, { status: 400 });
   }
 
-  // 표준 파서 시도 → 실패 시 Gemini로 폴백
-  let rows: ParsedEvent[] = parseCsv(text);
+  // 미리보기 결과가 있으면 재파싱 없이 사용 (수정 지시문 반영된 결과 유지)
+  let rows: ParsedEvent[];
   let usedGemini = false;
 
-  if (rows.length === 0) {
-    try {
-      rows = await parseEventsFromSheet(text);
-      usedGemini = true;
-    } catch {
-      return Response.json({ error: "no_valid_rows" }, { status: 400 });
-    }
+  if (previewedEvents) {
+    rows = previewedEvents;
+  } else {
+    rows = parseCsv(text);
     if (rows.length === 0) {
-      return Response.json({ error: "no_valid_rows" }, { status: 400 });
+      try {
+        rows = await parseEventsFromSheet(text);
+        usedGemini = true;
+      } catch {
+        return Response.json({ error: "no_valid_rows" }, { status: 400 });
+      }
+      if (rows.length === 0) {
+        return Response.json({ error: "no_valid_rows" }, { status: 400 });
+      }
     }
   }
 
