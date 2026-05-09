@@ -9,7 +9,7 @@ import { newId } from "./assistant";
 import type { CalendarEvent } from "./google";
 import { eventOnDay, formatTimeRange, toIso } from "./calendar-util";
 
-const GEMINI_MODEL = "gemini-2.5-flash-lite";
+const GEMINI_MODEL = "gemini-2.5-flash";
 const ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
 
 export function isGeminiConfigured(): boolean {
@@ -388,22 +388,32 @@ export type ParsedEvent = {
   location?: string;
 };
 
-export async function parseEventsFromSheet(rawText: string, year?: number): Promise<ParsedEvent[]> {
+export async function parseEventsFromSheet(rawText: string, correction?: string): Promise<ParsedEvent[]> {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) throw new Error("GEMINI_API_KEY not set");
 
   const today = toIso(new Date());
-  const yearHint = year ? `연도가 없으면 ${year}년으로 처리` : `연도가 없으면 오늘(${today}) 기준으로 가장 가까운 미래 날짜로 추론`;
+  const correctionBlock = correction?.trim()
+    ? `\n=== 사용자 수정 지시 (최우선 반영) ===\n${correction.trim()}\n위 내용을 기준으로 해당 이벤트의 날짜/내용을 수정해라.\n`
+    : "";
+
   const prompt = `아래는 스프레드시트 또는 CSV 데이터야. 형식에 맞게 분석해서 캘린더 이벤트 목록으로 변환해줘.
 
-=== 달력/그리드 형식일 때 반드시 지켜야 할 규칙 ===
-1. 요일 헤더 행(SUN/MON/TUE/WED/THU/FRI/SAT 또는 일/월/화/수/목/금/토)으로 열(column) 순서를 파악한다
-2. 날짜 숫자만 있는 행(예: 12,13,14,15,16,17,18)은 날짜 레이블 행이다 — 이 행 자체는 이벤트가 아니다
-3. 이벤트 셀의 날짜 = 같은 열에서 가장 가까운 위쪽 날짜 레이블 숫자
-   예) 요일 헤더: SUN=col1, MON=col2, TUE=col3, WED=col4 ...
-       날짜 레이블: 19,20,21,22...
-       이벤트가 col4(WED)에 있으면 → 날짜는 22일 (19+3이 아니라 그 열의 레이블 숫자)
-4. 열 인덱스를 정확히 세서 날짜를 결정해야 한다. 한 칸도 어긋나면 안 된다
+오늘 날짜는 ${today}이다.
+
+=== 달력/그리드 형식의 월/년도 추론 규칙 ===
+1. '5/1', '4/30', '12/25' 같은 월/일(M/D) 형식 셀을 먼저 찾아라
+   → 그 셀이 위치한 열(요일)과 숫자를 이용해 해당 월을 확정한다
+   → 확정된 월을 기준으로 나머지 날짜 숫자에 같은 월/년을 적용한다
+   → 월이 바뀌는 구간(예: 30 다음에 1이 오면 다음 달로 넘어감)을 정확히 처리한다
+2. TODAY 마커가 있으면 → 오늘(${today})이 위치한 열/행으로 월/년도를 보정한다
+3. 연도가 불명확하면 오늘(${today}) 기준 가장 가까운 과거/미래로 추론한다
+
+=== 달력/그리드 형식의 열→날짜 매핑 규칙 ===
+1. 요일 헤더 행(SUN/MON/TUE/WED/THU/FRI/SAT 또는 일/월/화/수/목/금/토)으로 열 순서를 파악한다
+2. 날짜 숫자만 있는 행(예: ,12,13,14,15,16,17,18)은 날짜 레이블 행이다 — 이 행은 이벤트가 아니다
+3. 이벤트의 날짜 = 그 이벤트가 있는 열에서 가장 가까운 위쪽 날짜 레이블 숫자
+4. 열 인덱스를 정확히 세서 날짜를 결정해야 한다. 한 칸도 어긋나면 안 된다${correctionBlock}
 
 === 제외해야 할 항목 ===
 - 시트 제목, 면책 문구, 범례/설명 텍스트
@@ -412,7 +422,7 @@ export async function parseEventsFromSheet(rawText: string, year?: number): Prom
 - 날짜가 없거나 추론 불가능한 항목
 
 === 출력 규칙 ===
-- 날짜: YYYY-MM-DD (${yearHint})
+- 날짜: YYYY-MM-DD
 - startTime, endTime: HH:mm 형식, 없으면 생략
 - summary: 이벤트 제목/내용만 (메타데이터 제외)
 - category, location: 원본 그대로, 없으면 생략

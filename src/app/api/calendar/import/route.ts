@@ -12,6 +12,7 @@ export async function POST(req: Request) {
 
   let text: string;
   let projectName: string | undefined;
+  let directCalendarId: string | undefined;
   try {
     const formData = await req.formData();
     const file = formData.get("file") as File | null;
@@ -19,6 +20,10 @@ export async function POST(req: Request) {
     text = await file.text();
     const pn = formData.get("projectName");
     if (pn && typeof pn === "string" && pn.trim()) projectName = pn.trim();
+    const ci = formData.get("calendarId");
+    if (ci && typeof ci === "string" && ci.trim() && ci.trim() !== "primary") {
+      directCalendarId = ci.trim();
+    }
   } catch {
     return Response.json({ error: "invalid_form" }, { status: 400 });
   }
@@ -39,12 +44,15 @@ export async function POST(req: Request) {
     }
   }
 
-  // 프로젝트명이 있으면 새 캘린더 탭 생성
-  let targetCalendarId: string | undefined;
-  if (projectName) {
+  // 캘린더 ID 결정: directCalendarId > 신규 생성(projectName) > 기본 캘린더
+  let targetCalendarId: string | undefined = directCalendarId;
+  let calendarName: string | undefined;
+
+  if (!targetCalendarId && projectName) {
     try {
       const newCal = await createCalendar(session, projectName);
       targetCalendarId = newCal.id;
+      calendarName = projectName;
     } catch {
       return Response.json({ error: "캘린더 탭 생성 실패" }, { status: 500 });
     }
@@ -55,7 +63,6 @@ export async function POST(req: Request) {
 
   for (const row of rows) {
     try {
-      // 줄바꿈/탭 등 제어문자 정규화 (Google API 400 방지)
       row.summary = row.summary.replace(/[\r\n\t]+/g, " ").trim();
       const categoryId = mapCategory(row.category);
       const hasTime = row.startTime && /^\d{2}:\d{2}$/.test(row.startTime);
@@ -100,6 +107,6 @@ export async function POST(req: Request) {
     failed: errors.length,
     errors,
     usedGemini,
-    calendarName: projectName,
+    calendarName,
   });
 }

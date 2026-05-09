@@ -2,8 +2,10 @@
 
 import { useEffect, useMemo, useState } from "react";
 import {
-  CATEGORIES,
+  DEFAULT_CATEGORIES,
   getCategory,
+  setRuntimeCategories,
+  type Category,
   type CategoryId,
 } from "@/lib/categories";
 import {
@@ -45,6 +47,19 @@ export function PlansPanel() {
   const [activeCategoryFilter, setActiveCategoryFilter] = useState<
     CategoryId | "all"
   >("all");
+  const [categories, setCategories] = useState<Category[]>(DEFAULT_CATEGORIES);
+
+  useEffect(() => {
+    fetch("/api/categories")
+      .then((r) => r.ok ? r.json() as Promise<{ categories: Category[] }> : null)
+      .then((data) => {
+        if (data?.categories?.length) {
+          setCategories(data.categories);
+          setRuntimeCategories(data.categories);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   // AI review modal state
   const [reviewOpen, setReviewOpen] = useState(false);
@@ -267,7 +282,7 @@ GEMINI_API_KEY=...   (AI 리뷰용, 선택)`}</pre>
           active={activeCategoryFilter === "all"}
           onClick={() => setActiveCategoryFilter("all")}
         />
-        {CATEGORIES.map((cat) => (
+        {categories.map((cat) => (
           <CategoryFilterChip
             key={cat.id}
             label={cat.label}
@@ -315,6 +330,7 @@ GEMINI_API_KEY=...   (AI 리뷰용, 선택)`}</pre>
         <NewPlanForm
           period={period}
           defaultPeriodKey={currentPeriodKey(period)}
+          categories={categories}
           onClose={() => setCreating(false)}
           onSubmit={async (input) => {
             await handleCreate(input);
@@ -604,11 +620,13 @@ function PlanCard({
 function NewPlanForm({
   period,
   defaultPeriodKey,
+  categories,
   onClose,
   onSubmit,
 }: {
   period: PlanPeriod;
   defaultPeriodKey: string;
+  categories: Category[];
   onClose: () => void;
   onSubmit: (input: {
     title: string;
@@ -621,7 +639,7 @@ function NewPlanForm({
   const [title, setTitle] = useState("");
   const [periodKey, setPeriodKey] = useState(defaultPeriodKey);
   const [categoryId, setCategoryId] = useState<CategoryId | null>(
-    CATEGORIES[0].id,
+    categories[0]?.id ?? null,
   );
   const [itemsText, setItemsText] = useState("");
   const [notes, setNotes] = useState("");
@@ -709,7 +727,7 @@ function NewPlanForm({
               >
                 전체
               </button>
-              {CATEGORIES.map((cat) => {
+              {categories.map((cat) => {
                 const active = categoryId === cat.id;
                 return (
                   <button
