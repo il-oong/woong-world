@@ -13,7 +13,6 @@ export function CsvImport({ onImported }: { onImported?: () => void }) {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<ImportResult | null>(null);
   const [error, setError] = useState("");
-  const [year, setYear] = useState(new Date().getFullYear());
   const inputRef = useRef<HTMLInputElement>(null);
 
   function reset() {
@@ -22,7 +21,6 @@ export function CsvImport({ onImported }: { onImported?: () => void }) {
     setSheetUrl("");
     setResult(null);
     setError("");
-    setYear(new Date().getFullYear());
   }
 
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -66,7 +64,6 @@ export function CsvImport({ onImported }: { onImported?: () => void }) {
     try {
       const formData = new FormData();
       formData.append("file", file);
-      if (!preview) formData.append("year", String(year));
       const res = await fetch("/api/calendar/import", { method: "POST", body: formData });
       const data = (await res.json()) as ImportResult & { error?: string };
       if (!res.ok) throw new Error(data.error ?? "임포트 실패");
@@ -172,20 +169,7 @@ export function CsvImport({ onImported }: { onImported?: () => void }) {
             )}
             {file && !preview && (
               <div className="mb-4 rounded-lg border border-[var(--accent)]/20 bg-[var(--accent)]/5 px-3 py-2.5 text-[11px] text-[var(--accent)]">
-                <p className="mb-2">✦ 복잡한 형식 감지 — 등록 시 AI가 자동으로 일정을 추출합니다</p>
-                <div className="flex items-center gap-2">
-                  <span className="text-[var(--muted)]">연도:</span>
-                  <select
-                    value={year}
-                    onChange={(e) => setYear(Number(e.target.value))}
-                    className="rounded border border-[var(--accent)]/30 bg-black/30 px-2 py-0.5 text-[11px] text-foreground focus:outline-none"
-                  >
-                    {Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - 1 + i).map((y) => (
-                      <option key={y} value={y}>{y}년</option>
-                    ))}
-                  </select>
-                  <span className="text-[var(--muted)]">기준으로 날짜 해석</span>
-                </div>
+                ✦ 복잡한 형식 감지 — 등록 시 AI가 자동으로 일정을 추출합니다
               </div>
             )}
 
