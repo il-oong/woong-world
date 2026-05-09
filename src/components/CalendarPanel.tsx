@@ -12,7 +12,12 @@ import {
 import type { CalendarEvent, UserCalendar } from "@/lib/google";
 import {
   CATEGORIES,
+  DEFAULT_CATEGORIES,
+  COLOR_PRESETS,
   categoryFromEvent,
+  setRuntimeCategories,
+  buildCategory,
+  type Category,
   type CategoryId,
 } from "@/lib/categories";
 import { CalendarMonthGrid, type CalendarSize } from "./CalendarMonthGrid";
@@ -47,6 +52,7 @@ export function CalendarPanel({ variant = "full" }: { variant?: Variant }) {
   const [formOpen, setFormOpen] = useState(false);
   const [formKind, setFormKind] = useState<"timed" | "allday" | "project">("timed");
   const [formCategory, setFormCategory] = useState<CategoryId | undefined>(undefined);
+  const [editingEvent, setEditingEvent] = useState<import("@/lib/google").CalendarEvent | null>(null);
   const [activeTab, setActiveTab] = useState<CategoryId | "all">("all");
   const [size, setSize] = useState<CalendarSize>(() => {
     if (variant === "compact") return "sm";
@@ -56,6 +62,12 @@ export function CalendarPanel({ variant = "full" }: { variant?: Variant }) {
       ? (stored as CalendarSize)
       : "md";
   });
+
+  // 카테고리
+  const [categories, setCategories] = useState<Category[]>(DEFAULT_CATEGORIES);
+  const [catMgmtOpen, setCatMgmtOpen] = useState(false);
+  const [newCatLabel, setNewCatLabel] = useState("");
+  const [newCatColorId, setNewCatColorId] = useState("9");
 
   // 멀티 캘린더
   const [calendars, setCalendars] = useState<UserCalendar[]>([]);
@@ -80,6 +92,18 @@ export function CalendarPanel({ variant = "full" }: { variant?: Variant }) {
   const zoomIn = () => {
     if (sizeIndex < SIZE_STEPS.length - 1) changeSize(SIZE_STEPS[sizeIndex + 1]);
   };
+
+  useEffect(() => {
+    fetch("/api/categories")
+      .then((r) => r.ok ? r.json() as Promise<{ categories: Category[] }> : null)
+      .then((data) => {
+        if (data?.categories?.length) {
+          setCategories(data.categories);
+          setRuntimeCategories(data.categories);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -142,8 +166,8 @@ export function CalendarPanel({ variant = "full" }: { variant?: Variant }) {
     () =>
       activeTab === "all"
         ? null
-        : (CATEGORIES.find((c) => c.id === activeTab) ?? null),
-    [activeTab],
+        : (categories.find((c) => c.id === activeTab) ?? null),
+    [activeTab, categories],
   );
 
   const visibleEvents = useMemo(() => {
@@ -207,6 +231,47 @@ export function CalendarPanel({ variant = "full" }: { variant?: Variant }) {
     });
     if (!res.ok) { alert("삭제 실패"); return; }
     setRefresh((v) => v + 1);
+  };
+
+  const handleUpdate = async (input: EventFormSubmit) => {
+    if (!editingEvent) return;
+    const calendarId = editingEvent.calendarId ?? "primary";
+    const res = await fetch(`/api/google/events/${encodeURIComponent(editingEvent.id)}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...input, calendarId }),
+    });
+    if (!res.ok) {
+      const data = (await res.json()) as { error?: string };
+      throw new Error(data.error ?? `HTTP ${res.status}`);
+    }
+    setEditingEvent(null);
+    setRefresh((v) => v + 1);
+  };
+
+  const saveCats = async (cats: Category[]) => {
+    setCategories(cats);
+    setRuntimeCategories(cats);
+    await fetch("/api/categories", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ categories: cats.map(({ id, label, colorId }) => ({ id, label, colorId })) }),
+    }).catch(() => {});
+  };
+
+  const addCategory = async () => {
+    if (!newCatLabel.trim()) return;
+    const id = newCatLabel.trim().toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-가-힣]/g, "");
+    if (categories.find((c) => c.id === id)) return;
+    const newCat = buildCategory({ id, label: newCatLabel.trim(), colorId: newCatColorId });
+    await saveCats([...categories, newCat]);
+    setNewCatLabel("");
+    setNewCatColorId("9");
+  };
+
+  const removeCategory = async (id: string) => {
+    if (!confirm("이 카테고리를 삭제할까요?")) return;
+    await saveCats(categories.filter((c) => c.id !== id));
   };
 
   const handleDeleteAllOnDate = async () => {
@@ -504,7 +569,7 @@ SESSION_SECRET=at-least-32-chars-of-random-data`}</pre>
           active={activeTab === "all"}
           onClick={() => setActiveTab("all")}
         />
-        {CATEGORIES.map((cat) => (
+        {categories.map((cat) => (
           <TabButton
             key={cat.id}
             label={cat.label}
@@ -515,7 +580,77 @@ SESSION_SECRET=at-least-32-chars-of-random-data`}</pre>
             onClick={() => setActiveTab(cat.id)}
           />
         ))}
+        {variant === "full" && (
+          <button
+            type="button"
+            onClick={() => setCatMgmtOpen((o) => !o)}
+            className="ml-auto rounded-md border border-dashed border-[var(--border)] px-2.5 py-1 text-[11px] text-[var(--muted)] hover:border-[var(--accent)]/50 hover:text-foreground transition"
+          >
+            카테고리 관리
+          </button>
+        )}
       </div>
+
+      {/* ── 카테고리 관리 패널 ── */}
+      {catMgmtOpen && variant === "full" && (
+        <div className="rounded-lg border border-[var(--border)] bg-[var(--card)] p-4">
+          <p className="mb-3 text-xs font-medium text-[var(--muted)]">카테고리 관리</p>
+          <div className="mb-3 space-y-1.5">
+            {categories.map((cat) => (
+              <div key={cat.id} className="flex items-center gap-2">
+                <span
+                  className="h-3 w-3 shrink-0 rounded-full"
+                  style={{ background: cat.color }}
+                />
+                <span className="flex-1 text-sm">{cat.label}</span>
+                <span className="text-[11px] text-[var(--muted)]">{cat.id}</span>
+                <button
+                  type="button"
+                  onClick={() => removeCategory(cat.id)}
+                  className="text-xs text-[var(--muted)] hover:text-rose-400 transition"
+                >
+                  삭제
+                </button>
+              </div>
+            ))}
+          </div>
+          <div className="flex items-center gap-2 border-t border-[var(--border)] pt-3">
+            <input
+              type="text"
+              value={newCatLabel}
+              onChange={(e) => setNewCatLabel(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && addCategory()}
+              placeholder="새 카테고리 이름"
+              maxLength={20}
+              className="min-w-0 flex-1 rounded-md border border-[var(--border)] bg-white/5 px-2.5 py-1.5 text-xs text-foreground placeholder:text-[var(--muted)] focus:border-[var(--accent)]/60 focus:outline-none"
+            />
+            <div className="flex gap-1">
+              {COLOR_PRESETS.map((p) => (
+                <button
+                  key={p.colorId}
+                  type="button"
+                  onClick={() => setNewCatColorId(p.colorId)}
+                  title={p.name}
+                  className="h-5 w-5 rounded-full transition"
+                  style={{
+                    background: p.color,
+                    outline: newCatColorId === p.colorId ? `2px solid ${p.color}` : "none",
+                    outlineOffset: "2px",
+                  }}
+                />
+              ))}
+            </div>
+            <button
+              type="button"
+              onClick={addCategory}
+              disabled={!newCatLabel.trim()}
+              className="rounded-md bg-[var(--accent)] px-3 py-1.5 text-xs font-medium text-black disabled:opacity-40"
+            >
+              추가
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* ── 캘린더 그리드 + 이벤트 목록 ── */}
       <div
@@ -580,8 +715,9 @@ SESSION_SECRET=at-least-32-chars-of-random-data`}</pre>
             return (
               <div
                 key={ev.id}
-                className="group flex flex-col gap-1 rounded-lg border border-[var(--border)] bg-white/[0.02] p-2.5"
+                className="group flex flex-col gap-1 rounded-lg border border-[var(--border)] bg-white/[0.02] p-2.5 cursor-pointer hover:bg-white/[0.04] transition"
                 style={cat ? { borderLeft: `3px solid ${cat.color}` } : undefined}
+                onClick={() => setEditingEvent(ev)}
               >
                 <div className="flex items-start justify-between gap-2">
                   <span className="flex items-center gap-2 text-sm font-medium text-foreground">
@@ -596,7 +732,7 @@ SESSION_SECRET=at-least-32-chars-of-random-data`}</pre>
                   </span>
                   <button
                     type="button"
-                    onClick={() => handleDelete(ev.id)}
+                    onClick={(e) => { e.stopPropagation(); handleDelete(ev.id); }}
                     aria-label="Delete event"
                     className="opacity-0 transition group-hover:opacity-100 text-[var(--muted)] hover:text-rose-300"
                   >
@@ -649,6 +785,13 @@ SESSION_SECRET=at-least-32-chars-of-random-data`}</pre>
         defaultCategoryId={formCategory}
         onClose={() => setFormOpen(false)}
         onSubmit={handleCreate}
+      />
+
+      <EventForm
+        open={editingEvent !== null}
+        initialEvent={editingEvent ?? undefined}
+        onClose={() => setEditingEvent(null)}
+        onSubmit={handleUpdate}
       />
     </div>
   );

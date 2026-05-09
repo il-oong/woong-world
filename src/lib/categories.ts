@@ -1,12 +1,8 @@
-export type CategoryId =
-  | "life"
-  | "company"
-  | "vfx"
-  | "appdev"
-  | "jazz";
+// CategoryId는 string (커스텀 카테고리 지원)
+export type CategoryId = string;
 
 export type Category = {
-  id: CategoryId;
+  id: string;
   label: string;
   /** Google Calendar event colorId (1-11) */
   colorId: string;
@@ -18,56 +14,55 @@ export type Category = {
   border: string;
 };
 
-export const CATEGORIES: Category[] = [
-  {
-    id: "life",
-    label: "인생",
-    colorId: "9",
-    color: "#5484ed",
-    bg: "rgba(84,132,237,0.15)",
-    border: "rgba(84,132,237,0.45)",
-  },
-  {
-    id: "company",
-    label: "회사",
-    colorId: "8",
-    color: "#9aa0a6",
-    bg: "rgba(154,160,166,0.15)",
-    border: "rgba(154,160,166,0.45)",
-  },
-  {
-    id: "vfx",
-    label: "VFX",
-    colorId: "3",
-    color: "#a36ee0",
-    bg: "rgba(163,110,224,0.15)",
-    border: "rgba(163,110,224,0.45)",
-  },
-  {
-    id: "appdev",
-    label: "앱개발",
-    colorId: "7",
-    color: "#46d6db",
-    bg: "rgba(70,214,219,0.15)",
-    border: "rgba(70,214,219,0.45)",
-  },
-  {
-    id: "jazz",
-    label: "재즈",
-    colorId: "6",
-    color: "#ffa726",
-    bg: "rgba(255,167,38,0.15)",
-    border: "rgba(255,167,38,0.45)",
-  },
+// Google Calendar 11가지 프리셋 색상
+export const COLOR_PRESETS: { colorId: string; color: string; name: string }[] = [
+  { colorId: "1",  color: "#d50000", name: "Tomato" },
+  { colorId: "2",  color: "#e67c73", name: "Flamingo" },
+  { colorId: "3",  color: "#f09300", name: "Tangerine" },
+  { colorId: "4",  color: "#f6bf26", name: "Banana" },
+  { colorId: "5",  color: "#33b679", name: "Sage" },
+  { colorId: "6",  color: "#0b8043", name: "Basil" },
+  { colorId: "7",  color: "#039be5", name: "Peacock" },
+  { colorId: "8",  color: "#3f51b5", name: "Blueberry" },
+  { colorId: "9",  color: "#7986cb", name: "Lavender" },
+  { colorId: "10", color: "#8d24aa", name: "Grape" },
+  { colorId: "11", color: "#616161", name: "Graphite" },
 ];
 
-const BY_ID = new Map(CATEGORIES.map((c) => [c.id, c]));
-const BY_COLOR_ID = new Map(CATEGORIES.map((c) => [c.colorId, c]));
+export function colorFromPreset(colorId: string): { color: string; bg: string; border: string } {
+  const preset = COLOR_PRESETS.find((p) => p.colorId === colorId);
+  const hex = preset?.color ?? "#7986cb";
+  return {
+    color: hex,
+    bg: `${hex}26`,
+    border: `${hex}73`,
+  };
+}
+
+export function buildCategory(raw: { id: string; label: string; colorId: string }): Category {
+  const { color, bg, border } = colorFromPreset(raw.colorId);
+  return { id: raw.id, label: raw.label, colorId: raw.colorId, color, bg, border };
+}
+
+// 기본 카테고리 (처음 실행 시 Redis에 없으면 이걸 사용)
+export const DEFAULT_CATEGORIES: Category[] = [
+  buildCategory({ id: "life",    label: "인생",   colorId: "9" }),
+  buildCategory({ id: "company", label: "회사",   colorId: "11" }),
+  buildCategory({ id: "vfx",    label: "VFX",    colorId: "10" }),
+  buildCategory({ id: "appdev", label: "앱개발", colorId: "7" }),
+  buildCategory({ id: "jazz",   label: "재즈",   colorId: "3" }),
+];
+
+// 런타임에 사용하는 카테고리 목록 (SSR용 fallback — 클라이언트는 API 사용)
+export let CATEGORIES: Category[] = DEFAULT_CATEGORIES;
+
+export function setRuntimeCategories(cats: Category[]) {
+  CATEGORIES = cats.length > 0 ? cats : DEFAULT_CATEGORIES;
+}
 
 export function getCategory(id: CategoryId): Category {
-  const c = BY_ID.get(id);
-  if (!c) throw new Error(`Unknown category: ${id}`);
-  return c;
+  const c = CATEGORIES.find((cat) => cat.id === id);
+  return c ?? buildCategory({ id, label: id, colorId: "9" });
 }
 
 export function categoryFromEvent(ev: {
@@ -75,11 +70,13 @@ export function categoryFromEvent(ev: {
   extendedProperties?: { private?: { category?: string } };
 }): Category | null {
   const explicit = ev.extendedProperties?.private?.category;
-  if (explicit && BY_ID.has(explicit as CategoryId)) {
-    return BY_ID.get(explicit as CategoryId) ?? null;
+  if (explicit) {
+    const found = CATEGORIES.find((c) => c.id === explicit);
+    if (found) return found;
   }
-  if (ev.colorId && BY_COLOR_ID.has(ev.colorId)) {
-    return BY_COLOR_ID.get(ev.colorId) ?? null;
+  if (ev.colorId) {
+    const byColor = CATEGORIES.find((c) => c.colorId === ev.colorId);
+    if (byColor) return byColor;
   }
   return null;
 }

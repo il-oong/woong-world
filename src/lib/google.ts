@@ -299,6 +299,53 @@ export async function createEvent(
   return res.json();
 }
 
+export async function updateEvent(
+  session: GoogleSession,
+  eventId: string,
+  input: CreateEventInput,
+): Promise<CalendarEvent> {
+  const body: Record<string, unknown> = {
+    summary: input.summary,
+    description: input.description || "",
+  };
+
+  if (input.kind === "timed") {
+    body.start = { dateTime: input.start, timeZone: TZ };
+    body.end = { dateTime: input.end, timeZone: TZ };
+  } else {
+    body.start = { date: input.start };
+    body.end = { date: addOneDay(input.end) };
+  }
+
+  body.reminders = input.reminderMinutes != null
+    ? { useDefault: false, overrides: [{ method: "popup", minutes: input.reminderMinutes }] }
+    : { useDefault: false, overrides: [] };
+
+  if (input.categoryId) {
+    const category = getCategory(input.categoryId);
+    body.colorId = category.colorId;
+    body.extendedProperties = { private: { category: category.id } };
+  }
+
+  const calId = encodeURIComponent(input.calendarId ?? "primary");
+  const res = await fetch(
+    `${CALENDAR_API}/calendars/${calId}/events/${encodeURIComponent(eventId)}`,
+    {
+      method: "PUT",
+      headers: {
+        Authorization: `Bearer ${session.accessToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(body),
+    },
+  );
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Update failed: ${res.status} ${text}`);
+  }
+  return res.json();
+}
+
 export async function deleteEvent(
   session: GoogleSession,
   eventId: string,

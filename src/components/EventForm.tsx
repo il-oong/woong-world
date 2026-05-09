@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { toIso } from "@/lib/calendar-util";
 import { CATEGORIES, type CategoryId } from "@/lib/categories";
+import type { CalendarEvent } from "@/lib/google";
 
 type EventKind = "timed" | "allday" | "project";
 
@@ -24,11 +25,70 @@ export type EventFormSubmit = {
   categoryId: CategoryId;
 };
 
+function parseExistingEvent(ev: CalendarEvent): {
+  kind: EventKind;
+  categoryId: CategoryId;
+  summary: string;
+  description: string;
+  startDate: string;
+  endDate: string;
+  startTime: string;
+  endTime: string;
+  reminder: number | null;
+} {
+  const hasDT = Boolean(ev.start.dateTime);
+  let kind: EventKind = "allday";
+  let startDate = toIso(new Date());
+  let endDate = startDate;
+  let startTime = "09:00";
+  let endTime = "10:00";
+
+  if (hasDT) {
+    kind = "timed";
+    const s = new Date(ev.start.dateTime!);
+    const e = new Date(ev.end.dateTime!);
+    startDate = toIso(s);
+    endDate = toIso(e);
+    startTime = `${String(s.getHours()).padStart(2, "0")}:${String(s.getMinutes()).padStart(2, "0")}`;
+    endTime = `${String(e.getHours()).padStart(2, "0")}:${String(e.getMinutes()).padStart(2, "0")}`;
+  } else if (ev.start.date) {
+    startDate = ev.start.date;
+    // Google stores exclusive end; subtract 1 day for display
+    const endRaw = ev.end.date ?? ev.start.date;
+    const d = new Date(endRaw);
+    d.setDate(d.getDate() - 1);
+    endDate = toIso(d);
+    kind = startDate !== endDate ? "project" : "allday";
+  }
+
+  const rawCat = ev.extendedProperties?.private?.category ?? "";
+  const categoryId: CategoryId =
+    (CATEGORIES.find((c) => c.id === rawCat)?.id ?? CATEGORIES[0].id) as CategoryId;
+
+  const reminderMin = ev.reminders?.overrides?.[0]?.minutes ?? null;
+  const reminder = REMINDER_OPTIONS.find((o) => o.value === reminderMin)
+    ? reminderMin
+    : null;
+
+  return {
+    kind,
+    categoryId,
+    summary: ev.summary ?? "",
+    description: ev.description ?? "",
+    startDate,
+    endDate,
+    startTime,
+    endTime,
+    reminder,
+  };
+}
+
 export function EventForm({
   open,
   defaultDate,
   defaultKind = "timed",
   defaultCategoryId,
+  initialEvent,
   onClose,
   onSubmit,
 }: {
@@ -36,6 +96,7 @@ export function EventForm({
   defaultDate?: string;
   defaultKind?: EventKind;
   defaultCategoryId?: CategoryId;
+  initialEvent?: CalendarEvent;
   onClose: () => void;
   onSubmit: (input: EventFormSubmit) => Promise<void>;
 }) {
@@ -45,6 +106,7 @@ export function EventForm({
       defaultDate={defaultDate}
       defaultKind={defaultKind}
       defaultCategoryId={defaultCategoryId}
+      initialEvent={initialEvent}
       onClose={onClose}
       onSubmit={onSubmit}
     />
@@ -55,27 +117,32 @@ function FormBody({
   defaultDate,
   defaultKind,
   defaultCategoryId,
+  initialEvent,
   onClose,
   onSubmit,
 }: {
   defaultDate?: string;
   defaultKind: EventKind;
   defaultCategoryId?: CategoryId;
+  initialEvent?: CalendarEvent;
   onClose: () => void;
   onSubmit: (input: EventFormSubmit) => Promise<void>;
 }) {
+  const isEdit = Boolean(initialEvent);
+  const parsed = initialEvent ? parseExistingEvent(initialEvent) : null;
+
   const today = defaultDate ?? toIso(new Date());
-  const [kind, setKind] = useState<EventKind>(defaultKind);
+  const [kind, setKind] = useState<EventKind>(parsed?.kind ?? defaultKind);
   const [categoryId, setCategoryId] = useState<CategoryId>(
-    defaultCategoryId ?? CATEGORIES[0].id,
+    parsed?.categoryId ?? defaultCategoryId ?? CATEGORIES[0].id,
   );
-  const [summary, setSummary] = useState("");
-  const [description, setDescription] = useState("");
-  const [startDate, setStartDate] = useState(today);
-  const [endDate, setEndDate] = useState(today);
-  const [startTime, setStartTime] = useState("09:00");
-  const [endTime, setEndTime] = useState("10:00");
-  const [reminder, setReminder] = useState<number | null>(30);
+  const [summary, setSummary] = useState(parsed?.summary ?? "");
+  const [description, setDescription] = useState(parsed?.description ?? "");
+  const [startDate, setStartDate] = useState(parsed?.startDate ?? today);
+  const [endDate, setEndDate] = useState(parsed?.endDate ?? today);
+  const [startTime, setStartTime] = useState(parsed?.startTime ?? "09:00");
+  const [endTime, setEndTime] = useState(parsed?.endTime ?? "10:00");
+  const [reminder, setReminder] = useState<number | null>(parsed?.reminder ?? 30);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -131,7 +198,9 @@ function FormBody({
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between border-b border-[var(--border)] px-5 py-3">
-          <h2 className="text-sm font-medium text-foreground">새 일정</h2>
+          <h2 className="text-sm font-medium text-foreground">
+            {isEdit ? "일정 수정" : "새 일정"}
+          </h2>
           <button
             type="button"
             onClick={onClose}
@@ -297,7 +366,7 @@ function FormBody({
             disabled={submitting}
             className="rounded-md bg-[var(--accent)] px-3 py-1.5 text-sm font-medium text-black hover:bg-[var(--accent)]/90 disabled:opacity-50"
           >
-            {submitting ? "저장 중..." : "저장"}
+            {submitting ? "저장 중..." : isEdit ? "수정" : "저장"}
           </button>
         </div>
       </div>
