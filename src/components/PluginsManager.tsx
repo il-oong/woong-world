@@ -7,17 +7,10 @@ import {
   isValidRepo,
   type Plugin,
   type PluginStatus,
-  type StatusLevel,
 } from "@/lib/plugins";
+import { PluginTree, TreeAddCard, buildHubSubtitle } from "./PluginTree";
 
 type StatusResponse = { plugins: Plugin[]; statuses: PluginStatus[] };
-
-const LEVEL_COLOR: Record<StatusLevel, string> = {
-  green: "#34d399",
-  yellow: "#fbbf24",
-  red: "#f87171",
-  unknown: "#64748b",
-};
 
 export function PluginsManager() {
   const [plugins, setPlugins] = useState<Plugin[]>([]);
@@ -72,7 +65,7 @@ export function PluginsManager() {
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
         <p className="text-xs text-[var(--muted)]">
-          {loaded ? `${plugins.length}개 등록됨` : "불러오는 중..."}
+          {loaded ? `${plugins.length}개 노드` : "불러오는 중..."}
         </p>
         <button
           type="button"
@@ -89,58 +82,38 @@ export function PluginsManager() {
         </div>
       )}
 
-      {loaded && plugins.length === 0 && (
-        <div className="rounded-xl border border-dashed border-[var(--border)] p-8 text-center text-xs text-[var(--muted)]">
-          등록된 플러그인이 없습니다. &ldquo;+ 새 플러그인&rdquo;으로 추가하세요.
-        </div>
-      )}
-
-      <ul className="grid gap-3">
-        {plugins.map((p) => {
-          const s = statusMap.get(p.id);
-          const level = s?.level ?? "unknown";
-          const isPending = pendingId === p.id;
-          return (
-            <li
-              key={p.id}
-              className="flex items-center gap-3 rounded-xl border border-[var(--border)] bg-[var(--card)] p-3 transition hover:border-[var(--accent)]/40"
+      <PluginTree
+        plugins={plugins}
+        statuses={statusMap}
+        rootLabel="웅허브"
+        rootSubtitle={
+          loaded
+            ? plugins.length === 0
+              ? "비어있음 — 새 노드를 추가하세요"
+              : buildHubSubtitle(plugins, statusMap)
+            : "..."
+        }
+        cardFooter={(p) => (
+          <div className="flex gap-1.5">
+            <Link
+              href={`/plugins/${p.id}`}
+              className="flex-1 rounded-md border border-[var(--border)] px-2 py-1 text-center text-[10px] text-[var(--muted)] hover:border-[var(--accent)]/40 hover:text-foreground"
             >
-              <span
-                className="h-3 w-3 shrink-0 rounded-full"
-                style={{ background: LEVEL_COLOR[level] }}
-                aria-label={s?.label ?? "상태"}
-                title={s?.label ?? "상태 확인 중"}
-              />
-              <Link
-                href={`/plugins/${p.id}`}
-                className="min-w-0 flex-1"
-              >
-                <div className="flex items-baseline gap-2">
-                  <h2 className="truncate text-sm font-medium">{p.name}</h2>
-                  <span className="font-mono text-[10px] text-[var(--muted)]">
-                    {p.repo}
-                  </span>
-                </div>
-                <p className="mt-1 truncate text-[11px] text-[var(--muted)]">
-                  {s?.detail ?? p.description}
-                </p>
-              </Link>
-              <span className="hidden font-mono text-[10px] text-[var(--muted)] sm:inline">
-                {s?.label ?? "—"}
-              </span>
-              <button
-                type="button"
-                onClick={() => void remove(p.id, p.name)}
-                disabled={isPending}
-                className="rounded-md border border-[var(--border)] px-2 py-1 text-[11px] text-rose-300/80 transition hover:border-rose-500/40 hover:bg-rose-500/10 disabled:opacity-40"
-                title="허브에서 제거"
-              >
-                {isPending ? "..." : "제거"}
-              </button>
-            </li>
-          );
-        })}
-      </ul>
+              열기
+            </Link>
+            <button
+              type="button"
+              onClick={() => void remove(p.id, p.name)}
+              disabled={pendingId === p.id}
+              className="rounded-md border border-[var(--border)] px-2 py-1 text-[10px] text-rose-300/80 transition hover:border-rose-500/40 hover:bg-rose-500/10 disabled:opacity-40"
+              title="허브에서 제거"
+            >
+              {pendingId === p.id ? "..." : "제거"}
+            </button>
+          </div>
+        )}
+        trailing={<TreeAddCard onClick={() => setAdding(true)} label="+ 새 노드" />}
+      />
 
       {adding && (
         <AddPluginModal
