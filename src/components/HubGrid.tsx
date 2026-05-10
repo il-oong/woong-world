@@ -179,7 +179,7 @@ function buildAskPrompt(plugin: Plugin, status?: PluginStatus): string {
   if (status) {
     lines.push(`현재 상태: ${status.label}${status.detail ? ` — ${status.detail}` : ""}`);
   }
-  lines.push("문제가 있으면 원인과 다음에 실행할 명령어(있다면 <action>open_command</action>)를 함께 알려줘.");
+  lines.push("문제가 있으면 원인과 다음에 실행할 명령어를 알려줘 (필요하면 suggest_command 액션 사용).");
   return lines.join("\n");
 }
 

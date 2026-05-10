@@ -22,16 +22,20 @@ function redis(): Redis | null {
 }
 
 /**
- * Load the plugin registry. Source of truth is Redis; if Redis is empty
- * (or unavailable), falls back to the static JSON seed and lazily seeds Redis.
+ * Load the plugin registry. Source of truth is Redis; if the key is absent
+ * (first-ever read or Redis flushed), seeds with the JSON defaults.
+ *
+ * An explicit empty array IS a valid persisted state — meaning the admin
+ * removed every plugin. Treating that as "empty → reseed" would make
+ * deletions non-persistent.
  */
 export async function loadPlugins(): Promise<Plugin[]> {
   const r = redis();
   if (!r) return seed as Plugin[];
   try {
     const stored = await r.get<Plugin[]>(KEY);
-    if (Array.isArray(stored) && stored.length > 0) return stored;
-    // Seed once with defaults.
+    if (Array.isArray(stored)) return stored;
+    // Key absent — seed once with defaults.
     const defaults = seed as Plugin[];
     await r.set(KEY, defaults);
     return defaults;

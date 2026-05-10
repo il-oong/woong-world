@@ -51,6 +51,8 @@ export type CreateEventInput = {
   reminderMinutes?: number | null;
   categoryId?: CategoryId;
   calendarId?: string;
+  /** RFC 5545 recurrence rules (e.g., ["RRULE:FREQ=MONTHLY"]) */
+  recurrence?: string[];
 };
 
 export type UserCalendar = {
@@ -281,6 +283,10 @@ export async function createEvent(
     const category = getCategory(input.categoryId);
     body.colorId = category.colorId;
     body.extendedProperties = { private: { category: category.id } };
+  }
+
+  if (input.recurrence && input.recurrence.length > 0) {
+    body.recurrence = input.recurrence;
   }
 
   const calId = encodeURIComponent(input.calendarId ?? "primary");
