@@ -35,14 +35,14 @@ export function TopNav() {
 
   return (
     <nav className="sticky top-0 z-30 border-b border-[var(--border)] bg-[#0b0b0f]/80 backdrop-blur">
-      <div className="mx-auto flex h-12 max-w-6xl items-center gap-1 px-6">
+      <div className="mx-auto flex h-12 max-w-6xl items-center gap-1 px-3 sm:px-6">
         <Link
           href="/"
-          className="mr-3 font-mono text-[11px] uppercase tracking-[0.25em] text-[var(--accent)]"
+          className="mr-2 shrink-0 whitespace-nowrap font-mono text-[11px] uppercase tracking-[0.25em] text-[var(--accent)] sm:mr-3"
         >
           {brand}
         </Link>
-        <div className="flex flex-1 items-center gap-1 text-xs">
+        <div className="flex flex-1 items-center gap-0.5 overflow-x-auto text-xs sm:gap-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {items.map((it) => {
             const active =
               it.href === "/"
@@ -52,7 +52,7 @@ export function TopNav() {
               <Link
                 key={it.href}
                 href={it.href}
-                className="rounded-md px-2.5 py-1.5 transition"
+                className="shrink-0 whitespace-nowrap rounded-md px-2 py-1.5 transition sm:px-2.5"
                 style={{
                   color: active ? "var(--foreground)" : "var(--muted)",
                   background: active ? "rgba(255,255,255,0.06)" : "transparent",

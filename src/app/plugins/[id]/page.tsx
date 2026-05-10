@@ -42,56 +42,54 @@ export default async function PluginViewerPage({
 
   return (
     <div className="flex h-[calc(100vh-3rem)] flex-col">
-      <header className="flex shrink-0 items-center gap-3 border-b border-[var(--border)] bg-[var(--card)]/80 px-4 py-3 backdrop-blur">
-        <Link
-          href="/plugins"
-          className="rounded-md border border-[var(--border)] px-2 py-1 text-[11px] text-[var(--muted)] transition hover:border-[var(--accent)]/40 hover:text-foreground"
-          aria-label="플러그인 목록으로"
-        >
-          ←
-        </Link>
-        <span
-          className="h-2.5 w-2.5 shrink-0 rounded-full"
-          style={{
-            background: LEVEL_COLOR[level],
-            boxShadow: LEVEL_GLOW[level],
-          }}
-          aria-label={status?.label ?? "상태"}
-        />
-        <div className="min-w-0 flex-1">
-          <div className="flex items-baseline gap-2">
+      <header className="flex shrink-0 flex-col gap-2 border-b border-[var(--border)] bg-[var(--card)]/80 px-3 py-2.5 backdrop-blur sm:flex-row sm:items-center sm:gap-3 sm:px-4 sm:py-3">
+        <div className="flex min-w-0 items-center gap-2 sm:gap-3">
+          <Link
+            href="/plugins"
+            className="shrink-0 rounded-md border border-[var(--border)] px-2 py-1 text-[11px] text-[var(--muted)] transition hover:border-[var(--accent)]/40 hover:text-foreground"
+            aria-label="플러그인 목록으로"
+          >
+            ←
+          </Link>
+          <span
+            className="h-2.5 w-2.5 shrink-0 rounded-full"
+            style={{
+              background: LEVEL_COLOR[level],
+              boxShadow: LEVEL_GLOW[level],
+            }}
+            aria-label={status?.label ?? "상태"}
+          />
+          <div className="min-w-0 flex-1">
             <h1 className="truncate text-sm font-medium">{plugin.name}</h1>
-            <span className="font-mono text-[10px] text-[var(--muted)]">
+            <p className="truncate font-mono text-[10px] text-[var(--muted)]">
               {plugin.repo}
               {plugin.pr != null ? ` · #${plugin.pr}` : ""}
-            </span>
-          </div>
-          {status?.detail && (
-            <p className="truncate text-[11px] text-[var(--muted)]">
-              {status.detail}
+              {status?.detail ? ` — ${status.detail}` : ""}
             </p>
-          )}
+          </div>
         </div>
-        <AskAssistantButton
-          prompt={[
-            `웅허브 플러그인 "${plugin.name}" (id=${plugin.id}) 상태를 점검해줘.`,
-            `repo=${plugin.repo}@${plugin.branch}${plugin.pr != null ? ` PR#${plugin.pr}` : ""}`,
-            status
-              ? `현재 상태: ${status.label}${status.detail ? ` — ${status.detail}` : ""}`
-              : "",
-            "문제가 있으면 원인과 다음에 실행할 명령어를 알려줘.",
-          ]
-            .filter(Boolean)
-            .join("\n")}
-        />
-        <a
-          href={githubUrl}
-          target="_blank"
-          rel="noreferrer noopener"
-          className="rounded-md border border-[var(--border)] px-2.5 py-1 text-[11px] text-[var(--muted)] transition hover:border-[var(--accent)]/40 hover:text-foreground"
-        >
-          GitHub
-        </a>
+        <div className="flex shrink-0 items-center gap-2 self-end sm:self-auto">
+          <AskAssistantButton
+            prompt={[
+              `웅허브 플러그인 "${plugin.name}" (id=${plugin.id}) 상태를 점검해줘.`,
+              `repo=${plugin.repo}@${plugin.branch}${plugin.pr != null ? ` PR#${plugin.pr}` : ""}`,
+              status
+                ? `현재 상태: ${status.label}${status.detail ? ` — ${status.detail}` : ""}`
+                : "",
+              "문제가 있으면 원인과 다음에 실행할 명령어를 알려줘.",
+            ]
+              .filter(Boolean)
+              .join("\n")}
+          />
+          <a
+            href={githubUrl}
+            target="_blank"
+            rel="noreferrer noopener"
+            className="rounded-md border border-[var(--border)] px-2.5 py-1 text-[11px] text-[var(--muted)] transition hover:border-[var(--accent)]/40 hover:text-foreground"
+          >
+            GitHub
+          </a>
+        </div>
       </header>
 
       <div className="relative flex-1 bg-black/40">
