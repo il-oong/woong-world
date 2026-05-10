@@ -1,15 +1,18 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { AssistantPanel } from "./AssistantPanel";
 
 const OPEN_KEY = "wh-assistant-open";
+
+export type AssistantOpenDetail = { prefill?: string };
 
 export function AssistantWidget() {
   const [open, setOpen] = useState<boolean>(() => {
     if (typeof window === "undefined") return false;
     return window.localStorage.getItem(OPEN_KEY) === "1";
   });
+  const [prefill, setPrefill] = useState<string | undefined>(undefined);
 
   const setOpenAndPersist = (next: boolean) => {
     setOpen(next);
@@ -18,6 +21,17 @@ export function AssistantWidget() {
     }
   };
 
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent<AssistantOpenDetail>).detail;
+      if (detail?.prefill) setPrefill(detail.prefill);
+      setOpenAndPersist(true);
+    };
+    window.addEventListener("wh:assistant-open", handler as EventListener);
+    return () =>
+      window.removeEventListener("wh:assistant-open", handler as EventListener);
+  }, []);
+
   return (
     <>
       {open && (
@@ -25,7 +39,14 @@ export function AssistantWidget() {
           <div
             className="pointer-events-auto flex h-[100dvh] w-full flex-col overflow-hidden border border-[var(--border)] bg-[#0b0b0f] shadow-2xl sm:h-[600px] sm:max-h-[85vh] sm:w-[400px] sm:rounded-2xl"
           >
-            <AssistantPanel onClose={() => setOpenAndPersist(false)} />
+            <AssistantPanel
+              onClose={() => {
+                setOpenAndPersist(false);
+                setPrefill(undefined);
+              }}
+              prefillText={prefill}
+              onPrefillConsumed={() => setPrefill(undefined)}
+            />
           </div>
         </div>
       )}
@@ -53,5 +74,15 @@ export function AssistantWidget() {
         </button>
       )}
     </>
+  );
+}
+
+/** Helper for any component to ask the assistant a question. */
+export function askAssistant(prefill: string): void {
+  if (typeof window === "undefined") return;
+  window.dispatchEvent(
+    new CustomEvent<AssistantOpenDetail>("wh:assistant-open", {
+      detail: { prefill },
+    }),
   );
 }

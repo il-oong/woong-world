@@ -91,6 +91,11 @@ export async function POST(req: NextRequest) {
       }
       return Response.json({ ok: true, status: "approved", result: { plan } });
     }
+    if (r.action.type === "suggest_command") {
+      // No server execution — the user runs the command locally. Approval just
+      // marks the suggestion as acknowledged in the chat history.
+      return Response.json({ ok: true, status: "approved" });
+    }
     return Response.json({ error: "unknown_action_type" }, { status: 400 });
   } catch (e) {
     return Response.json(

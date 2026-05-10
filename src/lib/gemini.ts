@@ -8,6 +8,7 @@ import type {
 import { newId } from "./assistant";
 import type { CalendarEvent } from "./google";
 import { eventOnDay, formatTimeRange, toIso } from "./calendar-util";
+import type { Plugin, PluginStatus } from "./plugins";
 
 const GEMINI_MODEL = "gemini-2.5-flash";
 const ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
@@ -175,6 +176,13 @@ const CHAT_SYSTEM_PROMPT = `너는 사용자의 인생 비서다 ("뇌 대리").
 - categoryId는 다음 중 하나: "life"(인생), "company"(회사), "vfx"(VFX), "appdev"(앱개발), "jazz"(재즈)
 - 시간은 ISO 8601 (한국 시간 기준 'Asia/Seoul'). timed면 'YYYY-MM-DDTHH:mm', allday/project면 'YYYY-MM-DD'.
 
+명령어 제안 (관리자 / 웅허브 모드 전용):
+- 플러그인이나 코드 점검 결과 사용자가 로컬에서 실행할 명령어가 명확하면 제안해라:
+  <action>{"type":"suggest_command","params":{"cmd":"git fetch origin claude/plugin-routine && git checkout claude/plugin-routine && npm install && npm run build","cwd":"woong-world","explanation":"루틴 PR이 main과 충돌나는지 확인하려면 체크아웃 후 빌드해보면 된다.","pluginId":"routine"}}</action>
+- 이 액션은 서버에서 실행하지 않는다. UI는 [복사] 버튼과 설명만 보여준다 — 사용자가 직접 터미널에서 실행한다.
+- 한 답변에 명령어는 최대 3개. 한 줄에 너무 많은 단계가 섞이면 단계별로 나눠라.
+- 위험 명령(rm -rf, force push, db drop 등)은 절대 제안하지 말고, 부득이하면 명시적으로 위험성을 설명해라.
+
 규칙:
 - 한국어로 답한다.
 - 액션 블록 외의 본문은 일반 텍스트(마크다운 약간 OK).
@@ -186,6 +194,9 @@ export type AssistantContext = {
   upcomingEvents: CalendarEvent[];
   activePlans: Plan[];
   files: UploadedFile[];
+  /** Admin-only: plugin registry + their CI/PR status. */
+  plugins?: { plugin: Plugin; status: PluginStatus }[];
+  isAdmin?: boolean;
 };
 
 function summarizeEvents(events: CalendarEvent[], today: string): string {
@@ -234,20 +245,50 @@ function summarizeFiles(files: UploadedFile[]): string {
     .join("\n");
 }
 
+function summarizePlugins(
+  entries: { plugin: Plugin; status: PluginStatus }[],
+): string {
+  if (entries.length === 0) return "  (없음)";
+  const lightOf = (lvl: PluginStatus["level"]) =>
+    lvl === "green" ? "🟢" : lvl === "yellow" ? "🟡" : lvl === "red" ? "🔴" : "⚪";
+  return entries
+    .map(({ plugin, status }) => {
+      const parts = [
+        `  ${lightOf(status.level)} ${plugin.name} (id=${plugin.id})`,
+        `    repo=${plugin.repo}@${plugin.branch}${plugin.pr != null ? ` PR#${plugin.pr}` : ""}`,
+        `    상태: ${status.label}${status.detail ? ` — ${status.detail}` : ""}`,
+      ];
+      return parts.join("\n");
+    })
+    .join("\n");
+}
+
 function buildContextBlock(ctx: AssistantContext): string {
   const cats = CATEGORIES.map((c) => `${c.id}=${c.label}`).join(", ");
-  return `[오늘] ${ctx.today} (${weekdayLabel(ctx.today)})
-[사용자] ${ctx.email}
-[카테고리] ${cats}
-
-[다가오는 일정 (다음 14일)]
-${summarizeEvents(ctx.upcomingEvents, ctx.today)}
-
-[활성 계획]
-${summarizePlans(ctx.activePlans)}
-
-[업로드된 파일/링크]
-${summarizeFiles(ctx.files)}`;
+  const blocks = [
+    `[오늘] ${ctx.today} (${weekdayLabel(ctx.today)})`,
+    `[사용자] ${ctx.email}${ctx.isAdmin ? " (관리자 / 웅허브 모드)" : ""}`,
+    `[카테고리] ${cats}`,
+    "",
+    "[다가오는 일정 (다음 14일)]",
+    summarizeEvents(ctx.upcomingEvents, ctx.today),
+    "",
+    "[활성 계획]",
+    summarizePlans(ctx.activePlans),
+    "",
+    "[업로드된 파일/링크]",
+    summarizeFiles(ctx.files),
+  ];
+  if (ctx.isAdmin && ctx.plugins?.length) {
+    blocks.push(
+      "",
+      "[웅허브 플러그인 상태]",
+      summarizePlugins(ctx.plugins),
+      "",
+      "관리자가 플러그인이나 PR 상태를 묻거든 위 정보를 근거로 어느 플러그인이 어떤 상태인지, 무엇을 점검하면 되는지 짧게 보고해라.",
+    );
+  }
+  return blocks.join("\n");
 }
 
 const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"];
