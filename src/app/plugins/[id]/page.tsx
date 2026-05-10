@@ -1,7 +1,8 @@
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import { isAdminSession } from "@/lib/admin";
-import { getPlugin, pluginEmbedUrl, pluginGitHubUrl } from "@/lib/plugins";
+import { pluginEmbedUrl, pluginGitHubUrl } from "@/lib/plugins";
+import { loadPlugin } from "@/lib/plugins-store";
 import { getPluginStatus } from "@/lib/github-status";
 import { PluginEmbed } from "@/components/PluginEmbed";
 import { AskAssistantButton } from "@/components/AskAssistantButton";
@@ -31,7 +32,7 @@ export default async function PluginViewerPage({
   if (!isAdmin) redirect("/");
 
   const { id } = await params;
-  const plugin = getPlugin(id);
+  const plugin = await loadPlugin(id);
   if (!plugin) notFound();
 
   const status = await getPluginStatus(plugin).catch(() => null);
@@ -104,7 +105,7 @@ export default async function PluginViewerPage({
             <p className="text-xs text-[var(--muted)]">
               {plugin.pr != null
                 ? `PR #${plugin.pr}이 머지되고 배포되면 여기서 바로 사용할 수 있어요.`
-                : "플러그인 배포 후 plugins.json에 URL을 추가하세요."}
+                : "/plugins 페이지에서 이 플러그인을 편집해 배포 URL을 추가하세요."}
             </p>
             <a
               href={githubUrl}

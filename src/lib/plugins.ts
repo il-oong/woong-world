@@ -38,12 +38,13 @@ export type PluginStatus = {
   openPrs?: number;
 };
 
-export function getPlugins(): Plugin[] {
+/**
+ * Synchronous read of the static seed registry. Use only when Redis is
+ * unavailable or for build-time defaults — runtime callers should prefer
+ * {@link loadPlugins} from `plugins-store.ts`.
+ */
+export function getSeedPlugins(): Plugin[] {
   return pluginsData as Plugin[];
-}
-
-export function getPlugin(id: string): Plugin | null {
-  return (pluginsData as Plugin[]).find((p) => p.id === id) ?? null;
 }
 
 /** What URL should the iframe load for this plugin? Returns null if no embed source. */
@@ -60,3 +61,18 @@ export function pluginGitHubUrl(p: Plugin): string {
   if (p.pr != null) return `https://github.com/${p.repo}/pull/${p.pr}`;
   return `https://github.com/${p.repo}/tree/${p.branch}`;
 }
+
+/** Plugin ids that collide with API route segments and must be rejected. */
+const RESERVED_PLUGIN_IDS = new Set(["status"]);
+
+/** Validate a plugin id: lowercase alphanumeric + dashes, not a reserved word. */
+export function isValidPluginId(id: string): boolean {
+  if (RESERVED_PLUGIN_IDS.has(id)) return false;
+  return /^[a-z0-9][a-z0-9-]{0,40}$/.test(id);
+}
+
+/** Validate a "owner/name" GitHub repo string. */
+export function isValidRepo(repo: string): boolean {
+  return /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(repo);
+}
+

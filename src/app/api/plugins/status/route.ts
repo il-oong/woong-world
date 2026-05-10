@@ -1,6 +1,6 @@
 import { isAdminSession } from "@/lib/admin";
 import { getAllPluginStatuses } from "@/lib/github-status";
-import { getPlugins } from "@/lib/plugins";
+import { loadPlugins } from "@/lib/plugins-store";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -11,8 +11,8 @@ export async function GET() {
   if (!isAdmin) {
     return Response.json({ error: "forbidden" }, { status: 403 });
   }
-  const plugins = getPlugins();
   try {
+    const plugins = await loadPlugins();
     const statuses = await getAllPluginStatuses(plugins);
     return Response.json({ plugins, statuses });
   } catch (e) {

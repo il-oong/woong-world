@@ -12,7 +12,7 @@ import {
 } from "@/lib/assistant";
 import { chatWithAssistant, isGeminiConfigured } from "@/lib/gemini";
 import { isAdminEmail } from "@/lib/admin";
-import { getPlugins } from "@/lib/plugins";
+import { loadPlugins } from "@/lib/plugins-store";
 import { getAllPluginStatuses } from "@/lib/github-status";
 
 export const dynamic = "force-dynamic";
@@ -84,10 +84,10 @@ export async function POST(req: NextRequest) {
   // Admin gets plugin registry + status injected so the assistant can report
   // on plugin health when asked.
   const isAdmin = isAdminEmail(session.email);
-  let pluginContext: { plugin: ReturnType<typeof getPlugins>[number]; status: Awaited<ReturnType<typeof getAllPluginStatuses>>[number] }[] | undefined;
+  let pluginContext: { plugin: Awaited<ReturnType<typeof loadPlugins>>[number]; status: Awaited<ReturnType<typeof getAllPluginStatuses>>[number] }[] | undefined;
   if (isAdmin) {
     try {
-      const plugins = getPlugins();
+      const plugins = await loadPlugins();
       const statuses = await getAllPluginStatuses(plugins);
       const map = new Map(statuses.map((s) => [s.pluginId, s]));
       pluginContext = plugins
