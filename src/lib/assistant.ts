@@ -49,6 +49,20 @@ export type ProposedAction =
         planId: string;
         patch: UpdatePlanInput;
       };
+    }
+  | {
+      id: string;
+      // Suggest a shell command for the user to run locally — not executed by the server.
+      // The UI offers a copy button and an explanation.
+      type: "suggest_command";
+      status: "pending" | "approved" | "rejected";
+      params: {
+        cmd: string;
+        cwd?: string;
+        explanation: string;
+        /** Optional plugin id this command relates to (for traceability). */
+        pluginId?: string;
+      };
     };
 
 export type ChatAttachment = {

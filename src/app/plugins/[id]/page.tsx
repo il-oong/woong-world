@@ -4,6 +4,7 @@ import { isAdminSession } from "@/lib/admin";
 import { getPlugin, pluginEmbedUrl, pluginGitHubUrl } from "@/lib/plugins";
 import { getPluginStatus } from "@/lib/github-status";
 import { PluginEmbed } from "@/components/PluginEmbed";
+import { AskAssistantButton } from "@/components/AskAssistantButton";
 
 export const dynamic = "force-dynamic";
 
@@ -70,6 +71,18 @@ export default async function PluginViewerPage({
             </p>
           )}
         </div>
+        <AskAssistantButton
+          prompt={[
+            `웅허브 플러그인 "${plugin.name}" (id=${plugin.id}) 상태를 점검해줘.`,
+            `repo=${plugin.repo}@${plugin.branch}${plugin.pr != null ? ` PR#${plugin.pr}` : ""}`,
+            status
+              ? `현재 상태: ${status.label}${status.detail ? ` — ${status.detail}` : ""}`
+              : "",
+            "문제가 있으면 원인과 다음에 실행할 명령어를 알려줘.",
+          ]
+            .filter(Boolean)
+            .join("\n")}
+        />
         <a
           href={githubUrl}
           target="_blank"

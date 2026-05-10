@@ -124,9 +124,21 @@ function ActionCard({
             {action.type === "update_plan" && (
               <UpdatePlanBody params={action.params} />
             )}
+            {action.type === "suggest_command" && (
+              <SuggestCommandBody params={action.params} />
+            )}
           </div>
 
-          {action.status === "pending" && (
+          {action.status === "pending" && action.type === "suggest_command" && (
+            <SuggestCommandActions
+              cmd={action.params.cmd}
+              busy={busy}
+              onDone={() => void decide("approve")}
+              onReject={() => void decide("reject")}
+            />
+          )}
+
+          {action.status === "pending" && action.type !== "suggest_command" && (
             <div className="flex justify-end gap-2 border-t border-[var(--border)] px-3 py-2">
               <button
                 type="button"
@@ -278,6 +290,95 @@ function UpdatePlanBody({
       <pre className="mt-1 overflow-x-auto rounded bg-black/30 p-2 font-mono text-[10px] text-[var(--muted)]">
         {JSON.stringify(params.patch, null, 2)}
       </pre>
+    </div>
+  );
+}
+
+function SuggestCommandBody({
+  params,
+}: {
+  params: Extract<ProposedAction, { type: "suggest_command" }>["params"];
+}) {
+  return (
+    <div className="flex flex-col gap-2">
+      <p className="text-[var(--muted)]">{params.explanation}</p>
+      <pre className="overflow-x-auto rounded bg-black/40 p-2 font-mono text-[11px] leading-relaxed text-emerald-200">
+        {params.cwd ? <span className="text-[var(--muted)]"># cwd: {params.cwd}{"\n"}</span> : null}
+        {params.cmd}
+      </pre>
+      {params.pluginId && (
+        <span className="font-mono text-[10px] text-[var(--muted)]">
+          related to plugin: {params.pluginId}
+        </span>
+      )}
+      <p className="text-[10px] text-[var(--muted)]">
+        ⓘ 서버에서 실행되지 않는다. 복사해서 직접 터미널에 붙여 넣어 실행해라.
+      </p>
+    </div>
+  );
+}
+
+function SuggestCommandActions({
+  cmd,
+  busy,
+  onDone,
+  onReject,
+}: {
+  cmd: string;
+  busy: boolean;
+  onDone: () => void;
+  onReject: () => void;
+}) {
+  const [copied, setCopied] = useState(false);
+
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(cmd);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      // Fallback: select-and-copy via a textarea
+      const ta = document.createElement("textarea");
+      ta.value = cmd;
+      document.body.appendChild(ta);
+      ta.select();
+      try {
+        document.execCommand("copy");
+        setCopied(true);
+        setTimeout(() => setCopied(false), 1500);
+      } catch {
+        // give up — leave the cmd visible for manual copy
+      }
+      document.body.removeChild(ta);
+    }
+  };
+
+  return (
+    <div className="flex justify-end gap-2 border-t border-[var(--border)] px-3 py-2">
+      <button
+        type="button"
+        onClick={onReject}
+        disabled={busy}
+        className="rounded-md px-3 py-1 text-xs text-[var(--muted)] hover:bg-white/5 hover:text-foreground disabled:opacity-40"
+      >
+        무시
+      </button>
+      <button
+        type="button"
+        onClick={() => void copy()}
+        disabled={busy}
+        className="rounded-md border border-[var(--border)] px-3 py-1 text-xs text-[var(--muted)] hover:bg-white/5 hover:text-foreground disabled:opacity-40"
+      >
+        {copied ? "복사됨 ✓" : "복사"}
+      </button>
+      <button
+        type="button"
+        onClick={onDone}
+        disabled={busy}
+        className="rounded-md bg-[var(--accent)] px-3 py-1 text-xs font-medium text-black disabled:opacity-40"
+      >
+        {busy ? "..." : "실행했음"}
+      </button>
     </div>
   );
 }
@@ -582,6 +683,8 @@ function labelForType(type: ProposedAction["type"]): string {
       return "+ 계획 생성";
     case "update_plan":
       return "✎ 계획 수정";
+    case "suggest_command":
+      return "⌘ 명령어 제안";
   }
 }
 

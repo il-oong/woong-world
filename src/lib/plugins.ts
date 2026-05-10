@@ -49,7 +49,9 @@ export function getPlugin(id: string): Plugin | null {
 /** What URL should the iframe load for this plugin? Returns null if no embed source. */
 export function pluginEmbedUrl(p: Plugin): string | null {
   if (p.url) return p.url;
-  if (p.path) return p.path;
+  // Guard: paths under /plugins/* would iframe the viewer page itself
+  // (which is /plugins/[id]) and cause infinite recursion.
+  if (p.path && !p.path.startsWith("/plugins/")) return p.path;
   return null;
 }
 

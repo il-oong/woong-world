@@ -16,7 +16,15 @@ type GoogleStatus =
   | { configured: true; connected: false }
   | { configured: true; connected: true; email?: string };
 
-export function AssistantPanel({ onClose }: { onClose: () => void }) {
+export function AssistantPanel({
+  onClose,
+  prefillText,
+  onPrefillConsumed,
+}: {
+  onClose: () => void;
+  prefillText?: string;
+  onPrefillConsumed?: () => void;
+}) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [files, setFiles] = useState<UploadedFile[]>([]);
   const [status, setStatus] = useState<Status | null>(null);
@@ -29,6 +37,14 @@ export function AssistantPanel({ onClose }: { onClose: () => void }) {
     () => new Set(),
   );
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  // Apply prefill from external trigger (e.g., "비서에게 묻기" buttons).
+  useEffect(() => {
+    if (prefillText) {
+      setText(prefillText);
+      onPrefillConsumed?.();
+    }
+  }, [prefillText, onPrefillConsumed]);
 
   const refreshAll = async () => {
     const [hRes, fRes] = await Promise.all([
