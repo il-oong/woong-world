@@ -63,7 +63,7 @@ export function pluginGitHubUrl(p: Plugin): string {
 }
 
 /** Plugin ids that collide with API route segments and must be rejected. */
-const RESERVED_PLUGIN_IDS = new Set(["status"]);
+const RESERVED_PLUGIN_IDS = new Set(["status", "github-meta"]);
 
 /** Validate a plugin id: lowercase alphanumeric + dashes, not a reserved word. */
 export function isValidPluginId(id: string): boolean {

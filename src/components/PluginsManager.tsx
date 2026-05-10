@@ -158,6 +158,60 @@ export function PluginsManager() {
 
 const PRESET_COLORS = ["#7dd3fc", "#fcd34d", "#c4b5fd", "#86efac", "#fda4af", "#a78bfa", "#f472b6"];
 
+/** Convert a free-form name into a slug. Returns "" if no usable ASCII chars. */
+function slugify(name: string): string {
+  const slug = name
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, "")
+    .trim()
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 40);
+  return slug;
+}
+
+type GithubUrlParts = {
+  repo?: string;
+  branch?: string;
+  pr?: number;
+};
+
+/** Parse a GitHub URL like /owner/repo/pull/30 or /owner/repo/tree/branch. */
+function parseGithubUrl(input: string): GithubUrlParts | null {
+  const trimmed = input.trim();
+  if (!trimmed) return null;
+  // Accept bare "owner/name" too.
+  const bareMatch = /^([A-Za-z0-9_.-]+)\/([A-Za-z0-9_.-]+)$/.exec(trimmed);
+  if (bareMatch) return { repo: `${bareMatch[1]}/${bareMatch[2]}` };
+  let url: URL;
+  try {
+    url = new URL(trimmed);
+  } catch {
+    return null;
+  }
+  if (!/(^|\.)github\.com$/i.test(url.hostname)) return null;
+  const segs = url.pathname.split("/").filter(Boolean);
+  if (segs.length < 2) return null;
+  const repo = `${segs[0]}/${segs[1].replace(/\.git$/, "")}`;
+  const out: GithubUrlParts = { repo };
+  if (segs[2] === "pull" && segs[3]) {
+    const n = parseInt(segs[3], 10);
+    if (Number.isFinite(n)) out.pr = n;
+  } else if (segs[2] === "tree" && segs[3]) {
+    out.branch = segs.slice(3).join("/");
+  }
+  return out;
+}
+
+type GithubMeta = {
+  name?: string;
+  description?: string;
+  defaultBranch?: string;
+  homepage?: string;
+  openPrs?: { number: number; title: string; draft: boolean; branch: string }[];
+};
+
 function AddPluginModal({
   existingIds,
   onClose,
@@ -167,17 +221,99 @@ function AddPluginModal({
   onClose: () => void;
   onAdded: () => Promise<void>;
 }) {
+  const [ghUrl, setGhUrl] = useState("");
   const [id, setId] = useState("");
+  const [idEdited, setIdEdited] = useState(false);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
+  const [descriptionEdited, setDescriptionEdited] = useState(false);
   const [repo, setRepo] = useState("");
   const [branch, setBranch] = useState("main");
+  const [branchEdited, setBranchEdited] = useState(false);
   const [pr, setPr] = useState("");
   const [url, setUrl] = useState("");
+  const [urlEdited, setUrlEdited] = useState(false);
   const [accent, setAccent] = useState(PRESET_COLORS[0]);
   const [tagsInput, setTagsInput] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const [meta, setMeta] = useState<GithubMeta | null>(null);
+  const [metaLoading, setMetaLoading] = useState(false);
+  const [metaError, setMetaError] = useState<string | null>(null);
+
+  // GitHub URL paste → fill repo / branch / pr
+  useEffect(() => {
+    const parsed = parseGithubUrl(ghUrl);
+    if (!parsed) return;
+    if (parsed.repo) setRepo(parsed.repo);
+    if (parsed.branch) {
+      setBranch(parsed.branch);
+      setBranchEdited(true);
+    }
+    if (typeof parsed.pr === "number") setPr(String(parsed.pr));
+  }, [ghUrl]);
+
+  // Name → ID auto-slug (until user edits ID manually)
+  useEffect(() => {
+    if (idEdited) return;
+    const slug = slugify(name);
+    setId(slug);
+  }, [name, idEdited]);
+
+  // Repo → fetch metadata (debounced)
+  useEffect(() => {
+    if (!isValidRepo(repo)) {
+      setMeta(null);
+      setMetaError(null);
+      return;
+    }
+    let cancelled = false;
+    const handle = setTimeout(async () => {
+      setMetaLoading(true);
+      setMetaError(null);
+      try {
+        const res = await fetch(
+          `/api/plugins/github-meta?repo=${encodeURIComponent(repo)}`,
+        );
+        const data = (await res.json().catch(() => ({}))) as
+          | GithubMeta
+          | { error: string };
+        if (cancelled) return;
+        if (!res.ok || "error" in data) {
+          setMeta(null);
+          setMetaError(("error" in data && data.error) || `http_${res.status}`);
+          return;
+        }
+        setMeta(data);
+      } catch (e) {
+        if (!cancelled) {
+          setMetaError(e instanceof Error ? e.message : "meta_failed");
+        }
+      } finally {
+        if (!cancelled) setMetaLoading(false);
+      }
+    }, 400);
+    return () => {
+      cancelled = true;
+      clearTimeout(handle);
+    };
+  }, [repo]);
+
+  // Apply metadata to fields the user hasn't edited.
+  useEffect(() => {
+    if (!meta) return;
+    if (!descriptionEdited && meta.description) {
+      setDescription(meta.description);
+    }
+    if (!branchEdited && meta.defaultBranch && pr === "") {
+      setBranch(meta.defaultBranch);
+    }
+    if (!urlEdited && meta.homepage) {
+      setUrl(meta.homepage);
+    }
+    // intentionally watching meta only
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [meta]);
 
   const idValid = id.length === 0 || isValidPluginId(id);
   const idTaken = existingIds.includes(id);
@@ -191,6 +327,14 @@ function AddPluginModal({
     name.trim() &&
     repo &&
     isValidRepo(repo);
+
+  const applyPr = (n: number, branchRef: string) => {
+    setPr(String(n));
+    if (branchRef) {
+      setBranch(branchRef);
+      setBranchEdited(true);
+    }
+  };
 
   const submit = async () => {
     setBusy(true);
@@ -251,24 +395,19 @@ function AddPluginModal({
 
         <div className="flex flex-col gap-3 overflow-y-auto p-4 text-xs">
           <Field
-            label="ID"
-            hint="소문자/숫자/대시. 예: routine, my-plugin"
-            error={
-              id && !idValid
-                ? "잘못된 형식 (소문자, 숫자, 대시만)"
-                : idTaken
-                  ? "이미 존재하는 ID"
-                  : null
-            }
+            label="GitHub URL 붙여넣기"
+            hint="레포·브랜치·PR번호를 자동으로 채워줘. 예: https://github.com/owner/repo/pull/30"
           >
             <input
-              value={id}
-              onChange={(e) => setId(e.target.value.toLowerCase())}
+              value={ghUrl}
+              onChange={(e) => setGhUrl(e.target.value)}
               className={inputCls}
-              placeholder="my-plugin"
+              placeholder="https://github.com/..."
               autoFocus
             />
           </Field>
+
+          <div className="border-t border-[var(--border)]" />
 
           <Field label="이름">
             <input
@@ -279,10 +418,42 @@ function AddPluginModal({
             />
           </Field>
 
-          <Field label="설명 (선택)">
+          <Field
+            label="ID"
+            hint={
+              !idEdited && id
+                ? `이름에서 자동 생성됨 — 수정 가능`
+                : "소문자/숫자/대시. 예: routine, my-plugin"
+            }
+            error={
+              id && !idValid
+                ? "잘못된 형식 (소문자, 숫자, 대시만)"
+                : idTaken
+                  ? "이미 존재하는 ID"
+                  : null
+            }
+          >
+            <input
+              value={id}
+              onChange={(e) => {
+                setId(e.target.value.toLowerCase());
+                setIdEdited(true);
+              }}
+              className={inputCls}
+              placeholder="my-plugin"
+            />
+          </Field>
+
+          <Field
+            label="설명 (선택)"
+            hint={!descriptionEdited && meta?.description ? "GitHub 설명에서 자동 채움" : undefined}
+          >
             <textarea
               value={description}
-              onChange={(e) => setDescription(e.target.value)}
+              onChange={(e) => {
+                setDescription(e.target.value);
+                setDescriptionEdited(true);
+              }}
               rows={2}
               className={`${inputCls} resize-none`}
               placeholder="이 플러그인이 뭘 하는지 한 줄로"
@@ -291,8 +462,20 @@ function AddPluginModal({
 
           <Field
             label="GitHub 레포"
-            hint="owner/name"
-            error={repo && !repoValid ? "owner/name 형식이어야 한다" : null}
+            hint={
+              metaLoading
+                ? "레포 정보 가져오는 중..."
+                : metaError
+                  ? undefined
+                  : "owner/name"
+            }
+            error={
+              repo && !repoValid
+                ? "owner/name 형식이어야 한다"
+                : metaError === "not_found"
+                  ? "GitHub에서 못 찾음 — 비공개 레포라면 GITHUB_TOKEN 필요"
+                  : null
+            }
           >
             <input
               value={repo}
@@ -302,11 +485,50 @@ function AddPluginModal({
             />
           </Field>
 
+          {meta?.openPrs && meta.openPrs.length > 0 && (
+            <div className="rounded-md border border-[var(--border)] bg-black/20 p-2">
+              <p className="mb-1.5 text-[10px] uppercase tracking-wider text-[var(--muted)]">
+                열린 PR (클릭하면 PR# / 브랜치 채움)
+              </p>
+              <ul className="flex flex-col gap-1">
+                {meta.openPrs.map((p) => (
+                  <li key={p.number}>
+                    <button
+                      type="button"
+                      onClick={() => applyPr(p.number, p.branch)}
+                      className="flex w-full items-center gap-2 rounded px-1.5 py-1 text-left text-[11px] hover:bg-white/5"
+                    >
+                      <span className="font-mono text-[var(--muted)]">
+                        #{p.number}
+                      </span>
+                      <span className="truncate">{p.title}</span>
+                      {p.draft && (
+                        <span className="ml-auto rounded bg-amber-500/20 px-1 py-0.5 font-mono text-[9px] text-amber-300">
+                          draft
+                        </span>
+                      )}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
           <div className="grid grid-cols-2 gap-3">
-            <Field label="브랜치">
+            <Field
+              label="브랜치"
+              hint={
+                !branchEdited && meta?.defaultBranch && pr === ""
+                  ? "기본 브랜치에서 자동 채움"
+                  : undefined
+              }
+            >
               <input
                 value={branch}
-                onChange={(e) => setBranch(e.target.value)}
+                onChange={(e) => {
+                  setBranch(e.target.value);
+                  setBranchEdited(true);
+                }}
                 className={inputCls}
                 placeholder="main"
               />
@@ -322,10 +544,20 @@ function AddPluginModal({
             </Field>
           </div>
 
-          <Field label="배포 URL (선택)" hint="iframe으로 임베드할 외부 URL">
+          <Field
+            label="배포 URL (선택)"
+            hint={
+              !urlEdited && meta?.homepage
+                ? "GitHub homepage에서 자동 채움"
+                : "iframe으로 임베드할 외부 URL"
+            }
+          >
             <input
               value={url}
-              onChange={(e) => setUrl(e.target.value)}
+              onChange={(e) => {
+                setUrl(e.target.value);
+                setUrlEdited(true);
+              }}
               className={inputCls}
               placeholder="https://my-plugin.vercel.app"
             />
