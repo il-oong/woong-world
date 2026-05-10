@@ -11,6 +11,9 @@ import {
   newId,
 } from "@/lib/assistant";
 import { chatWithAssistant, isGeminiConfigured } from "@/lib/gemini";
+import { isAdminEmail } from "@/lib/admin";
+import { getPlugins } from "@/lib/plugins";
+import { getAllPluginStatuses } from "@/lib/github-status";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -78,6 +81,26 @@ export async function POST(req: NextRequest) {
     ts: Date.now(),
   };
 
+  // Admin gets plugin registry + status injected so the assistant can report
+  // on plugin health when asked.
+  const isAdmin = isAdminEmail(session.email);
+  let pluginContext: { plugin: ReturnType<typeof getPlugins>[number]; status: Awaited<ReturnType<typeof getAllPluginStatuses>>[number] }[] | undefined;
+  if (isAdmin) {
+    try {
+      const plugins = getPlugins();
+      const statuses = await getAllPluginStatuses(plugins);
+      const map = new Map(statuses.map((s) => [s.pluginId, s]));
+      pluginContext = plugins
+        .map((p) => {
+          const s = map.get(p.id);
+          return s ? { plugin: p, status: s } : null;
+        })
+        .filter((x): x is NonNullable<typeof x> => x !== null);
+    } catch {
+      // Plugin status is best-effort; chat still works without it.
+    }
+  }
+
   let result: { text: string; proposedActions: typeof userMsg.proposedActions };
   try {
     const r = await chatWithAssistant({
@@ -90,6 +113,8 @@ export async function POST(req: NextRequest) {
         upcomingEvents,
         activePlans: plans,
         files: allFiles,
+        isAdmin,
+        plugins: pluginContext,
       },
     });
     result = { text: r.text, proposedActions: r.proposedActions };

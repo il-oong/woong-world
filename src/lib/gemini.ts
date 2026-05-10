@@ -8,6 +8,7 @@ import type {
 import { newId } from "./assistant";
 import type { CalendarEvent } from "./google";
 import { eventOnDay, formatTimeRange, toIso } from "./calendar-util";
+import type { Plugin, PluginStatus } from "./plugins";
 
 const GEMINI_MODEL = "gemini-2.5-flash";
 const ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
@@ -186,6 +187,9 @@ export type AssistantContext = {
   upcomingEvents: CalendarEvent[];
   activePlans: Plan[];
   files: UploadedFile[];
+  /** Admin-only: plugin registry + their CI/PR status. */
+  plugins?: { plugin: Plugin; status: PluginStatus }[];
+  isAdmin?: boolean;
 };
 
 function summarizeEvents(events: CalendarEvent[], today: string): string {
@@ -234,20 +238,50 @@ function summarizeFiles(files: UploadedFile[]): string {
     .join("\n");
 }
 
+function summarizePlugins(
+  entries: { plugin: Plugin; status: PluginStatus }[],
+): string {
+  if (entries.length === 0) return "  (없음)";
+  const lightOf = (lvl: PluginStatus["level"]) =>
+    lvl === "green" ? "🟢" : lvl === "yellow" ? "🟡" : lvl === "red" ? "🔴" : "⚪";
+  return entries
+    .map(({ plugin, status }) => {
+      const parts = [
+        `  ${lightOf(status.level)} ${plugin.name} (id=${plugin.id})`,
+        `    repo=${plugin.repo}@${plugin.branch}${plugin.pr != null ? ` PR#${plugin.pr}` : ""}`,
+        `    상태: ${status.label}${status.detail ? ` — ${status.detail}` : ""}`,
+      ];
+      return parts.join("\n");
+    })
+    .join("\n");
+}
+
 function buildContextBlock(ctx: AssistantContext): string {
   const cats = CATEGORIES.map((c) => `${c.id}=${c.label}`).join(", ");
-  return `[오늘] ${ctx.today} (${weekdayLabel(ctx.today)})
-[사용자] ${ctx.email}
-[카테고리] ${cats}
-
-[다가오는 일정 (다음 14일)]
-${summarizeEvents(ctx.upcomingEvents, ctx.today)}
-
-[활성 계획]
-${summarizePlans(ctx.activePlans)}
-
-[업로드된 파일/링크]
-${summarizeFiles(ctx.files)}`;
+  const blocks = [
+    `[오늘] ${ctx.today} (${weekdayLabel(ctx.today)})`,
+    `[사용자] ${ctx.email}${ctx.isAdmin ? " (관리자 / 웅허브 모드)" : ""}`,
+    `[카테고리] ${cats}`,
+    "",
+    "[다가오는 일정 (다음 14일)]",
+    summarizeEvents(ctx.upcomingEvents, ctx.today),
+    "",
+    "[활성 계획]",
+    summarizePlans(ctx.activePlans),
+    "",
+    "[업로드된 파일/링크]",
+    summarizeFiles(ctx.files),
+  ];
+  if (ctx.isAdmin && ctx.plugins?.length) {
+    blocks.push(
+      "",
+      "[웅허브 플러그인 상태]",
+      summarizePlugins(ctx.plugins),
+      "",
+      "관리자가 플러그인이나 PR 상태를 묻거든 위 정보를 근거로 어느 플러그인이 어떤 상태인지, 무엇을 점검하면 되는지 짧게 보고해라.",
+    );
+  }
+  return blocks.join("\n");
 }
 
 const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"];

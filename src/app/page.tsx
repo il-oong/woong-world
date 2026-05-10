@@ -5,12 +5,14 @@ import Link from "next/link";
 import { CalendarWidget } from "@/components/CalendarWidget";
 import { BriefingPlayer } from "@/components/BriefingPlayer";
 import { SecretarySetup } from "@/components/SecretarySetup";
+import { HubGrid } from "@/components/HubGrid";
 import type { SecretaryProfile } from "@/lib/secretary";
 
 export default function HomePage() {
   const [profile, setProfile] = useState<SecretaryProfile | null | undefined>(undefined);
   const [connected, setConnected] = useState<boolean | undefined>(undefined);
   const [showSetup, setShowSetup] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
     fetch("/api/secretary").then(async (r) => {
@@ -28,6 +30,14 @@ export default function HomePage() {
       }
     }).catch(() => { setConnected(false); setProfile(null); });
   }, []);
+
+  useEffect(() => {
+    if (!connected) return;
+    fetch("/api/admin/status")
+      .then((r) => r.json() as Promise<{ isAdmin: boolean }>)
+      .then((d) => setIsAdmin(Boolean(d.isAdmin)))
+      .catch(() => setIsAdmin(false));
+  }, [connected]);
 
   if (profile === undefined || connected === undefined) {
     return (
@@ -85,13 +95,28 @@ export default function HomePage() {
         <div className="mx-auto max-w-4xl px-6 py-12 md:py-16">
           <header className="mb-8 flex items-start justify-between">
             <div>
-              <p className="font-mono text-xs uppercase tracking-[0.3em] text-[var(--accent)]">
-                biseo / home
-              </p>
+              <div className="flex items-center gap-2">
+                <p className="font-mono text-xs uppercase tracking-[0.3em] text-[var(--accent)]">
+                  {isAdmin ? "woong / hub" : "biseo / home"}
+                </p>
+                {isAdmin && (
+                  <span className="rounded-full border border-[var(--accent)]/40 bg-[var(--accent)]/10 px-2 py-0.5 font-mono text-[9px] uppercase tracking-[0.2em] text-[var(--accent)]">
+                    admin
+                  </span>
+                )}
+              </div>
               <h1 className="mt-3 break-keep text-3xl font-semibold tracking-tight md:text-5xl">
-                {profile?.name ? `안녕하세요, ${profile.name}입니다` : "안녕하세요"}
+                {isAdmin
+                  ? "어서오세요, 관리자님"
+                  : profile?.name
+                    ? `안녕하세요, ${profile.name}입니다`
+                    : "안녕하세요"}
               </h1>
-              <p className="mt-2 text-sm text-[var(--muted)]">오늘도 좋은 하루 되세요.</p>
+              <p className="mt-2 text-sm text-[var(--muted)]">
+                {isAdmin
+                  ? "오늘 플러그인 상태를 확인해드릴게요."
+                  : "오늘도 좋은 하루 되세요."}
+              </p>
             </div>
 
             {profile !== null && (
@@ -136,6 +161,8 @@ export default function HomePage() {
               </div>
             </Link>
           </div>
+
+          {isAdmin && <HubGrid />}
         </div>
       </div>
     </>

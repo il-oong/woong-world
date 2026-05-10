@@ -41,7 +41,8 @@ Windows 전용 스크립트: `dev.bat`, `desktop-dev.bat`
 
 | 변수 | 용도 | 발급 위치 |
 |------|------|-----------|
-| `GITHUB_TOKEN` | GitHub API rate limit 우회 | GitHub → Settings → Developer settings → Personal access tokens |
+| `GITHUB_TOKEN` | GitHub API rate limit 우회 + 플러그인 상태등 조회 | GitHub → Settings → Developer settings → Personal access tokens |
+| `ADMIN_EMAIL` | 웅허브 관리자 이메일 (기본값 `kww2962@gmail.com`) | 직접 입력 |
 
 ## Architecture
 
@@ -49,15 +50,17 @@ Windows 전용 스크립트: `dev.bat`, `desktop-dev.bat`
 
 ### 데이터 흐름
 
-- **서비스 목록**: `src/data/services.json` (시드) → `/api/services` → `lib/github.ts`로 GitHub 메타데이터 실시간 보강
-- **AI 어시스턴트**: 클라이언트 → `/api/assistant/chat` → `lib/gemini.ts` (캘린더/플랜 컨텍스트 주입) → Redis에 대화 기록 저장
+- **AI 어시스턴트**: 클라이언트 → `/api/assistant/chat` → `lib/gemini.ts` (캘린더/플랜/플러그인 컨텍스트 주입) → Redis에 대화 기록 저장
 - **캘린더**: `lib/session.ts` (JWT 쿠키) → `lib/google.ts` (OAuth + Calendar API) → `/api/google/events`
 - **플랜**: `/api/plans` → `lib/plans.ts` → Redis
 - **파일**: Vercel Blob 저장 → Redis에 메타데이터
+- **웅허브 (관리자 모드)**: `ADMIN_EMAIL`로 로그인 시 활성화. `src/data/plugins.json`에 등록된 플러그인을 `/api/plugins/status`가 GitHub Actions/PR 상태로 🟢🟡🔴 점등. `/plugins/[id]`에서 iframe으로 임베드 또는 외부 링크.
 
 ### 핵심 패턴
 
 - **세션**: `lib/session.ts`의 `jose` 기반 JWT 암호화 쿠키. Google 토큰과 사용자 식별자를 여기에 보관한다.
+- **관리자(웅허브)**: `lib/admin.ts`의 `isAdminEmail()` / `isAdminSession()`으로 게이팅. `ADMIN_EMAIL` 환경변수 (기본 `kww2962@gmail.com`).
+- **플러그인 레지스트리**: `src/data/plugins.json` — id/repo/branch/pr/url/path. `lib/plugins.ts`에서 타입과 헬퍼, `lib/github-status.ts`에서 GitHub API로 CI·PR 상태 조회.
 - **제안 액션(Proposed Actions)**: Gemini가 캘린더 이벤트 추가나 플랜 생성을 "제안"하면 UI에서 승인/거절. `/api/assistant/action`으로 처리.
 - **Redis 키 네임스페이스**: `chat:{sessionId}`, `files:{sessionId}`, `plans:{userId}` 패턴 사용.
 - **서비스 카테고리**: `lib/categories.ts`에 정의. 캘린더 이벤트와 플랜에도 같은 카테고리 체계를 공유한다.
@@ -66,14 +69,17 @@ Windows 전용 스크립트: `dev.bat`, `desktop-dev.bat`
 
 ```
 layout.tsx
-├── TopNav.tsx          — 전역 네비게이션
+├── TopNav.tsx          — 전역 네비게이션 (admin이면 "웅허브" + /plugins)
 └── AssistantWidget.tsx — 플로팅 AI 버튼
     └── AssistantPanel.tsx — 채팅 UI (파일, 메시지, 액션)
 
 page.tsx (홈)
-├── HubGrid.tsx         — 서비스 카드 그리드
-│   └── ServiceCard.tsx
-└── CalendarWidget.tsx  — 미니 캘린더
+├── BriefingPlayer
+├── CalendarWidget      — 미니 캘린더
+└── HubGrid             — admin 전용, 플러그인 카드 + 상태등
+
+plugins/[id]/page.tsx   — admin 전용, 상단 허브 프레임 + 하단 iframe
+└── PluginEmbed
 ```
 
 ### CSP 및 보안 헤더

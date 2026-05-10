@@ -1,0 +1,41 @@
+[
+  {
+    "id": "routine",
+    "name": "루틴 트래커",
+    "description": "매일 체크하는 루틴을 관리하고 주간 달성률을 본다.",
+    "repo": "il-oong/woong-world",
+    "branch": "claude/plugin-routine",
+    "pr": 18,
+    "path": "/plugins/routine",
+    "url": null,
+    "embeddable": true,
+    "accent": "#7dd3fc",
+    "tags": ["체크리스트", "통계"]
+  },
+  {
+    "id": "subscription",
+    "name": "구독 관리",
+    "description": "구독 결제일을 캘린더에 자동 추가하고 월 합산을 본다.",
+    "repo": "il-oong/woong-world",
+    "branch": "claude/plugin-subscription",
+    "pr": 19,
+    "path": "/plugins/subscription",
+    "url": null,
+    "embeddable": true,
+    "accent": "#fcd34d",
+    "tags": ["캘린더 연동", "비용"]
+  },
+  {
+    "id": "ai-idea-note",
+    "name": "AI 아이디어 노트",
+    "description": "떠오른 아이디어를 메모하고 AI가 정리/분류한다.",
+    "repo": "il-oong/ai_idea_note",
+    "branch": "main",
+    "pr": null,
+    "path": null,
+    "url": null,
+    "embeddable": true,
+    "accent": "#c4b5fd",
+    "tags": ["메모", "AI"]
+  }
+]
