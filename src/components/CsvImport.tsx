@@ -207,10 +207,19 @@ export function CsvImport({ onImported }: { onImported?: () => void }) {
               <label className="mb-1.5 block text-xs text-[var(--muted)]">구글 시트 URL</label>
               <div className="flex gap-2">
                 <input
-                  type="url"
+                  type="text"
+                  inputMode="url"
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                  spellCheck={false}
                   value={sheetUrl}
                   onChange={(e) => setSheetUrl(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && handleSheetLoad()}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      handleSheetLoad();
+                    }
+                  }}
                   placeholder="https://docs.google.com/spreadsheets/d/..."
                   className="flex-1 rounded-lg border border-[var(--border)] bg-white/5 px-3 py-2 text-xs text-foreground placeholder:text-[var(--muted)] focus:border-[var(--accent)]/60 focus:outline-none"
                 />
@@ -520,7 +529,24 @@ export function CsvImport({ onImported }: { onImported?: () => void }) {
   );
 }
 
-function toSheetCsvUrl(url: string): string | null {
+function toSheetCsvUrl(rawUrl: string): string | null {
+  // iOS Safari pasting often introduces invisible characters (U+200B-200D, U+FEFF)
+  // and smart-quote substitutions. Strip them before parsing.
+  const url = rawUrl
+    .replace(/[​-‍﻿ ]/g, "")
+    .trim();
+
+  // "publish to web" URL: /spreadsheets/d/e/{ID}/pubhtml
+  const pubMatch = url.match(/\/spreadsheets\/d\/e\/([a-zA-Z0-9-_]+)/);
+  if (pubMatch) {
+    const id = pubMatch[1];
+    const gidMatch = url.match(/gid=(\d+)/);
+    const gid = gidMatch ? gidMatch[1] : null;
+    return gid
+      ? `https://docs.google.com/spreadsheets/d/e/${id}/pub?output=csv&gid=${gid}`
+      : `https://docs.google.com/spreadsheets/d/e/${id}/pub?output=csv`;
+  }
+
   const match = url.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
   if (!match) return null;
   const id = match[1];

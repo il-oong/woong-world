@@ -88,8 +88,8 @@ export default function HomePage() {
               <p className="font-mono text-xs uppercase tracking-[0.3em] text-[var(--accent)]">
                 biseo / home
               </p>
-              <h1 className="mt-3 text-4xl font-semibold tracking-tight md:text-5xl">
-                안녕하세요{profile?.name ? `, ${profile.name}` : ""}
+              <h1 className="mt-3 break-keep text-3xl font-semibold tracking-tight md:text-5xl">
+                {profile?.name ? `안녕하세요, ${profile.name}입니다` : "안녕하세요"}
               </h1>
               <p className="mt-2 text-sm text-[var(--muted)]">오늘도 좋은 하루 되세요.</p>
             </div>
