@@ -37,5 +37,18 @@
     "embeddable": true,
     "accent": "#c4b5fd",
     "tags": ["메모", "AI"]
+  },
+  {
+    "id": "todo",
+    "name": "할 일",
+    "description": "체크박스 형식 할 일 — 모든 사용자가 사용 가능.",
+    "repo": "il-oong/woong-world",
+    "branch": "main",
+    "pr": null,
+    "path": "/apps/todo",
+    "url": null,
+    "embeddable": true,
+    "accent": "#86efac",
+    "tags": ["체크리스트", "공유"]
   }
 ]

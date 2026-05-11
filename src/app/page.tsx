@@ -142,24 +142,44 @@ export default function HomePage() {
 
           <div className="grid gap-4 lg:grid-cols-[2fr_1fr]">
             <CalendarWidget />
-            <Link
-              href="/plans"
-              className="group flex flex-col justify-between rounded-xl border border-[var(--border)] bg-[var(--card)] p-5 transition hover:border-[var(--accent)]/50"
-            >
-              <div>
-                <p className="font-mono text-[10px] uppercase tracking-[0.3em] text-[var(--accent)]">
-                  biseo / plans
-                </p>
-                <h2 className="mt-2 text-base font-medium">계획 관리</h2>
-                <p className="mt-1 text-xs leading-relaxed text-[var(--muted)]">
-                  주간 / 월간 / 연간 계획을 카테고리별로 정리하고 Gemini로 보완점을 받습니다.
-                </p>
-              </div>
-              <div className="mt-4 flex items-center justify-between text-[11px] text-[var(--muted)] group-hover:text-foreground">
-                <span>인생 · 회사 · VFX · 앱개발 · 재즈</span>
-                <span>→</span>
-              </div>
-            </Link>
+            <div className="flex flex-col gap-4">
+              <Link
+                href="/plans"
+                className="group flex flex-col justify-between rounded-xl border border-[var(--border)] bg-[var(--card)] p-5 transition hover:border-[var(--accent)]/50"
+              >
+                <div>
+                  <p className="font-mono text-[10px] uppercase tracking-[0.3em] text-[var(--accent)]">
+                    biseo / plans
+                  </p>
+                  <h2 className="mt-2 text-base font-medium">계획 관리</h2>
+                  <p className="mt-1 text-xs leading-relaxed text-[var(--muted)]">
+                    주간 / 월간 / 연간 계획을 카테고리별로 정리하고 Gemini로 보완점을 받습니다.
+                  </p>
+                </div>
+                <div className="mt-4 flex items-center justify-between text-[11px] text-[var(--muted)] group-hover:text-foreground">
+                  <span>인생 · 회사 · VFX · 앱개발 · 재즈</span>
+                  <span>→</span>
+                </div>
+              </Link>
+              <Link
+                href="/apps/todo"
+                className="group flex flex-col justify-between rounded-xl border border-[var(--border)] bg-[var(--card)] p-5 transition hover:border-emerald-400/50"
+              >
+                <div>
+                  <p className="font-mono text-[10px] uppercase tracking-[0.3em] text-emerald-300">
+                    biseo / todo
+                  </p>
+                  <h2 className="mt-2 text-base font-medium">할 일</h2>
+                  <p className="mt-1 text-xs leading-relaxed text-[var(--muted)]">
+                    체크박스로 그날그날 할 일을 관리합니다.
+                  </p>
+                </div>
+                <div className="mt-4 flex items-center justify-between text-[11px] text-[var(--muted)] group-hover:text-foreground">
+                  <span>체크리스트</span>
+                  <span>→</span>
+                </div>
+              </Link>
+            </div>
           </div>
 
           {isAdmin && <HubGrid />}

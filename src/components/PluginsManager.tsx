@@ -18,6 +18,7 @@ export function PluginsManager() {
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
+  const [editingPlugin, setEditingPlugin] = useState<Plugin | null>(null);
   const [pendingId, setPendingId] = useState<string | null>(null);
 
   const refresh = async () => {
@@ -94,21 +95,39 @@ export function PluginsManager() {
             : "..."
         }
         cardFooter={(p) => (
-          <div className="flex gap-1.5">
-            <Link
-              href={`/plugins/${p.id}`}
-              className="flex-1 rounded-md border border-[var(--border)] px-2 py-1 text-center text-[10px] text-[var(--muted)] hover:border-[var(--accent)]/40 hover:text-foreground"
-            >
-              열기
-            </Link>
+          <div className="flex flex-col gap-1.5">
+            <div className="grid grid-cols-3 gap-1">
+              <Link
+                href={`/plugins/${p.id}/manage`}
+                className="rounded-md border border-[var(--border)] px-1.5 py-1 text-center text-[10px] text-[var(--muted)] hover:border-emerald-400/40 hover:text-emerald-200"
+                title="코드 구조와 상태(신호등)를 확인하고 문제를 바로 수정"
+              >
+                관리
+              </Link>
+              <Link
+                href={`/plugins/${p.id}`}
+                className="rounded-md border border-[var(--border)] px-1.5 py-1 text-center text-[10px] text-[var(--muted)] hover:border-[var(--accent)]/40 hover:text-foreground"
+                title="허브 프레임 안에서 플러그인 열기 — 언제든 ← 로 복귀 가능"
+              >
+                링크
+              </Link>
+              <button
+                type="button"
+                onClick={() => setEditingPlugin(p)}
+                className="rounded-md border border-[var(--border)] px-1.5 py-1 text-[10px] text-[var(--muted)] hover:border-amber-400/40 hover:text-amber-200"
+                title="이름·설명·URL·태그 등 플러그인 정보 수정"
+              >
+                정보수정
+              </button>
+            </div>
             <button
               type="button"
               onClick={() => void remove(p.id, p.name)}
               disabled={pendingId === p.id}
-              className="rounded-md border border-[var(--border)] px-2 py-1 text-[10px] text-rose-300/80 transition hover:border-rose-500/40 hover:bg-rose-500/10 disabled:opacity-40"
+              className="rounded-md border border-[var(--border)] px-2 py-0.5 text-[10px] text-rose-300/80 transition hover:border-rose-500/40 hover:bg-rose-500/10 disabled:opacity-40"
               title="허브에서 제거"
             >
-              {pendingId === p.id ? "..." : "제거"}
+              {pendingId === p.id ? "..." : "허브에서 제거"}
             </button>
           </div>
         )}
@@ -121,6 +140,17 @@ export function PluginsManager() {
           onClose={() => setAdding(false)}
           onAdded={async () => {
             setAdding(false);
+            await refresh();
+          }}
+        />
+      )}
+
+      {editingPlugin && (
+        <EditPluginModal
+          plugin={editingPlugin}
+          onClose={() => setEditingPlugin(null)}
+          onSaved={async () => {
+            setEditingPlugin(null);
             await refresh();
           }}
         />
@@ -635,7 +665,261 @@ function humanizeError(code: string): string {
       return "Redis(UPSTASH)가 연결돼있지 않다 — UI 추가/제거가 동작하지 않는다.";
     case "forbidden":
       return "관리자 권한이 필요하다.";
+    case "not_found":
+      return "플러그인을 찾지 못했다.";
     default:
       return code;
   }
+}
+
+function EditPluginModal({
+  plugin,
+  onClose,
+  onSaved,
+}: {
+  plugin: Plugin;
+  onClose: () => void;
+  onSaved: () => Promise<void>;
+}) {
+  const [name, setName] = useState(plugin.name);
+  const [description, setDescription] = useState(plugin.description ?? "");
+  const [url, setUrl] = useState(plugin.url ?? "");
+  const [path, setPath] = useState(plugin.path ?? "");
+  const [branch, setBranch] = useState(plugin.branch);
+  const [pr, setPr] = useState(plugin.pr != null ? String(plugin.pr) : "");
+  const [accent, setAccent] = useState(plugin.accent);
+  const [tagsInput, setTagsInput] = useState((plugin.tags ?? []).join(", "));
+  const [embeddable, setEmbeddable] = useState(plugin.embeddable);
+  const [repo, setRepo] = useState(plugin.repo);
+  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  const repoChanged = repo.trim() !== plugin.repo;
+  const repoValid = isValidRepo(repo.trim());
+  const nameValid = name.trim().length > 0;
+  const canSubmit = !busy && nameValid && repoValid;
+
+  const submit = async () => {
+    setBusy(true);
+    setErr(null);
+    try {
+      const tags = tagsInput
+        .split(",")
+        .map((t) => t.trim())
+        .filter(Boolean);
+      const prNum = pr.trim() ? parseInt(pr, 10) : null;
+      const payload: Partial<Omit<Plugin, "id">> = {
+        name: name.trim(),
+        description: description.trim(),
+        url: url.trim() || null,
+        path: path.trim() || null,
+        branch: branch.trim() || "main",
+        pr: Number.isFinite(prNum) ? prNum : null,
+        accent,
+        tags,
+        embeddable,
+      };
+      if (repoChanged && repoValid) {
+        payload.repo = repo.trim();
+      }
+      const res = await fetch(`/api/plugins/${encodeURIComponent(plugin.id)}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const data = (await res.json().catch(() => ({}))) as { error?: string };
+      if (!res.ok) {
+        setErr(data.error ?? `failed_${res.status}`);
+        return;
+      }
+      await onSaved();
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+      onClick={onClose}
+    >
+      <div
+        className="flex max-h-[90vh] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-[var(--border)] bg-[#0b0b0f] shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <header className="flex items-center justify-between border-b border-[var(--border)] px-4 py-3">
+          <div className="flex min-w-0 flex-col">
+            <h2 className="truncate text-sm font-medium">정보수정</h2>
+            <p className="truncate font-mono text-[10px] text-[var(--muted)]">
+              {plugin.id} · {plugin.repo}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-md p-1 text-[var(--muted)] hover:bg-white/5 hover:text-foreground"
+            aria-label="닫기"
+          >
+            ✕
+          </button>
+        </header>
+
+        <div className="flex flex-col gap-3 overflow-y-auto p-4 text-xs">
+          <Field label="이름">
+            <input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className={inputCls}
+              placeholder="플러그인 이름"
+              autoFocus
+            />
+          </Field>
+
+          <Field label="설명">
+            <textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              rows={2}
+              className={`${inputCls} resize-none`}
+              placeholder="이 플러그인이 뭘 하는지 한 줄로"
+            />
+          </Field>
+
+          <Field
+            label="배포 URL"
+            hint={!plugin.url ? "비어 있음 — 외부 호스팅(예: vercel.app) 주소를 넣으면 링크 뷰에서 iframe으로 열린다" : "iframe으로 임베드할 외부 URL"}
+          >
+            <input
+              value={url}
+              onChange={(e) => setUrl(e.target.value)}
+              className={inputCls}
+              placeholder="https://my-plugin.vercel.app"
+              inputMode="url"
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
+            />
+          </Field>
+
+          <Field
+            label="내부 경로 (선택)"
+            hint="이 레포 안에 페이지가 있을 때. 예: /apps/routine"
+          >
+            <input
+              value={path}
+              onChange={(e) => setPath(e.target.value)}
+              className={inputCls}
+              placeholder="/apps/..."
+            />
+          </Field>
+
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="브랜치">
+              <input
+                value={branch}
+                onChange={(e) => setBranch(e.target.value)}
+                className={inputCls}
+                placeholder="main"
+              />
+            </Field>
+            <Field label="PR # (선택)">
+              <input
+                value={pr}
+                onChange={(e) => setPr(e.target.value.replace(/\D/g, ""))}
+                className={inputCls}
+                placeholder="예: 18"
+                inputMode="numeric"
+              />
+            </Field>
+          </div>
+
+          <Field label="태그 (콤마 구분)">
+            <input
+              value={tagsInput}
+              onChange={(e) => setTagsInput(e.target.value)}
+              className={inputCls}
+              placeholder="체크리스트, 통계"
+            />
+          </Field>
+
+          <Field label="색상">
+            <div className="flex flex-wrap gap-2">
+              {PRESET_COLORS.map((c) => (
+                <button
+                  key={c}
+                  type="button"
+                  onClick={() => setAccent(c)}
+                  className="h-7 w-7 rounded-full border-2 transition"
+                  style={{
+                    background: c,
+                    borderColor: accent === c ? "var(--foreground)" : "transparent",
+                  }}
+                  aria-label={`색상 ${c}`}
+                />
+              ))}
+            </div>
+          </Field>
+
+          <label className="flex items-center gap-2 text-[11px] text-[var(--muted)]">
+            <input
+              type="checkbox"
+              checked={embeddable}
+              onChange={(e) => setEmbeddable(e.target.checked)}
+              className="h-3.5 w-3.5"
+            />
+            iframe 임베드 허용
+          </label>
+
+          <button
+            type="button"
+            onClick={() => setShowAdvanced((v) => !v)}
+            className="self-start text-[10px] text-[var(--muted)] hover:text-foreground"
+          >
+            {showAdvanced ? "▾ 고급 (레포 변경)" : "▸ 고급 (레포 변경)"}
+          </button>
+
+          {showAdvanced && (
+            <Field
+              label="GitHub 레포 (변경 시 상태 체크 재연결됨)"
+              hint="owner/name 형식"
+              error={repo && !repoValid ? "owner/name 형식이어야 한다" : null}
+            >
+              <input
+                value={repo}
+                onChange={(e) => setRepo(e.target.value)}
+                className={inputCls}
+                placeholder="il-oong/my-plugin"
+              />
+            </Field>
+          )}
+
+          {err && (
+            <div className="rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-amber-200">
+              {humanizeError(err)}
+            </div>
+          )}
+        </div>
+
+        <footer className="flex justify-end gap-2 border-t border-[var(--border)] px-4 py-3">
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={busy}
+            className="rounded-md px-3 py-1.5 text-xs text-[var(--muted)] hover:bg-white/5 hover:text-foreground disabled:opacity-40"
+          >
+            취소
+          </button>
+          <button
+            type="button"
+            onClick={() => void submit()}
+            disabled={!canSubmit}
+            className="rounded-md bg-[var(--accent)] px-3 py-1.5 text-xs font-medium text-black disabled:opacity-40"
+          >
+            {busy ? "저장 중..." : "저장"}
+          </button>
+        </footer>
+      </div>
+    </div>
+  );
 }

@@ -18,6 +18,30 @@ function ghHeaders(): HeadersInit {
   return h;
 }
 
+type TreeEntry = { path: string; type: "file" | "dir" };
+
+async function fetchTopLevelTree(
+  repo: string,
+  branch: string,
+): Promise<TreeEntry[]> {
+  const res = await fetch(
+    `${GH_API}/repos/${repo}/contents/?ref=${encodeURIComponent(branch)}`,
+    { headers: ghHeaders(), next: { revalidate: 300 } },
+  );
+  if (!res.ok) return [];
+  const items = (await res.json()) as { name: string; type: string }[];
+  return items
+    .filter((it) => it && typeof it.name === "string")
+    .map<TreeEntry>((it) => ({
+      path: it.name,
+      type: it.type === "dir" ? "dir" : "file",
+    }))
+    .sort((a, b) => {
+      if (a.type !== b.type) return a.type === "dir" ? -1 : 1;
+      return a.path.localeCompare(b.path);
+    });
+}
+
 export async function GET(req: NextRequest) {
   if (!(await isAdminSession())) {
     return Response.json({ error: "forbidden" }, { status: 403 });
@@ -26,6 +50,8 @@ export async function GET(req: NextRequest) {
   if (!repo || !isValidRepo(repo)) {
     return Response.json({ error: "invalid_repo" }, { status: 400 });
   }
+  const wantTree = req.nextUrl.searchParams.get("tree") === "1";
+  const branchParam = req.nextUrl.searchParams.get("branch")?.trim() || null;
 
   try {
     const [repoRes, prsRes] = await Promise.all([
@@ -63,10 +89,16 @@ export async function GET(req: NextRequest) {
       openPrs = list.slice(0, 5);
     }
 
+    const defaultBranch = data.default_branch ?? "main";
+    let tree: TreeEntry[] | undefined;
+    if (wantTree) {
+      tree = await fetchTopLevelTree(repo, branchParam ?? defaultBranch);
+    }
+
     return Response.json({
       name: data.name ?? "",
       description: data.description ?? "",
-      defaultBranch: data.default_branch ?? "main",
+      defaultBranch,
       homepage: data.homepage ?? "",
       openPrs: openPrs.map((p) => ({
         number: p.number,
@@ -74,6 +106,7 @@ export async function GET(req: NextRequest) {
         draft: p.draft,
         branch: p.head?.ref ?? "",
       })),
+      ...(tree !== undefined ? { tree } : {}),
     });
   } catch (e) {
     return Response.json(

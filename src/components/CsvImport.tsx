@@ -74,14 +74,32 @@ export function CsvImport({ onImported }: { onImported?: () => void }) {
     setError("");
     setFile(null);
     try {
-      const csvUrl = toSheetCsvUrl(sheetUrl.trim());
-      if (!csvUrl) throw new Error("올바른 구글 시트 URL이 아닙니다.");
-      const res = await fetch(`/api/calendar/import/sheet?url=${encodeURIComponent(csvUrl)}`);
-      if (!res.ok) throw new Error(await res.text());
-      const text = await res.text();
-      const blob = new Blob([text], { type: "text/csv" });
-      const f = new File([blob], "sheet.csv", { type: "text/csv" });
-      setFile(f);
+      const csvUrl = toSheetCsvUrl(sheetUrl);
+      if (!csvUrl) {
+        throw new Error(
+          "구글 시트 URL을 인식하지 못했습니다. 시트 화면의 주소창 URL을 그대로 복사해 붙여넣어주세요. (예: https://docs.google.com/spreadsheets/d/...)",
+        );
+      }
+      const res = await fetch(`/api/calendar/import/sheet?url=${encodeURIComponent(csvUrl)}`, {
+        cache: "no-store",
+      });
+      const body = await res.text();
+      if (!res.ok) {
+        throw new Error(body || `요청 실패 (${res.status})`);
+      }
+      // 서버는 HTML 응답을 거르지만, 만약 통과해버린 경우(공개되었으나 빈 시트 등) 한 번 더 확인.
+      if (body.trimStart().startsWith("<")) {
+        throw new Error("시트가 공개 설정되어 있지 않거나 빈 응답입니다. 공유를 '링크가 있는 모든 사용자'로 바꿔주세요.");
+      }
+      const blob = new Blob([body], { type: "text/csv" });
+      // iOS Safari 15.4 미만에서 File 생성자가 누락된 케이스 대응 — Blob 그대로 들고 가도 FormData가 받아줌.
+      let f: File | Blob;
+      try {
+        f = new File([blob], "sheet.csv", { type: "text/csv" });
+      } catch {
+        f = blob;
+      }
+      setFile(f as File);
       setInstructMsg("");
       setStep("instruct");
     } catch (e) {
@@ -530,10 +548,12 @@ export function CsvImport({ onImported }: { onImported?: () => void }) {
 }
 
 function toSheetCsvUrl(rawUrl: string): string | null {
-  // iOS Safari pasting often introduces invisible characters (U+200B-200D, U+FEFF)
-  // and smart-quote substitutions. Strip them before parsing.
+  // iOS Safari paste often inserts invisible chars (zero-width range U+200B-200F,
+  // BOM U+FEFF, NBSP U+00A0, line/paragraph separators U+2028/2029) and
+  // auto-correct may swap straight quotes with curly variants. Normalize.
   const url = rawUrl
-    .replace(/[​-‍﻿ ]/g, "")
+    .replace(/[\u200b-\u200f\u2028\u2029\ufeff\u00a0]/g, "")
+    .replace(/[\u2018\u2019\u201c\u201d]/g, "")
     .trim();
 
   // "publish to web" URL: /spreadsheets/d/e/{ID}/pubhtml
@@ -547,7 +567,8 @@ function toSheetCsvUrl(rawUrl: string): string | null {
       : `https://docs.google.com/spreadsheets/d/e/${id}/pub?output=csv`;
   }
 
-  const match = url.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
+  // Standard /spreadsheets/d/{ID} or signed-in variant /spreadsheets/u/{N}/d/{ID}
+  const match = url.match(/\/spreadsheets\/(?:u\/\d+\/)?d\/([a-zA-Z0-9-_]+)/);
   if (!match) return null;
   const id = match[1];
   const gidMatch = url.match(/gid=(\d+)/);
