@@ -21,17 +21,41 @@ const ADMIN_ITEMS = [
 
 export function TopNav() {
   const pathname = usePathname();
-  const [isAdmin, setIsAdmin] = useState(false);
+  const [adminMode, setAdminMode] = useState(false);
 
   useEffect(() => {
-    fetch("/api/admin/status")
-      .then((r) => r.json() as Promise<{ isAdmin: boolean }>)
-      .then((d) => setIsAdmin(Boolean(d.isAdmin)))
-      .catch(() => setIsAdmin(false));
-  }, []);
+    let cancelled = false;
+    // Two-step check: confirm the session is actually connected first
+    // (secretary endpoint returns 401 if not), then check admin.
+    // Otherwise a stale/partial session cookie could flip the brand to
+    // "웅허브" before the user has actually logged in this session.
+    (async () => {
+      try {
+        const sec = await fetch("/api/secretary");
+        if (cancelled) return;
+        if (sec.status === 401) {
+          setAdminMode(false);
+          return;
+        }
+        const adm = await fetch("/api/admin/status");
+        if (cancelled) return;
+        if (!adm.ok) {
+          setAdminMode(false);
+          return;
+        }
+        const data = (await adm.json()) as { isAdmin?: boolean };
+        setAdminMode(Boolean(data.isAdmin));
+      } catch {
+        if (!cancelled) setAdminMode(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [pathname]);
 
-  const items = isAdmin ? ADMIN_ITEMS : ITEMS;
-  const brand = isAdmin ? "웅허브" : "비서";
+  const items = adminMode ? ADMIN_ITEMS : ITEMS;
+  const brand = adminMode ? "웅허브" : "비서";
 
   return (
     <nav className="sticky top-0 z-30 border-b border-[var(--border)] bg-[#0b0b0f]/80 backdrop-blur">

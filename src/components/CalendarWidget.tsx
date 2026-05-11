@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { CalendarMonthGrid, type CalendarSize } from "./CalendarMonthGrid";
+import { EventForm, type EventFormSubmit } from "./EventForm";
 import {
   eventOnDay,
   formatTimeRange,
@@ -34,6 +35,10 @@ export function CalendarWidget() {
   const [calendars, setCalendars] = useState<UserCalendar[]>([]);
   const [enabledIds, setEnabledIds] = useState<Set<string>>(new Set());
   const [status, setStatus] = useState<Status | null>(null);
+  const [selectedIso, setSelectedIso] = useState<string | null>(null);
+  const [addOpen, setAddOpen] = useState(false);
+  const [editingEvent, setEditingEvent] = useState<CalendarEvent | null>(null);
+  const [refreshTick, setRefreshTick] = useState(0);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [size, setSize] = useState<CalendarSize>(() => {
     if (typeof window === "undefined") return "md";
@@ -118,7 +123,48 @@ export function CalendarWidget() {
       .then((data) => { if (!cancelled && data) setEvents(data.events); })
       .catch(() => {});
     return () => { cancelled = true; };
-  }, [status?.connected, year, month]);
+  }, [status?.connected, year, month, refreshTick]);
+
+  const handleCreate = async (input: EventFormSubmit) => {
+    const res = await fetch("/api/google/events", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...input, calendarId: "primary" }),
+    });
+    if (!res.ok) {
+      const data = (await res.json().catch(() => ({}))) as { error?: string };
+      throw new Error(data.error ?? `HTTP ${res.status}`);
+    }
+    setAddOpen(false);
+    setRefreshTick((v) => v + 1);
+  };
+
+  const handleUpdate = async (input: EventFormSubmit) => {
+    if (!editingEvent) return;
+    const calendarId = editingEvent.calendarId ?? "primary";
+    const res = await fetch(`/api/google/events/${encodeURIComponent(editingEvent.id)}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...input, calendarId }),
+    });
+    if (!res.ok) {
+      const data = (await res.json().catch(() => ({}))) as { error?: string };
+      throw new Error(data.error ?? `HTTP ${res.status}`);
+    }
+    setEditingEvent(null);
+    setRefreshTick((v) => v + 1);
+  };
+
+  const handleDelete = async (ev: CalendarEvent) => {
+    if (!confirm("이 일정을 삭제할까요?")) return;
+    const calId = ev.calendarId ?? "primary";
+    const res = await fetch(
+      `/api/google/events/${encodeURIComponent(ev.id)}?calendarId=${encodeURIComponent(calId)}`,
+      { method: "DELETE" },
+    );
+    if (!res.ok) { alert("삭제 실패"); return; }
+    setRefreshTick((v) => v + 1);
+  };
 
   const filteredEvents = events.filter((ev) =>
     ev.calendarId ? enabledIds.has(ev.calendarId) : enabledIds.has("primary"),
@@ -248,7 +294,14 @@ export function CalendarWidget() {
             </div>
           )}
 
-          <CalendarMonthGrid year={year} month={month} events={filteredEvents} size={size} />
+          <CalendarMonthGrid
+            year={year}
+            month={month}
+            events={filteredEvents}
+            size={size}
+            selectedIso={selectedIso ?? undefined}
+            onSelect={(iso) => setSelectedIso(iso)}
+          />
 
           <div className="mt-3 space-y-1.5">
             <p className="text-[10px] font-mono uppercase tracking-wider text-[var(--muted)]">
@@ -272,8 +325,139 @@ export function CalendarWidget() {
               </Link>
             )}
           </div>
+
+          {selectedIso && (
+            <DayEventsModal
+              iso={selectedIso}
+              events={filteredEvents.filter((ev) => eventOnDay(ev, selectedIso))}
+              onClose={() => setSelectedIso(null)}
+              onEdit={(ev) => setEditingEvent(ev)}
+              onDelete={(ev) => void handleDelete(ev)}
+              onAdd={() => setAddOpen(true)}
+            />
+          )}
+
+          <EventForm
+            open={addOpen}
+            defaultDate={selectedIso ?? toIso(today)}
+            onClose={() => setAddOpen(false)}
+            onSubmit={handleCreate}
+          />
+
+          <EventForm
+            open={editingEvent !== null}
+            initialEvent={editingEvent ?? undefined}
+            onClose={() => setEditingEvent(null)}
+            onSubmit={handleUpdate}
+          />
         </>
       )}
+    </div>
+  );
+}
+
+function DayEventsModal({
+  iso,
+  events,
+  onClose,
+  onEdit,
+  onDelete,
+  onAdd,
+}: {
+  iso: string;
+  events: CalendarEvent[];
+  onClose: () => void;
+  onEdit: (ev: CalendarEvent) => void;
+  onDelete: (ev: CalendarEvent) => void;
+  onAdd: () => void;
+}) {
+  const sorted = [...events].sort((a, b) => {
+    const aT = a.start.dateTime ?? a.start.date ?? "";
+    const bT = b.start.dateTime ?? b.start.date ?? "";
+    return aT.localeCompare(bT);
+  });
+
+  return (
+    <div
+      className="fixed inset-0 z-40 flex items-center justify-center bg-black/60 p-4"
+      onClick={onClose}
+    >
+      <div
+        className="flex max-h-[80vh] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-[var(--border)] bg-[#0b0b0f] shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <header className="flex items-center justify-between border-b border-[var(--border)] px-4 py-3">
+          <div>
+            <p className="font-mono text-[10px] uppercase tracking-[0.25em] text-[var(--accent)]">
+              biseo / day
+            </p>
+            <h3 className="mt-0.5 text-sm font-medium">{iso}</h3>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-md p-1 text-[var(--muted)] hover:bg-white/5 hover:text-foreground"
+            aria-label="닫기"
+          >
+            ✕
+          </button>
+        </header>
+
+        <div className="flex-1 overflow-y-auto px-4 py-3">
+          {sorted.length === 0 ? (
+            <p className="py-6 text-center text-xs text-[var(--muted)]">
+              이 날 일정이 없습니다.
+            </p>
+          ) : (
+            <ul className="flex flex-col gap-1.5">
+              {sorted.map((ev) => (
+                <li
+                  key={ev.id}
+                  className="flex items-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--card)] px-3 py-2 text-xs"
+                >
+                  <span className="w-20 shrink-0 font-mono text-[var(--muted)]">
+                    {formatTimeRange(ev).split("–")[0]?.trim() || "종일"}
+                  </span>
+                  <span className="flex-1 truncate text-foreground">
+                    {ev.summary ?? "(제목 없음)"}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => onEdit(ev)}
+                    className="shrink-0 rounded border border-[var(--border)] px-2 py-0.5 text-[10px] text-[var(--muted)] hover:border-[var(--accent)]/40 hover:text-foreground"
+                  >
+                    수정
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onDelete(ev)}
+                    className="shrink-0 rounded border border-[var(--border)] px-2 py-0.5 text-[10px] text-rose-300/80 hover:border-rose-500/40 hover:bg-rose-500/10"
+                  >
+                    삭제
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+
+        <footer className="flex justify-end gap-2 border-t border-[var(--border)] px-4 py-3">
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-md px-3 py-1.5 text-xs text-[var(--muted)] hover:bg-white/5 hover:text-foreground"
+          >
+            닫기
+          </button>
+          <button
+            type="button"
+            onClick={onAdd}
+            className="rounded-md bg-[var(--accent)] px-3 py-1.5 text-xs font-medium text-black hover:opacity-90"
+          >
+            + 일정 추가
+          </button>
+        </footer>
+      </div>
     </div>
   );
 }
