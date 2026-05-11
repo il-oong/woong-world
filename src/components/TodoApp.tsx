@@ -5,6 +5,38 @@ import type { Todo, TodoStats } from "@/lib/todos";
 
 type Response = { todos: Todo[]; stats: TodoStats };
 
+function formatTs(ts: number, now: Date = new Date()): string {
+  const d = new Date(ts);
+  const diffSec = Math.floor((now.getTime() - ts) / 1000);
+  if (diffSec < 60) return "방금";
+  if (diffSec < 3600) return `${Math.floor(diffSec / 60)}분 전`;
+
+  const sameDay =
+    d.getFullYear() === now.getFullYear() &&
+    d.getMonth() === now.getMonth() &&
+    d.getDate() === now.getDate();
+  const hm = `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+  if (sameDay) return `오늘 ${hm}`;
+
+  const yesterday = new Date(now);
+  yesterday.setDate(yesterday.getDate() - 1);
+  const isYesterday =
+    d.getFullYear() === yesterday.getFullYear() &&
+    d.getMonth() === yesterday.getMonth() &&
+    d.getDate() === yesterday.getDate();
+  if (isYesterday) return `어제 ${hm}`;
+
+  if (d.getFullYear() === now.getFullYear()) {
+    return `${d.getMonth() + 1}/${d.getDate()} ${hm}`;
+  }
+  return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, "0")}.${String(d.getDate()).padStart(2, "0")}`;
+}
+
+function fullTs(ts: number): string {
+  const d = new Date(ts);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+}
+
 export function TodoApp() {
   const [todos, setTodos] = useState<Todo[] | null>(null);
   const [err, setErr] = useState<string | null>(null);
@@ -13,6 +45,12 @@ export function TodoApp() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editText, setEditText] = useState("");
   const [pendingId, setPendingId] = useState<string | null>(null);
+  const [now, setNow] = useState<Date>(() => new Date());
+
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 60_000);
+    return () => clearInterval(id);
+  }, []);
 
   const load = async () => {
     try {
@@ -230,10 +268,27 @@ export function TodoApp() {
                       setEditingId(todo.id);
                       setEditText(todo.text);
                     }}
-                    className={`flex-1 truncate text-left text-sm ${todo.done ? "text-[var(--muted)] line-through" : "text-foreground"}`}
+                    className="flex-1 min-w-0 text-left"
                     title="클릭해서 편집"
                   >
-                    {todo.text}
+                    <span
+                      className={`block truncate text-sm ${todo.done ? "text-[var(--muted)] line-through" : "text-foreground"}`}
+                    >
+                      {todo.text}
+                    </span>
+                    <span className="mt-0.5 block font-mono text-[10px] text-[var(--muted)]">
+                      <time dateTime={new Date(todo.createdAt).toISOString()} title={fullTs(todo.createdAt)}>
+                        {formatTs(todo.createdAt, now)}
+                      </time>
+                      {todo.done && todo.doneAt && (
+                        <>
+                          <span className="mx-1 opacity-50">·</span>
+                          <time dateTime={new Date(todo.doneAt).toISOString()} title={fullTs(todo.doneAt)}>
+                            완료 {formatTs(todo.doneAt, now)}
+                          </time>
+                        </>
+                      )}
+                    </span>
                   </button>
                 )}
 
