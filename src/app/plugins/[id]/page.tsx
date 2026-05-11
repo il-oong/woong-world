@@ -95,6 +95,21 @@ export default async function PluginViewerPage({
       <div className="relative flex-1 bg-black/40">
         {embedUrl ? (
           <PluginEmbed src={embedUrl} title={plugin.name} />
+        ) : plugin.url ? (
+          <div className="flex h-full flex-col items-center justify-center gap-3 px-6 text-center">
+            <p className="text-sm text-foreground">이 플러그인은 새 탭에서 열립니다.</p>
+            <p className="max-w-md text-xs text-[var(--muted)]">
+              임베드(iframe) 표시가 꺼져 있어요. 정보 수정에서 "임베드 가능"을 켜면 여기서 바로 띄울 수 있습니다.
+            </p>
+            <a
+              href={plugin.url}
+              target="_blank"
+              rel="noreferrer noopener"
+              className="mt-2 rounded-md border border-[var(--accent)]/40 bg-[var(--accent)]/10 px-4 py-2 text-xs font-medium text-foreground hover:bg-[var(--accent)]/20"
+            >
+              {new URL(plugin.url).host}에서 열기 →
+            </a>
+          </div>
         ) : (
           <div className="flex h-full flex-col items-center justify-center gap-3 px-6 text-center">
             <p className="text-sm text-[var(--muted)]">

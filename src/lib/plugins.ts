@@ -47,8 +47,9 @@ export function getSeedPlugins(): Plugin[] {
   return pluginsData as Plugin[];
 }
 
-/** What URL should the iframe load for this plugin? Returns null if no embed source. */
+/** What URL should the iframe load for this plugin? Returns null if no embed source or not embeddable. */
 export function pluginEmbedUrl(p: Plugin): string | null {
+  if (!p.embeddable) return null;
   if (p.url) return p.url;
   // Guard: paths under /plugins/* would iframe the viewer page itself
   // (which is /plugins/[id]) and cause infinite recursion.
