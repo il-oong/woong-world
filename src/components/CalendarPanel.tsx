@@ -434,11 +434,11 @@ SESSION_SECRET=at-least-32-chars-of-random-data`}</pre>
           </button>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
           <button
             type="button"
             onClick={() => openForm("timed")}
-            className="rounded-md px-3 py-1.5 text-xs font-medium text-black transition"
+            className="shrink-0 whitespace-nowrap rounded-md px-3 py-1.5 text-xs font-medium text-black transition"
             style={{ background: activeCategory?.color ?? "var(--accent)" }}
           >
             + 일정{activeCategory ? ` · ${activeCategory.label}` : ""}
@@ -446,7 +446,7 @@ SESSION_SECRET=at-least-32-chars-of-random-data`}</pre>
           <button
             type="button"
             onClick={() => openForm("project")}
-            className="rounded-md border border-[var(--border)] px-3 py-1.5 text-xs hover:bg-white/5"
+            className="shrink-0 whitespace-nowrap rounded-md border border-[var(--border)] px-3 py-1.5 text-xs hover:bg-white/5"
           >
             + 프로젝트
           </button>
@@ -456,7 +456,7 @@ SESSION_SECRET=at-least-32-chars-of-random-data`}</pre>
               onClick={() => setCatMgmtOpen((o) => !o)}
               aria-label="카테고리 관리"
               title="카테고리 관리"
-              className={`rounded-md border px-2.5 py-1.5 text-xs transition ${
+              className={`shrink-0 whitespace-nowrap rounded-md border px-2.5 py-1.5 text-xs transition ${
                 catMgmtOpen
                   ? "border-[var(--accent)]/60 bg-[var(--accent)]/10 text-[var(--accent)]"
                   : "border-[var(--border)] text-[var(--muted)] hover:border-[var(--accent)]/40 hover:text-foreground"
@@ -475,7 +475,7 @@ SESSION_SECRET=at-least-32-chars-of-random-data`}</pre>
                 setBulkDeleteOpen(true);
               }}
               title="특정 캘린더의 날짜 범위 일정 일괄 삭제"
-              className="rounded-md border border-[var(--border)] px-2.5 py-1.5 text-xs text-rose-400/60 hover:border-rose-400/40 hover:text-rose-400 transition"
+              className="shrink-0 whitespace-nowrap rounded-md border border-[var(--border)] px-2.5 py-1.5 text-xs text-rose-400/60 hover:border-rose-400/40 hover:text-rose-400 transition"
             >
               🗑 범위 삭제
             </button>
@@ -508,7 +508,7 @@ SESSION_SECRET=at-least-32-chars-of-random-data`}</pre>
             </div>
           )}
           {variant === "full" && (
-            <div className="ml-2 flex items-center gap-2 border-l border-[var(--border)] pl-2 text-[11px] text-[var(--muted)]">
+            <div className="ml-2 hidden items-center gap-2 border-l border-[var(--border)] pl-2 text-[11px] text-[var(--muted)] md:flex">
               {status.email && <span>{status.email}</span>}
               <button
                 type="button"
