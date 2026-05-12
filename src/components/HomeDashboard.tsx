@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { CalendarWidget } from "./CalendarWidget";
 import { BriefingPlayer } from "./BriefingPlayer";
+import { TodoHomeWidget } from "./TodoHomeWidget";
+import { RoutineHomeWidget } from "./RoutineHomeWidget";
 
 type WidgetId =
   | "briefing"
@@ -247,29 +249,9 @@ function Widget({
         />
       );
     case "todo":
-      return (
-        <LinkCard
-          href="/apps/todo"
-          accentClass="text-emerald-300"
-          hoverClass="hover:border-emerald-400/50"
-          kicker="biseo / todo"
-          title="할 일"
-          desc="체크박스로 그날그날 할 일을 관리합니다."
-          footer="체크리스트"
-        />
-      );
+      return <TodoHomeWidget />;
     case "routine":
-      return (
-        <LinkCard
-          href="/apps/routine"
-          accentClass="text-sky-300"
-          hoverClass="hover:border-sky-400/40"
-          kicker="biseo / routine"
-          title="루틴 트래커"
-          desc="매일 체크하는 루틴 + 주간 달성률을 본다."
-          footer="체크리스트 · 통계"
-        />
-      );
+      return <RoutineHomeWidget />;
     case "subscription":
       return (
         <LinkCard
