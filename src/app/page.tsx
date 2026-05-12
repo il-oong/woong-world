@@ -1,11 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
-import { CalendarWidget } from "@/components/CalendarWidget";
-import { BriefingPlayer } from "@/components/BriefingPlayer";
 import { SecretarySetup } from "@/components/SecretarySetup";
 import { HubGrid } from "@/components/HubGrid";
+import { HomeDashboard } from "@/components/HomeDashboard";
 import type { SecretaryProfile } from "@/lib/secretary";
 
 export default function HomePage() {
@@ -136,79 +134,7 @@ export default function HomePage() {
             )}
           </header>
 
-          <div className="mb-6">
-            <BriefingPlayer secretaryName={profile?.name ?? "비서"} />
-          </div>
-
-          <div className="grid gap-4 lg:grid-cols-[2fr_1fr]">
-            <CalendarWidget />
-            <div className="flex flex-col gap-4">
-              <Link
-                href="/plans"
-                className="group flex flex-col justify-between rounded-xl border border-[var(--border)] bg-[var(--card)] p-5 transition hover:border-[var(--accent)]/50"
-              >
-                <div>
-                  <p className="font-mono text-[10px] uppercase tracking-[0.3em] text-[var(--accent)]">
-                    biseo / plans
-                  </p>
-                  <h2 className="mt-2 text-base font-medium">계획 관리</h2>
-                  <p className="mt-1 text-xs leading-relaxed text-[var(--muted)]">
-                    주간 / 월간 / 연간 계획을 카테고리별로 정리하고 Gemini로 보완점을 받습니다.
-                  </p>
-                </div>
-                <div className="mt-4 flex items-center justify-between text-[11px] text-[var(--muted)] group-hover:text-foreground">
-                  <span>인생 · 회사 · VFX · 앱개발 · 재즈</span>
-                  <span>→</span>
-                </div>
-              </Link>
-              <Link
-                href="/apps/todo"
-                className="group flex flex-col justify-between rounded-xl border border-[var(--border)] bg-[var(--card)] p-5 transition hover:border-emerald-400/50"
-              >
-                <div>
-                  <p className="font-mono text-[10px] uppercase tracking-[0.3em] text-emerald-300">
-                    biseo / todo
-                  </p>
-                  <h2 className="mt-2 text-base font-medium">할 일</h2>
-                  <p className="mt-1 text-xs leading-relaxed text-[var(--muted)]">
-                    체크박스로 그날그날 할 일을 관리합니다.
-                  </p>
-                </div>
-                <div className="mt-4 flex items-center justify-between text-[11px] text-[var(--muted)] group-hover:text-foreground">
-                  <span>체크리스트</span>
-                  <span>→</span>
-                </div>
-              </Link>
-            </div>
-          </div>
-
-          {isAdmin && (
-            <div className="mt-6">
-              <p className="mb-2 font-mono text-[10px] uppercase tracking-[0.3em] text-[var(--muted)]">
-                biseo / internal apps
-              </p>
-              <div className="grid gap-3 sm:grid-cols-2">
-                <Link
-                  href="/apps/routine"
-                  className="group flex flex-col gap-1 rounded-lg border border-[var(--border)] bg-[var(--card)] p-4 transition hover:border-sky-400/40"
-                >
-                  <span className="text-sm font-medium">루틴 트래커</span>
-                  <span className="text-xs text-[var(--muted)] group-hover:text-foreground">
-                    매일 체크하는 루틴 + 주간 달성률 →
-                  </span>
-                </Link>
-                <Link
-                  href="/apps/subscription"
-                  className="group flex flex-col gap-1 rounded-lg border border-[var(--border)] bg-[var(--card)] p-4 transition hover:border-amber-400/40"
-                >
-                  <span className="text-sm font-medium">구독 관리</span>
-                  <span className="text-xs text-[var(--muted)] group-hover:text-foreground">
-                    결제일 자동 캘린더 등록 + 월 합산 →
-                  </span>
-                </Link>
-              </div>
-            </div>
-          )}
+          <HomeDashboard isAdmin={isAdmin} secretaryName={profile?.name ?? "비서"} />
 
           {isAdmin && <HubGrid />}
         </div>
