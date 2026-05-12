@@ -13,6 +13,18 @@ export async function PUT(
   } catch {
     return Response.json({ error: "invalid_json" }, { status: 400 });
   }
+  if (body.kind === "timed" && body.end <= body.start) {
+    return Response.json(
+      { error: "종료 시각이 시작 시각보다 늦어야 합니다." },
+      { status: 400 },
+    );
+  }
+  if ((body.kind === "allday" || body.kind === "project") && body.end < body.start) {
+    return Response.json(
+      { error: "종료일이 시작일보다 빠를 수 없습니다." },
+      { status: 400 },
+    );
+  }
   try {
     const event = await updateEvent(session, id, body);
     return Response.json({ event });

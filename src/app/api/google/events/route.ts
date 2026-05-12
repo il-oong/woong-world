@@ -110,6 +110,23 @@ export async function POST(req: NextRequest) {
   if (!body.summary || !body.start || !body.end || !body.kind) {
     return Response.json({ error: "invalid_input" }, { status: 400 });
   }
+  // Defense in depth: catch end <= start before hitting Google.
+  // For "timed", body.start/end are "YYYY-MM-DDTHH:MM:00" strings (no TZ),
+  // and lexical comparison matches chronological order. For "allday"/"project",
+  // the lib adds +1 day to end at insert time, so equal dates are valid;
+  // only reject when end is strictly before start.
+  if (body.kind === "timed" && body.end <= body.start) {
+    return Response.json(
+      { error: "종료 시각이 시작 시각보다 늦어야 합니다." },
+      { status: 400 },
+    );
+  }
+  if ((body.kind === "allday" || body.kind === "project") && body.end < body.start) {
+    return Response.json(
+      { error: "종료일이 시작일보다 빠를 수 없습니다." },
+      { status: 400 },
+    );
+  }
 
   try {
     const event = await createEvent(session, body);
