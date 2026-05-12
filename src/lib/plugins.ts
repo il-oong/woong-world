@@ -63,8 +63,19 @@ export function pluginGitHubUrl(p: Plugin): string {
   return `https://github.com/${p.repo}/tree/${p.branch}`;
 }
 
-/** Plugin ids that collide with API route segments and must be rejected. */
-const RESERVED_PLUGIN_IDS = new Set(["status", "github-meta"]);
+/**
+ * Plugin ids that must be rejected:
+ *  - "status", "github-meta": collide with API route segments
+ *  - "routine", "subscription": retired internal-app shortcuts that are now
+ *    filtered out at load time in plugins-store. Allowing them at write time
+ *    would create write-then-disappear records that can't be patched/deleted.
+ */
+const RESERVED_PLUGIN_IDS = new Set([
+  "status",
+  "github-meta",
+  "routine",
+  "subscription",
+]);
 
 /** Validate a plugin id: lowercase alphanumeric + dashes, not a reserved word. */
 export function isValidPluginId(id: string): boolean {
