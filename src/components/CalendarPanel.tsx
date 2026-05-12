@@ -217,12 +217,10 @@ export function CalendarPanel({ variant = "full" }: { variant?: Variant }) {
   };
 
   const handleCreate = async (input: EventFormSubmit) => {
-    const calendarId =
-      selectedCalendarId === "all" ? "primary" : selectedCalendarId;
     const res = await fetch("/api/google/events", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...input, calendarId }),
+      body: JSON.stringify(input),
     });
     if (!res.ok) {
       const data = (await res.json()) as { error?: string };
@@ -244,13 +242,10 @@ export function CalendarPanel({ variant = "full" }: { variant?: Variant }) {
 
   const handleUpdate = async (input: EventFormSubmit) => {
     if (!editingEvent) return;
-    const calendarId =
-      editingEvent.calendarId ??
-      (selectedCalendarId !== "all" ? selectedCalendarId : "primary");
     const res = await fetch(`/api/google/events/${encodeURIComponent(editingEvent.id)}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...input, calendarId }),
+      body: JSON.stringify(input),
     });
     if (!res.ok) {
       const data = (await res.json()) as { error?: string };
@@ -919,6 +914,8 @@ SESSION_SECRET=at-least-32-chars-of-random-data`}</pre>
         defaultDate={selectedIso}
         defaultKind={formKind}
         defaultCategoryId={formCategory}
+        defaultCalendarId={selectedCalendarId === "all" ? undefined : selectedCalendarId}
+        calendars={calendars}
         categories={categories}
         onClose={() => setFormOpen(false)}
         onSubmit={handleCreate}
@@ -927,6 +924,11 @@ SESSION_SECRET=at-least-32-chars-of-random-data`}</pre>
       <EventForm
         open={editingEvent !== null}
         initialEvent={editingEvent ?? undefined}
+        defaultCalendarId={
+          editingEvent?.calendarId ??
+          (selectedCalendarId === "all" ? undefined : selectedCalendarId)
+        }
+        calendars={calendars}
         categories={categories}
         onClose={() => setEditingEvent(null)}
         onSubmit={handleUpdate}

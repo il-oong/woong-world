@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { toIso } from "@/lib/calendar-util";
 import { CATEGORIES, type Category, type CategoryId } from "@/lib/categories";
-import type { CalendarEvent } from "@/lib/google";
+import type { CalendarEvent, UserCalendar } from "@/lib/google";
 
 type EventKind = "timed" | "allday" | "project";
 
@@ -23,6 +23,7 @@ export type EventFormSubmit = {
   end: string;
   reminderMinutes: number | null;
   categoryId: CategoryId;
+  calendarId: string;
 };
 
 function parseExistingEvent(ev: CalendarEvent): {
@@ -88,6 +89,8 @@ export function EventForm({
   defaultDate,
   defaultKind = "timed",
   defaultCategoryId,
+  defaultCalendarId,
+  calendars,
   initialEvent,
   categories,
   onClose,
@@ -97,6 +100,8 @@ export function EventForm({
   defaultDate?: string;
   defaultKind?: EventKind;
   defaultCategoryId?: CategoryId;
+  defaultCalendarId?: string;
+  calendars?: UserCalendar[];
   initialEvent?: CalendarEvent;
   categories?: Category[];
   onClose: () => void;
@@ -108,6 +113,8 @@ export function EventForm({
       defaultDate={defaultDate}
       defaultKind={defaultKind}
       defaultCategoryId={defaultCategoryId}
+      defaultCalendarId={defaultCalendarId}
+      calendars={calendars ?? []}
       initialEvent={initialEvent}
       categories={categories ?? CATEGORIES}
       onClose={onClose}
@@ -120,6 +127,8 @@ function FormBody({
   defaultDate,
   defaultKind,
   defaultCategoryId,
+  defaultCalendarId,
+  calendars,
   initialEvent,
   categories,
   onClose,
@@ -128,6 +137,8 @@ function FormBody({
   defaultDate?: string;
   defaultKind: EventKind;
   defaultCategoryId?: CategoryId;
+  defaultCalendarId?: string;
+  calendars: UserCalendar[];
   initialEvent?: CalendarEvent;
   categories: Category[];
   onClose: () => void;
@@ -148,8 +159,17 @@ function FormBody({
   const [startTime, setStartTime] = useState(parsed?.startTime ?? "09:00");
   const [endTime, setEndTime] = useState(parsed?.endTime ?? "10:00");
   const [reminder, setReminder] = useState<number | null>(parsed?.reminder ?? 30);
+  const [calendarId, setCalendarId] = useState<string>(
+    initialEvent?.calendarId ?? defaultCalendarId ?? calendars[0]?.id ?? "primary",
+  );
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const writableCalendars = calendars.filter(
+    (c) => c.accessRole === "owner" || c.accessRole === "writer",
+  );
+  // Editing: lock to the event's calendar (Google API can't move events between calendars).
+  const calendarPickerEnabled = !isEdit && writableCalendars.length > 1;
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -192,6 +212,7 @@ function FormBody({
         end,
         reminderMinutes: reminder,
         categoryId,
+        calendarId,
       });
       onClose();
     } catch (e) {
@@ -247,6 +268,23 @@ function FormBody({
               </button>
             ))}
           </div>
+
+          {calendarPickerEnabled && (
+            <Field label="캘린더">
+              <select
+                value={calendarId}
+                onChange={(e) => setCalendarId(e.target.value)}
+                className="w-full rounded-md border border-[var(--border)] bg-[var(--card)] px-3 py-2 text-sm focus:border-[var(--accent)]/50 focus:outline-none"
+              >
+                {writableCalendars.map((cal) => (
+                  <option key={cal.id} value={cal.id}>
+                    {cal.summary}
+                    {cal.primary ? " (기본)" : ""}
+                  </option>
+                ))}
+              </select>
+            </Field>
+          )}
 
           <Field label="카테고리">
             <div className="flex flex-wrap gap-1.5">

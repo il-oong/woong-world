@@ -129,7 +129,7 @@ export function CalendarWidget() {
     const res = await fetch("/api/google/events", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...input, calendarId: "primary" }),
+      body: JSON.stringify(input),
     });
     if (!res.ok) {
       const data = (await res.json().catch(() => ({}))) as { error?: string };
@@ -141,11 +141,10 @@ export function CalendarWidget() {
 
   const handleUpdate = async (input: EventFormSubmit) => {
     if (!editingEvent) return;
-    const calendarId = editingEvent.calendarId ?? "primary";
     const res = await fetch(`/api/google/events/${encodeURIComponent(editingEvent.id)}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...input, calendarId }),
+      body: JSON.stringify(input),
     });
     if (!res.ok) {
       const data = (await res.json().catch(() => ({}))) as { error?: string };
@@ -340,6 +339,7 @@ export function CalendarWidget() {
           <EventForm
             open={addOpen}
             defaultDate={selectedIso ?? toIso(today)}
+            calendars={calendars}
             onClose={() => setAddOpen(false)}
             onSubmit={handleCreate}
           />
@@ -347,6 +347,8 @@ export function CalendarWidget() {
           <EventForm
             open={editingEvent !== null}
             initialEvent={editingEvent ?? undefined}
+            defaultCalendarId={editingEvent?.calendarId}
+            calendars={calendars}
             onClose={() => setEditingEvent(null)}
             onSubmit={handleUpdate}
           />
