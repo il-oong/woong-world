@@ -83,7 +83,7 @@ export async function POST(req: NextRequest) {
 
   // Admin gets plugin registry + status injected so the assistant can report
   // on plugin health when asked.
-  const isAdmin = isAdminEmail(session.email);
+  const isAdmin = await isAdminEmail(session.email);
   let pluginContext: { plugin: Awaited<ReturnType<typeof loadPlugins>>[number]; status: Awaited<ReturnType<typeof getAllPluginStatuses>>[number] }[] | undefined;
   if (isAdmin) {
     try {

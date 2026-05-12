@@ -16,6 +16,7 @@ const ADMIN_ITEMS = [
   { href: "/calendar", label: "일정" },
   { href: "/plans", label: "계획" },
   { href: "/plugins", label: "플러그인" },
+  { href: "/admin/people", label: "관리자" },
   { href: "/guide", label: "설정 가이드" },
 ];
 
