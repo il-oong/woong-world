@@ -44,13 +44,12 @@ export function buildCategory(raw: { id: string; label: string; colorId: string 
   return { id: raw.id, label: raw.label, colorId: raw.colorId, color, bg, border };
 }
 
-// 기본 카테고리 (처음 실행 시 Redis에 없으면 이걸 사용)
+// 기본 카테고리 — Redis에 사용자별 저장이 없을 때 fallback.
+// 모든 사용자에 공통으로 적용되니 특정 사람을 가리키는 라벨은 금지.
+// 사용자가 카테고리 관리에서 추가/수정/삭제로 자기 것으로 만든다.
 export const DEFAULT_CATEGORIES: Category[] = [
-  buildCategory({ id: "life",    label: "인생",   colorId: "9" }),
-  buildCategory({ id: "company", label: "회사",   colorId: "11" }),
-  buildCategory({ id: "vfx",    label: "VFX",    colorId: "10" }),
-  buildCategory({ id: "appdev", label: "앱개발", colorId: "7" }),
-  buildCategory({ id: "jazz",   label: "재즈",   colorId: "3" }),
+  buildCategory({ id: "work",     label: "업무", colorId: "7" }),
+  buildCategory({ id: "personal", label: "개인", colorId: "9" }),
 ];
 
 // 런타임에 사용하는 카테고리 목록 (SSR용 fallback — 클라이언트는 API 사용)
