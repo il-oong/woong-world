@@ -39,6 +39,12 @@ export function BriefingPlayer({ secretaryName }: { secretaryName: string }) {
   async function play() {
     const audio = audioRef.current;
     if (!audio) return;
+    // After "ended", currentTime is at duration; some browsers (notably iOS
+    // Safari) won't auto-rewind on play(), so the replay is silent. Reset
+    // explicitly when at the end or unset.
+    if (audio.ended || audio.currentTime >= audio.duration - 0.1) {
+      audio.currentTime = 0;
+    }
     try {
       await audio.play();
       setState("playing");
