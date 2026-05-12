@@ -182,6 +182,34 @@ export default function HomePage() {
             </div>
           </div>
 
+          {isAdmin && (
+            <div className="mt-6">
+              <p className="mb-2 font-mono text-[10px] uppercase tracking-[0.3em] text-[var(--muted)]">
+                biseo / internal apps
+              </p>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <Link
+                  href="/apps/routine"
+                  className="group flex flex-col gap-1 rounded-lg border border-[var(--border)] bg-[var(--card)] p-4 transition hover:border-sky-400/40"
+                >
+                  <span className="text-sm font-medium">루틴 트래커</span>
+                  <span className="text-xs text-[var(--muted)] group-hover:text-foreground">
+                    매일 체크하는 루틴 + 주간 달성률 →
+                  </span>
+                </Link>
+                <Link
+                  href="/apps/subscription"
+                  className="group flex flex-col gap-1 rounded-lg border border-[var(--border)] bg-[var(--card)] p-4 transition hover:border-amber-400/40"
+                >
+                  <span className="text-sm font-medium">구독 관리</span>
+                  <span className="text-xs text-[var(--muted)] group-hover:text-foreground">
+                    결제일 자동 캘린더 등록 + 월 합산 →
+                  </span>
+                </Link>
+              </div>
+            </div>
+          )}
+
           {isAdmin && <HubGrid />}
         </div>
       </div>
