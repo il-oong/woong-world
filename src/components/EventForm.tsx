@@ -164,6 +164,14 @@ function FormBody({
       setError("제목을 입력하세요");
       return;
     }
+    if (kind === "timed" && endTime <= startTime) {
+      setError("종료 시각이 시작 시각보다 늦어야 합니다.");
+      return;
+    }
+    if (kind === "project" && endDate < startDate) {
+      setError("종료일이 시작일보다 빠를 수 없습니다.");
+      return;
+    }
     setSubmitting(true);
     setError(null);
     try {
@@ -312,7 +320,22 @@ function FormBody({
                   <input
                     type="time"
                     value={startTime}
-                    onChange={(e) => setStartTime(e.target.value)}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      setStartTime(v);
+                      // 종료가 새 시작 이하면 +1시간으로 자동 보정 (24시 넘으면 23:59)
+                      if (v && endTime && endTime <= v) {
+                        const [h, m] = v.split(":").map(Number);
+                        const next = h * 60 + m + 60;
+                        if (next >= 24 * 60) {
+                          setEndTime("23:59");
+                        } else {
+                          const nh = Math.floor(next / 60);
+                          const nm = next % 60;
+                          setEndTime(`${String(nh).padStart(2, "0")}:${String(nm).padStart(2, "0")}`);
+                        }
+                      }
+                    }}
                     className="w-full rounded-md border border-[var(--border)] bg-[var(--card)] px-2 py-2 text-sm focus:border-[var(--accent)]/50 focus:outline-none"
                   />
                 </Field>
