@@ -22,6 +22,8 @@ const ADMIN_ITEMS = [
 export function TopNav() {
   const pathname = usePathname();
   const [adminMode, setAdminMode] = useState(false);
+  const [connected, setConnected] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -33,10 +35,15 @@ export function TopNav() {
       try {
         const sec = await fetch("/api/secretary");
         if (cancelled) return;
-        if (sec.status === 401) {
+        // Treat only 2xx as truly connected. 401 = not logged in,
+        // 503 = storage not configured, 5xx/etc = backend issue —
+        // in all those cases we don't show the logout button.
+        if (!sec.ok) {
+          setConnected(false);
           setAdminMode(false);
           return;
         }
+        setConnected(true);
         const adm = await fetch("/api/admin/status");
         if (cancelled) return;
         if (!adm.ok) {
@@ -46,7 +53,10 @@ export function TopNav() {
         const data = (await adm.json()) as { isAdmin?: boolean };
         setAdminMode(Boolean(data.isAdmin));
       } catch {
-        if (!cancelled) setAdminMode(false);
+        if (!cancelled) {
+          setConnected(false);
+          setAdminMode(false);
+        }
       }
     })();
     return () => {
@@ -56,6 +66,18 @@ export function TopNav() {
 
   const items = adminMode ? ADMIN_ITEMS : ITEMS;
   const brand = adminMode ? "웅허브" : "비서";
+
+  const handleLogout = async () => {
+    if (loggingOut) return;
+    if (!confirm("로그아웃하시겠어요? 다시 사용하려면 구글 로그인이 필요합니다.")) return;
+    setLoggingOut(true);
+    try {
+      await fetch("/api/google/disconnect", { method: "POST" });
+    } finally {
+      // Hard reload to clear all client state (calendar widgets, plans, etc.)
+      window.location.href = "/";
+    }
+  };
 
   return (
     <nav className="sticky top-0 z-30 border-b border-[var(--border)] bg-[#0b0b0f]/80 backdrop-blur">
@@ -87,6 +109,17 @@ export function TopNav() {
             );
           })}
         </div>
+        {connected && (
+          <button
+            type="button"
+            onClick={() => void handleLogout()}
+            disabled={loggingOut}
+            className="ml-1 shrink-0 whitespace-nowrap rounded-md border border-[var(--border)] px-2 py-1 text-[11px] text-[var(--muted)] transition hover:border-rose-400/40 hover:text-rose-200 disabled:opacity-50 sm:px-2.5"
+            aria-label="로그아웃"
+          >
+            {loggingOut ? "..." : "로그아웃"}
+          </button>
+        )}
       </div>
     </nav>
   );
