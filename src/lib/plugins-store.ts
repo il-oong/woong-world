@@ -4,6 +4,15 @@ import type { Plugin } from "./plugins";
 
 const KEY = "plugins:registry";
 
+// Internal-app shortcuts that used to ship in the seed registry. Filtered out
+// at load time so older Redis snapshots don't keep showing them in the hub.
+// (Their /apps/* routes still work; entry points moved to the home page.)
+const RETIRED_INTERNAL_IDS = new Set(["routine", "subscription"]);
+
+function withoutRetired(plugins: Plugin[]): Plugin[] {
+  return plugins.filter((p) => !RETIRED_INTERNAL_IDS.has(p.id));
+}
+
 function getRedisCreds(): { url: string; token: string } | null {
   const url = process.env.UPSTASH_REDIS_REST_URL ?? process.env.KV_REST_API_URL;
   const token =
@@ -31,16 +40,16 @@ function redis(): Redis | null {
  */
 export async function loadPlugins(): Promise<Plugin[]> {
   const r = redis();
-  if (!r) return seed as Plugin[];
+  if (!r) return withoutRetired(seed as Plugin[]);
   try {
     const stored = await r.get<Plugin[]>(KEY);
-    if (Array.isArray(stored)) return stored;
+    if (Array.isArray(stored)) return withoutRetired(stored);
     // Key absent — seed once with defaults.
     const defaults = seed as Plugin[];
     await r.set(KEY, defaults);
-    return defaults;
+    return withoutRetired(defaults);
   } catch {
-    return seed as Plugin[];
+    return withoutRetired(seed as Plugin[]);
   }
 }
 
