@@ -35,7 +35,10 @@ export function TopNav() {
       try {
         const sec = await fetch("/api/secretary");
         if (cancelled) return;
-        if (sec.status === 401) {
+        // Treat only 2xx as truly connected. 401 = not logged in,
+        // 503 = storage not configured, 5xx/etc = backend issue —
+        // in all those cases we don't show the logout button.
+        if (!sec.ok) {
           setConnected(false);
           setAdminMode(false);
           return;
