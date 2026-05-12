@@ -7,15 +7,12 @@ type Response = { todos: Todo[]; stats: TodoStats };
 
 function formatTs(ts: number, now: Date = new Date()): string {
   const d = new Date(ts);
-  const diffSec = Math.floor((now.getTime() - ts) / 1000);
-  if (diffSec < 60) return "방금";
-  if (diffSec < 3600) return `${Math.floor(diffSec / 60)}분 전`;
+  const hm = `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
 
   const sameDay =
     d.getFullYear() === now.getFullYear() &&
     d.getMonth() === now.getMonth() &&
     d.getDate() === now.getDate();
-  const hm = `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
   if (sameDay) return `오늘 ${hm}`;
 
   const yesterday = new Date(now);
@@ -29,12 +26,29 @@ function formatTs(ts: number, now: Date = new Date()): string {
   if (d.getFullYear() === now.getFullYear()) {
     return `${d.getMonth() + 1}/${d.getDate()} ${hm}`;
   }
-  return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, "0")}.${String(d.getDate()).padStart(2, "0")}`;
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")} ${hm}`;
 }
 
 function fullTs(ts: number): string {
   const d = new Date(ts);
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+}
+
+function dayKey(ts: number): string {
+  const d = new Date(ts);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+function dayTabLabel(key: string, now: Date = new Date()): string {
+  const [y, m, d] = key.split("-").map(Number);
+  const target = new Date(y, m - 1, d);
+  const todayKey = dayKey(now.getTime());
+  if (key === todayKey) return "오늘";
+  const yesterday = new Date(now);
+  yesterday.setDate(yesterday.getDate() - 1);
+  if (key === dayKey(yesterday.getTime())) return "어제";
+  if (target.getFullYear() === now.getFullYear()) return `${m}/${d}`;
+  return `${String(y).slice(2)}/${String(m).padStart(2, "0")}/${String(d).padStart(2, "0")}`;
 }
 
 export function TodoApp() {
@@ -46,6 +60,7 @@ export function TodoApp() {
   const [editText, setEditText] = useState("");
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [now, setNow] = useState<Date>(() => new Date());
+  const [selectedDay, setSelectedDay] = useState<string>("all");
 
   useEffect(() => {
     const id = setInterval(() => setNow(new Date()), 60_000);
@@ -175,6 +190,16 @@ export function TodoApp() {
   }
 
   const openCount = todos.filter((t) => !t.done).length;
+  const dayCounts = new Map<string, number>();
+  for (const t of todos) {
+    const k = dayKey(t.createdAt);
+    dayCounts.set(k, (dayCounts.get(k) ?? 0) + 1);
+  }
+  const dayKeys = Array.from(dayCounts.keys()).sort((a, b) => (a < b ? 1 : -1));
+  const filtered =
+    selectedDay === "all"
+      ? todos
+      : todos.filter((t) => dayKey(t.createdAt) === selectedDay);
 
   return (
     <div className="flex flex-col gap-4">
@@ -221,13 +246,37 @@ export function TodoApp() {
         </button>
       </div>
 
+      {dayKeys.length > 0 && (
+        <nav className="-mx-1 flex gap-1 overflow-x-auto px-1 pb-1" aria-label="작성일 필터">
+          <DayTab
+            label="전체"
+            count={todos.length}
+            active={selectedDay === "all"}
+            onClick={() => setSelectedDay("all")}
+          />
+          {dayKeys.map((k) => (
+            <DayTab
+              key={k}
+              label={dayTabLabel(k, now)}
+              count={dayCounts.get(k) ?? 0}
+              active={selectedDay === k}
+              onClick={() => setSelectedDay(k)}
+            />
+          ))}
+        </nav>
+      )}
+
       {todos.length === 0 ? (
         <div className="rounded-xl border border-dashed border-[var(--border)] px-4 py-10 text-center text-xs text-[var(--muted)]">
           첫 할 일을 추가해보세요.
         </div>
+      ) : filtered.length === 0 ? (
+        <div className="rounded-xl border border-dashed border-[var(--border)] px-4 py-6 text-center text-xs text-[var(--muted)]">
+          이 날짜에는 할 일이 없어요.
+        </div>
       ) : (
         <ul className="flex flex-col gap-1.5">
-          {todos.map((todo) => {
+          {filtered.map((todo) => {
             const isEditing = editingId === todo.id;
             return (
               <li
@@ -307,5 +356,34 @@ export function TodoApp() {
         </ul>
       )}
     </div>
+  );
+}
+
+function DayTab({
+  label,
+  count,
+  active,
+  onClick,
+}: {
+  label: string;
+  count: number;
+  active: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`shrink-0 rounded-full border px-3 py-1 text-xs transition ${
+        active
+          ? "border-[var(--accent)]/60 bg-[var(--accent)]/15 text-[var(--accent)]"
+          : "border-[var(--border)] text-[var(--muted)] hover:border-[var(--accent)]/30 hover:text-foreground"
+      }`}
+    >
+      {label}
+      <span className={`ml-1.5 font-mono text-[10px] ${active ? "opacity-80" : "opacity-60"}`}>
+        {count}
+      </span>
+    </button>
   );
 }
