@@ -15,6 +15,10 @@ function ghHeaders(): HeadersInit {
 
 type CommitInfo = { sha: string; date: string; message: string };
 type WorkflowRun = { conclusion: string | null; status: string; head_sha: string };
+type CombinedStatus = {
+  state: "success" | "pending" | "failure" | "error";
+  statuses: { context: string; state: string; description?: string }[];
+};
 
 async function fetchLatestCommit(repo: string, branch: string): Promise<CommitInfo | null> {
   try {
@@ -51,6 +55,22 @@ async function fetchLatestRun(repo: string, branch: string): Promise<WorkflowRun
       workflow_runs?: WorkflowRun[];
     };
     return data.workflow_runs?.[0] ?? null;
+  } catch {
+    return null;
+  }
+}
+
+async function fetchCombinedStatus(
+  repo: string,
+  ref: string,
+): Promise<CombinedStatus | null> {
+  try {
+    const res = await fetch(
+      `${GH_API}/repos/${repo}/commits/${encodeURIComponent(ref)}/status`,
+      { headers: ghHeaders(), next: { revalidate: 120 } },
+    );
+    if (!res.ok) return null;
+    return (await res.json()) as CombinedStatus;
   } catch {
     return null;
   }
@@ -108,10 +128,29 @@ export async function getPluginStatus(plugin: Plugin): Promise<PluginStatus> {
       label = `CI ${run.conclusion ?? "미확정"}`;
     }
   } else if (commit) {
-    // No CI run for this branch — likely no workflow defined yet.
-    level = "yellow";
-    label = "CI 미설정";
-    details.push("워크플로우가 없거나 아직 실행되지 않았다.");
+    // No GitHub Actions workflow run — fall back to commit status (Vercel,
+    // Railway, etc. push deployment results here even when Actions is unused).
+    const status = await fetchCombinedStatus(plugin.repo, commit.sha);
+    if (status && status.statuses.length > 0) {
+      const contexts = status.statuses.map((s) => s.context).join(", ");
+      if (status.state === "success") {
+        level = "green";
+        label = "정상";
+        details.push(`${contexts} 배포 성공`);
+      } else if (status.state === "pending") {
+        level = "yellow";
+        label = "배포 진행 중";
+        details.push(`${contexts} pending`);
+      } else {
+        level = "red";
+        label = "배포 실패";
+        details.push(`${contexts} ${status.state}`);
+      }
+    } else {
+      level = "yellow";
+      label = "CI 미설정";
+      details.push("워크플로우/배포 상태 신호가 없다.");
+    }
   }
 
   if (pr) {
