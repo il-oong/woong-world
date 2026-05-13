@@ -2,13 +2,18 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import type { Routine } from "@/lib/routines";
+import { isRoutineActiveOn, type Routine } from "@/lib/routines";
 
 type Data = {
   routines: Routine[];
   todayChecked: string[];
   today: string;
 };
+
+function todayWeekdayFromIso(iso: string): number {
+  const [y, m, d] = iso.split("-").map(Number);
+  return new Date(y, m - 1, d).getDay();
+}
 
 export function RoutineHomeWidget() {
   const [data, setData] = useState<Data | null>(null);
@@ -56,8 +61,13 @@ export function RoutineHomeWidget() {
     }
   };
 
-  const checked = data?.todayChecked.length ?? 0;
-  const total = data?.routines.length ?? 0;
+  const todayWeekday = data?.today ? todayWeekdayFromIso(data.today) : new Date().getDay();
+  const activeRoutines = (data?.routines ?? []).filter((r) =>
+    isRoutineActiveOn(r, todayWeekday),
+  );
+  const activeIds = new Set(activeRoutines.map((r) => r.id));
+  const checked = (data?.todayChecked ?? []).filter((id) => activeIds.has(id)).length;
+  const total = activeRoutines.length;
 
   return (
     <div className="flex h-full flex-col rounded-xl border border-[var(--border)] bg-[var(--card)] p-5">
@@ -92,9 +102,13 @@ export function RoutineHomeWidget() {
         >
           첫 루틴을 추가해보세요 →
         </Link>
+      ) : activeRoutines.length === 0 ? (
+        <p className="rounded-md border border-dashed border-[var(--border)] px-3 py-3 text-center text-[11px] text-[var(--muted)]">
+          오늘은 예정된 루틴이 없어요
+        </p>
       ) : (
         <ul className="flex flex-col gap-1">
-          {data.routines.map((r) => {
+          {activeRoutines.map((r) => {
             const isChecked = data.todayChecked.includes(r.id);
             return (
               <li

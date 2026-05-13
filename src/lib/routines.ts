@@ -144,25 +144,84 @@ export async function weeklyStats(
   todayIso: string,
   routines: Routine[],
 ): Promise<WeeklyStat[]> {
-  const out: WeeklyStat[] = [];
   const [y, m, d] = todayIso.split("-").map(Number);
-  for (let i = 6; i >= 0; i--) {
-    const dt = new Date(y, m - 1, d - i);
-    const iso = `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}-${String(dt.getDate()).padStart(2, "0")}`;
-    const checks = await getChecks(email, iso);
+  const days = Array.from({ length: 7 }, (_, idx) => {
+    const dt = new Date(y, m - 1, d - (6 - idx));
+    return dt;
+  });
+  return collectDailyStats(email, days, routines);
+}
+
+export type MonthStat = {
+  date: string;
+  day: number;          // 1..31
+  weekday: number;      // 0=Sun .. 6=Sat (JS getDay)
+  completed: number;
+  total: number;
+  isFuture: boolean;
+};
+
+export type MonthlyStats = {
+  year: number;
+  month: number;        // 1..12
+  daysInMonth: number;
+  firstWeekday: number; // weekday (0=Sun) of day 1
+  days: MonthStat[];
+};
+
+export async function monthlyStats(
+  email: string,
+  todayIso: string,
+  routines: Routine[],
+): Promise<MonthlyStats> {
+  const [y, m, d] = todayIso.split("-").map(Number);
+  const first = new Date(y, m - 1, 1);
+  const daysInMonth = new Date(y, m, 0).getDate();
+  const allDates = Array.from(
+    { length: daysInMonth },
+    (_, i) => new Date(y, m - 1, i + 1),
+  );
+  const stats = await collectDailyStats(email, allDates, routines);
+  const days: MonthStat[] = stats.map((s, i) => ({
+    date: s.date,
+    day: i + 1,
+    weekday: allDates[i].getDay(),
+    completed: s.completed,
+    total: s.total,
+    isFuture: i + 1 > d,
+  }));
+  return {
+    year: y,
+    month: m,
+    daysInMonth,
+    firstWeekday: first.getDay(),
+    days,
+  };
+}
+
+async function collectDailyStats(
+  email: string,
+  dates: Date[],
+  routines: Routine[],
+): Promise<WeeklyStat[]> {
+  const isoList = dates.map(
+    (dt) =>
+      `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}-${String(dt.getDate()).padStart(2, "0")}`,
+  );
+  // 병렬 조회로 N개 날짜를 한 라운드트립처럼 처리.
+  const allChecks = await Promise.all(isoList.map((iso) => getChecks(email, iso)));
+  return dates.map((dt, idx) => {
     const activeIds = new Set(
       routines.filter((r) => isRoutineActiveOn(r, dt.getDay())).map((r) => r.id),
     );
-    // 그 날 활성이었던 루틴 중 체크된 것만 카운트 (요일 바뀐 후 과거 체크가 부풀려지지 않도록)
-    const completed = checks.filter((id) => activeIds.has(id)).length;
-    out.push({
-      date: iso,
+    const completed = allChecks[idx].filter((id) => activeIds.has(id)).length;
+    return {
+      date: isoList[idx],
       weekday: WEEKDAYS[dt.getDay()],
       completed,
       total: activeIds.size,
-    });
-  }
-  return out;
+    };
+  });
 }
 
 export function todayIso(now = new Date()): string {

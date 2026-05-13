@@ -1,13 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { Routine, WeeklyStat } from "@/lib/routines";
+import type { MonthlyStats, Routine, WeeklyStat } from "@/lib/routines";
 
 type Data = {
   routines: Routine[];
   todayChecked: string[];
   today: string;
   weekly: WeeklyStat[];
+  monthly: MonthlyStats;
 };
 
 // 월요일부터 표시 (한국 관례). 값은 JS getDay() 기준 (0=일).
@@ -40,6 +41,7 @@ export function RoutineApp() {
   const [newWeekdays, setNewWeekdays] = useState<number[]>([]);
   const [adding, setAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [statsView, setStatsView] = useState<"week" | "month">("week");
 
   const refresh = async () => {
     try {
@@ -385,45 +387,151 @@ export function RoutineApp() {
       </div>
 
       <section>
-        <h2 className="mb-2 text-xs uppercase tracking-wider text-[var(--muted)]">
-          지난 7일
-        </h2>
-        <div className="flex items-end gap-1">
-          {data.weekly.map((w, i) => {
-            const ratio = w.total === 0 ? 0 : w.completed / w.total;
-            const isToday = w.date === data.today;
-            return (
-              <div
-                key={w.date}
-                className="flex flex-1 flex-col items-center gap-1"
-                title={`${w.date} — ${w.completed}/${w.total}`}
+        <div className="mb-2 flex items-center justify-between">
+          <h2 className="text-xs uppercase tracking-wider text-[var(--muted)]">
+            {statsView === "week" ? "지난 7일" : `${data.monthly.year}년 ${data.monthly.month}월`}
+          </h2>
+          <div className="flex gap-1 rounded-md border border-[var(--border)] p-0.5 text-[10px]">
+            {(["week", "month"] as const).map((v) => (
+              <button
+                key={v}
+                type="button"
+                onClick={() => setStatsView(v)}
+                className="rounded px-2 py-0.5 transition"
+                style={{
+                  background: statsView === v ? "var(--accent)" : "transparent",
+                  color: statsView === v ? "#000" : "var(--muted)",
+                }}
               >
-                <div className="flex h-20 w-full items-end overflow-hidden rounded bg-black/30">
-                  <div
-                    className="w-full transition-all"
-                    style={{
-                      height: `${Math.round(ratio * 100)}%`,
-                      background: isToday ? "var(--accent)" : "rgba(255,255,255,0.2)",
-                    }}
-                  />
-                </div>
-                <span
-                  className="font-mono text-[10px]"
-                  style={{ color: isToday ? "var(--accent)" : "var(--muted)" }}
-                >
-                  {w.weekday}
-                </span>
-                <span className="font-mono text-[9px] text-[var(--muted)]">
-                  {w.completed}/{w.total || "—"}
-                </span>
-                {/* Used to silence unused index warning if any */}
-                <span className="hidden">{i}</span>
-              </div>
-            );
-          })}
+                {v === "week" ? "주간" : "월간"}
+              </button>
+            ))}
+          </div>
         </div>
+        {statsView === "week" ? (
+          <div className="flex items-end gap-1">
+            {data.weekly.map((w) => {
+              const ratio = w.total === 0 ? 0 : w.completed / w.total;
+              const isToday = w.date === data.today;
+              return (
+                <div
+                  key={w.date}
+                  className="flex flex-1 flex-col items-center gap-1"
+                  title={`${w.date} — ${w.completed}/${w.total}`}
+                >
+                  <div className="flex h-20 w-full items-end overflow-hidden rounded bg-black/30">
+                    <div
+                      className="w-full transition-all"
+                      style={{
+                        height: `${Math.round(ratio * 100)}%`,
+                        background: isToday ? "var(--accent)" : "rgba(255,255,255,0.2)",
+                      }}
+                    />
+                  </div>
+                  <span
+                    className="font-mono text-[10px]"
+                    style={{ color: isToday ? "var(--accent)" : "var(--muted)" }}
+                  >
+                    {w.weekday}
+                  </span>
+                  <span className="font-mono text-[9px] text-[var(--muted)]">
+                    {w.completed}/{w.total || "—"}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <MonthHeatmap monthly={data.monthly} todayIso={data.today} />
+        )}
       </section>
     </>
+  );
+}
+
+function MonthHeatmap({
+  monthly,
+  todayIso,
+}: {
+  monthly: MonthlyStats;
+  todayIso: string;
+}) {
+  // 일~토 7열 그리드. 1일을 firstWeekday 칸에 배치, 앞은 빈 칸.
+  // 한국 관례에 맞춰 월요일 시작으로 표시: 일=0이면 6번째 칸, 월=1이면 0번째 칸 ...
+  const HEADER = ["월", "화", "수", "목", "금", "토", "일"];
+  const colFor = (weekday: number) => (weekday + 6) % 7; // 일(0)→6, 월(1)→0, ..., 토(6)→5
+  const leadingBlanks = colFor(monthly.firstWeekday);
+  const cells: (typeof monthly.days[number] | null)[] = [
+    ...Array.from({ length: leadingBlanks }, () => null),
+    ...monthly.days,
+  ];
+  // 행은 7개씩 묶음.
+  const rows: typeof cells[] = [];
+  for (let i = 0; i < cells.length; i += 7) rows.push(cells.slice(i, i + 7));
+
+  return (
+    <div className="overflow-hidden rounded-lg border border-[var(--border)] bg-black/20 p-3">
+      <div className="mb-2 grid grid-cols-7 gap-1.5 text-center font-mono text-[9px] text-[var(--muted)]">
+        {HEADER.map((h) => (
+          <span key={h}>{h}</span>
+        ))}
+      </div>
+      <div className="flex flex-col gap-1.5">
+        {rows.map((row, ri) => (
+          <div key={ri} className="grid grid-cols-7 gap-1.5">
+            {Array.from({ length: 7 }).map((_, ci) => {
+              const cell = row[ci] ?? null;
+              if (!cell) {
+                return <div key={ci} className="aspect-square rounded" />;
+              }
+              const ratio = cell.total === 0 ? 0 : cell.completed / cell.total;
+              const isToday = cell.date === todayIso;
+              const opacity = cell.isFuture
+                ? 0.15
+                : cell.total === 0
+                ? 0.2
+                : 0.25 + ratio * 0.75;
+              return (
+                <div
+                  key={ci}
+                  className="relative flex aspect-square items-center justify-center rounded text-[9px] font-mono"
+                  title={
+                    cell.isFuture
+                      ? `${cell.date}`
+                      : `${cell.date} — ${cell.completed}/${cell.total}`
+                  }
+                  style={{
+                    background: cell.isFuture
+                      ? "rgba(255,255,255,0.04)"
+                      : `rgba(94,234,212,${opacity})`,
+                    color: cell.isFuture
+                      ? "var(--muted)"
+                      : ratio > 0.5
+                      ? "#000"
+                      : "var(--muted)",
+                    outline: isToday ? "1px solid var(--accent)" : "none",
+                    outlineOffset: isToday ? "1px" : undefined,
+                  }}
+                >
+                  {cell.day}
+                </div>
+              );
+            })}
+          </div>
+        ))}
+      </div>
+      <div className="mt-3 flex items-center justify-end gap-2 text-[9px] text-[var(--muted)]">
+        <span>적음</span>
+        {[0.25, 0.5, 0.75, 1].map((r) => (
+          <span
+            key={r}
+            className="h-3 w-3 rounded"
+            style={{ background: `rgba(94,234,212,${r})` }}
+          />
+        ))}
+        <span>완료</span>
+      </div>
+    </div>
   );
 }
 

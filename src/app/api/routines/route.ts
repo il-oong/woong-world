@@ -5,6 +5,7 @@ import {
   getChecks,
   isRoutineStorageConfigured,
   listRoutines,
+  monthlyStats,
   todayIso,
   weeklyStats,
 } from "@/lib/routines";
@@ -25,12 +26,16 @@ export async function GET() {
     listRoutines(session.email),
     getChecks(session.email, today),
   ]);
-  const weekly = await weeklyStats(session.email, today, routines);
+  const [weekly, monthly] = await Promise.all([
+    weeklyStats(session.email, today, routines),
+    monthlyStats(session.email, today, routines),
+  ]);
   return Response.json({
     routines,
     todayChecked: checked,
     today,
     weekly,
+    monthly,
   });
 }
 
