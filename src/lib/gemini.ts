@@ -627,7 +627,11 @@ export async function generateBriefingScript(
     resolvedMode === "monthly" ? "월간+주간+일간" :
     resolvedMode === "weekly" ? "주간+일간" : "일간";
 
-  const maxTokens = resolvedMode === "monthly" ? 700 : resolvedMode === "weekly" ? 500 : 400;
+  // Gemini 2.5 Flash는 "thinking" 토큰이 maxOutputTokens에 함께 잡힌다.
+  // 브리핑은 추론보다 자연스러운 글쓰기가 필요하므로 thinking은 끄고, 한국어 출력을
+  // 충분히 담을 수 있게 상한을 넉넉하게 잡는다. (이전 400/500/700에서 스크립트가
+  // 끊기는 원인.)
+  const maxTokens = resolvedMode === "monthly" ? 4000 : resolvedMode === "weekly" ? 2500 : 2000;
 
   const systemPrompt = `너는 "${secretaryName}"이라는 이름의 AI 비서야.
 오늘의 ${modeLabel} 브리핑을 자연스럽고 따뜻하게 읽어줘.
@@ -649,7 +653,11 @@ export async function generateBriefingScript(
     body: JSON.stringify({
       systemInstruction: { parts: [{ text: systemPrompt }] },
       contents: [{ role: "user", parts: [{ text: userPrompt }] }],
-      generationConfig: { temperature: 0.9, maxOutputTokens: maxTokens },
+      generationConfig: {
+        temperature: 0.9,
+        maxOutputTokens: maxTokens,
+        thinkingConfig: { thinkingBudget: 0 },
+      },
     }),
   });
 
