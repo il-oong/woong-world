@@ -8,7 +8,7 @@ type Data = {
   todayChecked: string[];
   today: string;
   weekly: WeeklyStat[];
-  monthly: MonthlyStats;
+  monthly?: MonthlyStats;
 };
 
 // 월요일부터 표시 (한국 관례). 값은 JS getDay() 기준 (0=일).
@@ -45,7 +45,7 @@ export function RoutineApp() {
 
   const refresh = async () => {
     try {
-      const res = await fetch("/api/routines");
+      const res = await fetch("/api/routines?include=monthly");
       const d = (await res.json().catch(() => ({}))) as
         | Data
         | { error: string };
@@ -389,7 +389,9 @@ export function RoutineApp() {
       <section>
         <div className="mb-2 flex items-center justify-between">
           <h2 className="text-xs uppercase tracking-wider text-[var(--muted)]">
-            {statsView === "week" ? "지난 7일" : `${data.monthly.year}년 ${data.monthly.month}월`}
+            {statsView === "week" || !data.monthly
+              ? "지난 7일"
+              : `${data.monthly.year}년 ${data.monthly.month}월`}
           </h2>
           <div className="flex gap-1 rounded-md border border-[var(--border)] p-0.5 text-[10px]">
             {(["week", "month"] as const).map((v) => (
@@ -441,9 +443,9 @@ export function RoutineApp() {
               );
             })}
           </div>
-        ) : (
+        ) : data.monthly ? (
           <MonthHeatmap monthly={data.monthly} todayIso={data.today} />
-        )}
+        ) : null}
       </section>
     </>
   );
