@@ -25,7 +25,7 @@ export async function GET() {
     listRoutines(session.email),
     getChecks(session.email, today),
   ]);
-  const weekly = await weeklyStats(session.email, today, routines.length);
+  const weekly = await weeklyStats(session.email, today, routines);
   return Response.json({
     routines,
     todayChecked: checked,
@@ -42,9 +42,9 @@ export async function POST(req: NextRequest) {
   if (!session?.email) {
     return Response.json({ error: "not_connected" }, { status: 401 });
   }
-  let body: { name?: string };
+  let body: { name?: string; weekdays?: unknown };
   try {
-    body = (await req.json()) as { name?: string };
+    body = (await req.json()) as { name?: string; weekdays?: unknown };
   } catch {
     return Response.json({ error: "invalid_json" }, { status: 400 });
   }
@@ -53,6 +53,6 @@ export async function POST(req: NextRequest) {
   if (name.length > 80) {
     return Response.json({ error: "name_too_long" }, { status: 400 });
   }
-  const routine = await addRoutine(session.email, name);
+  const routine = await addRoutine(session.email, name, body.weekdays);
   return Response.json({ ok: true, routine });
 }

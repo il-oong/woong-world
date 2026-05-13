@@ -10,11 +10,36 @@ type Data = {
   weekly: WeeklyStat[];
 };
 
+// 월요일부터 표시 (한국 관례). 값은 JS getDay() 기준 (0=일).
+const WEEKDAY_PICKERS: { value: number; label: string }[] = [
+  { value: 1, label: "월" },
+  { value: 2, label: "화" },
+  { value: 3, label: "수" },
+  { value: 4, label: "목" },
+  { value: 5, label: "금" },
+  { value: 6, label: "토" },
+  { value: 0, label: "일" },
+];
+
+function isActiveOnWeekday(weekdays: number[] | undefined, weekday: number): boolean {
+  if (!weekdays || weekdays.length === 0) return true;
+  return weekdays.includes(weekday);
+}
+
+function formatWeekdays(weekdays: number[] | undefined): string {
+  if (!weekdays || weekdays.length === 0 || weekdays.length === 7) return "매일";
+  return WEEKDAY_PICKERS.filter((p) => weekdays.includes(p.value))
+    .map((p) => p.label)
+    .join("·");
+}
+
 export function RoutineApp() {
   const [data, setData] = useState<Data | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [newName, setNewName] = useState("");
+  const [newWeekdays, setNewWeekdays] = useState<number[]>([]);
   const [adding, setAdding] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
 
   const refresh = async () => {
     try {
@@ -45,7 +70,7 @@ export function RoutineApp() {
       const res = await fetch("/api/routines", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name }),
+        body: JSON.stringify({ name, weekdays: newWeekdays }),
       });
       if (!res.ok) {
         const d = (await res.json().catch(() => ({}))) as { error?: string };
@@ -53,9 +78,37 @@ export function RoutineApp() {
         return;
       }
       setNewName("");
+      setNewWeekdays([]);
       await refresh();
     } finally {
       setAdding(false);
+    }
+  };
+
+  const toggleNewWeekday = (value: number) => {
+    setNewWeekdays((prev) =>
+      prev.includes(value) ? prev.filter((v) => v !== value) : [...prev, value],
+    );
+  };
+
+  const updateWeekdays = async (routineId: string, weekdays: number[]) => {
+    try {
+      const res = await fetch(
+        `/api/routines/${encodeURIComponent(routineId)}`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ weekdays }),
+        },
+      );
+      if (!res.ok) {
+        const d = (await res.json().catch(() => ({}))) as { error?: string };
+        setError(d.error ?? `update_failed_${res.status}`);
+        return;
+      }
+      await refresh();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "update_failed");
     }
   };
 
@@ -119,8 +172,16 @@ export function RoutineApp() {
     );
   }
 
-  const checkedCount = data.todayChecked.length;
-  const total = data.routines.length;
+  const todayWeekday = (() => {
+    const [y, m, d] = data.today.split("-").map(Number);
+    return new Date(y, m - 1, d).getDay();
+  })();
+  const activeToday = data.routines.filter((r) =>
+    isActiveOnWeekday(r.weekdays, todayWeekday),
+  );
+  const activeIdsToday = new Set(activeToday.map((r) => r.id));
+  const checkedCount = data.todayChecked.filter((id) => activeIdsToday.has(id)).length;
+  const total = activeToday.length;
   const progress = total === 0 ? 0 : Math.round((checkedCount / total) * 100);
 
   return (
@@ -163,77 +224,164 @@ export function RoutineApp() {
       <ul className="mb-4 flex flex-col gap-2">
         {data.routines.map((r) => {
           const checked = data.todayChecked.includes(r.id);
+          const activeToday = isActiveOnWeekday(r.weekdays, todayWeekday);
+          const editing = editingId === r.id;
           return (
             <li
               key={r.id}
-              className="flex items-center gap-3 rounded-xl border border-[var(--border)] bg-[var(--card)] p-3"
+              className="flex flex-col gap-2 rounded-xl border border-[var(--border)] bg-[var(--card)] p-3"
+              style={{ opacity: activeToday ? 1 : 0.45 }}
             >
-              <button
-                type="button"
-                onClick={() => void toggleToday(r.id)}
-                className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md border-2 transition"
-                style={{
-                  background: checked ? "var(--accent)" : "transparent",
-                  borderColor: checked ? "var(--accent)" : "var(--border)",
-                  color: "#000",
-                }}
-                aria-label={checked ? "완료 취소" : "완료"}
-              >
-                {checked && (
-                  <svg
-                    viewBox="0 0 16 16"
-                    className="h-4 w-4"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="3"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    aria-hidden
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => activeToday && void toggleToday(r.id)}
+                  disabled={!activeToday}
+                  className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md border-2 transition disabled:cursor-not-allowed"
+                  style={{
+                    background: checked && activeToday ? "var(--accent)" : "transparent",
+                    borderColor: checked && activeToday ? "var(--accent)" : "var(--border)",
+                    color: "#000",
+                  }}
+                  aria-label={
+                    !activeToday
+                      ? "오늘은 비활성 요일"
+                      : checked
+                      ? "완료 취소"
+                      : "완료"
+                  }
+                  title={!activeToday ? "오늘은 이 루틴의 활성 요일이 아닙니다" : undefined}
+                >
+                  {checked && activeToday && (
+                    <svg
+                      viewBox="0 0 16 16"
+                      className="h-4 w-4"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="3"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      aria-hidden
+                    >
+                      <path d="M3 8l3.5 3.5L13 5" />
+                    </svg>
+                  )}
+                </button>
+                <span
+                  className="flex-1 text-sm"
+                  style={{
+                    color: checked && activeToday ? "var(--muted)" : "var(--foreground)",
+                    textDecoration: checked && activeToday ? "line-through" : "none",
+                  }}
+                >
+                  {r.name}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setEditingId(editing ? null : r.id)}
+                  className="rounded-md border border-[var(--border)] px-2 py-1 text-[10px] text-[var(--muted)] hover:border-[var(--accent)]/50 hover:text-[var(--accent)]"
+                  title="활성 요일 변경"
+                >
+                  {formatWeekdays(r.weekdays)}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void remove(r)}
+                  className="rounded-md border border-[var(--border)] px-2 py-1 text-[11px] text-rose-300/70 hover:border-rose-500/40 hover:text-rose-300"
+                >
+                  삭제
+                </button>
+              </div>
+              {editing && (
+                <div className="flex flex-wrap items-center gap-1.5 pl-9">
+                  {WEEKDAY_PICKERS.map((p) => {
+                    const current = r.weekdays ?? [];
+                    const on = current.length === 0 || current.includes(p.value);
+                    return (
+                      <button
+                        key={p.value}
+                        type="button"
+                        onClick={() => {
+                          const base =
+                            r.weekdays && r.weekdays.length > 0
+                              ? r.weekdays
+                              : WEEKDAY_PICKERS.map((x) => x.value);
+                          const next = base.includes(p.value)
+                            ? base.filter((v) => v !== p.value)
+                            : [...base, p.value];
+                          void updateWeekdays(r.id, next);
+                        }}
+                        className="h-7 w-7 rounded-full border text-[11px] transition"
+                        style={{
+                          background: on ? "var(--accent)" : "transparent",
+                          borderColor: on ? "var(--accent)" : "var(--border)",
+                          color: on ? "#000" : "var(--muted)",
+                        }}
+                      >
+                        {p.label}
+                      </button>
+                    );
+                  })}
+                  <button
+                    type="button"
+                    onClick={() => void updateWeekdays(r.id, [])}
+                    className="ml-1 rounded-md border border-[var(--border)] px-2 py-1 text-[10px] text-[var(--muted)] hover:border-[var(--accent)]/50 hover:text-[var(--accent)]"
                   >
-                    <path d="M3 8l3.5 3.5L13 5" />
-                  </svg>
-                )}
-              </button>
-              <span
-                className="flex-1 text-sm"
-                style={{
-                  color: checked ? "var(--muted)" : "var(--foreground)",
-                  textDecoration: checked ? "line-through" : "none",
-                }}
-              >
-                {r.name}
-              </span>
-              <button
-                type="button"
-                onClick={() => void remove(r)}
-                className="rounded-md border border-[var(--border)] px-2 py-1 text-[11px] text-rose-300/70 hover:border-rose-500/40 hover:text-rose-300"
-              >
-                삭제
-              </button>
+                    매일
+                  </button>
+                </div>
+              )}
             </li>
           );
         })}
       </ul>
 
-      <div className="mb-8 flex gap-2">
-        <input
-          value={newName}
-          onChange={(e) => setNewName(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") void add();
-          }}
-          placeholder="새 루틴 (예: 물 2L 마시기)"
-          className="flex-1 rounded-md border border-[var(--border)] bg-black/30 px-3 py-2 text-sm focus:border-[var(--accent)]/50 focus:outline-none"
-          maxLength={80}
-        />
-        <button
-          type="button"
-          onClick={() => void add()}
-          disabled={!newName.trim() || adding}
-          className="rounded-md bg-[var(--accent)] px-4 py-2 text-xs font-medium text-black disabled:opacity-40"
-        >
-          {adding ? "..." : "추가"}
-        </button>
+      <div className="mb-8 flex flex-col gap-2">
+        <div className="flex gap-2">
+          <input
+            value={newName}
+            onChange={(e) => setNewName(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") void add();
+            }}
+            placeholder="새 루틴 (예: 물 2L 마시기)"
+            className="flex-1 rounded-md border border-[var(--border)] bg-black/30 px-3 py-2 text-sm focus:border-[var(--accent)]/50 focus:outline-none"
+            maxLength={80}
+          />
+          <button
+            type="button"
+            onClick={() => void add()}
+            disabled={!newName.trim() || adding}
+            className="rounded-md bg-[var(--accent)] px-4 py-2 text-xs font-medium text-black disabled:opacity-40"
+          >
+            {adding ? "..." : "추가"}
+          </button>
+        </div>
+        <div className="flex flex-wrap items-center gap-1.5">
+          {WEEKDAY_PICKERS.map((p) => {
+            const on = newWeekdays.includes(p.value);
+            return (
+              <button
+                key={p.value}
+                type="button"
+                onClick={() => toggleNewWeekday(p.value)}
+                className="h-7 w-7 rounded-full border text-[11px] transition"
+                style={{
+                  background: on ? "var(--accent)" : "transparent",
+                  borderColor: on ? "var(--accent)" : "var(--border)",
+                  color: on ? "#000" : "var(--muted)",
+                }}
+              >
+                {p.label}
+              </button>
+            );
+          })}
+          <span className="ml-1 text-[10px] text-[var(--muted)]">
+            {newWeekdays.length === 0 || newWeekdays.length === 7
+              ? "미선택 = 매일"
+              : `선택: ${formatWeekdays(newWeekdays)}`}
+          </span>
+        </div>
       </div>
 
       <section>
