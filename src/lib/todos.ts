@@ -1,12 +1,20 @@
 import { Redis } from "@upstash/redis";
 
+export type TodoScope = "day" | "week" | "month";
+
 export type Todo = {
   id: string;
   text: string;
   done: boolean;
   createdAt: number;
   doneAt?: number;
+  // 미설정/구버전 데이터는 "day"로 취급 (마이그레이션 없이 호환).
+  scope?: TodoScope;
 };
+
+export function scopeOf(todo: Todo): TodoScope {
+  return todo.scope ?? "day";
+}
 
 function getRedisCreds(): { url: string; token: string } | null {
   const url = process.env.UPSTASH_REDIS_REST_URL ?? process.env.KV_REST_API_URL;
@@ -44,7 +52,11 @@ export async function listTodos(email: string): Promise<Todo[]> {
   return [...open, ...done];
 }
 
-export async function addTodo(email: string, text: string): Promise<Todo> {
+export async function addTodo(
+  email: string,
+  text: string,
+  scope: TodoScope = "day",
+): Promise<Todo> {
   const all = await listTodos(email);
   if (all.length >= MAX_ITEMS) {
     throw new Error("limit_exceeded");
@@ -54,6 +66,7 @@ export async function addTodo(email: string, text: string): Promise<Todo> {
     text,
     done: false,
     createdAt: Date.now(),
+    scope,
   };
   await redis().set(listKey(email), [...all, todo]);
   return todo;
@@ -62,7 +75,7 @@ export async function addTodo(email: string, text: string): Promise<Todo> {
 export async function updateTodo(
   email: string,
   id: string,
-  patch: { text?: string; done?: boolean },
+  patch: { text?: string; done?: boolean; scope?: TodoScope },
 ): Promise<Todo | null> {
   const all = await listTodos(email);
   const idx = all.findIndex((t) => t.id === id);
@@ -71,6 +84,7 @@ export async function updateTodo(
   const next: Todo = {
     ...prev,
     ...(patch.text !== undefined ? { text: patch.text } : {}),
+    ...(patch.scope !== undefined ? { scope: patch.scope } : {}),
     ...(patch.done !== undefined
       ? {
           done: patch.done,
