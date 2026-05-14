@@ -4,7 +4,10 @@ import {
   isTodoStorageConfigured,
   removeTodo,
   updateTodo,
+  type TodoScope,
 } from "@/lib/todos";
+
+const VALID_SCOPES: TodoScope[] = ["day", "week", "month"];
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -21,14 +24,14 @@ export async function PATCH(
     return Response.json({ error: "not_connected" }, { status: 401 });
   }
   const { id } = await params;
-  let body: { text?: string; done?: boolean };
+  let body: { text?: string; done?: boolean; scope?: unknown };
   try {
-    body = (await req.json()) as { text?: string; done?: boolean };
+    body = (await req.json()) as { text?: string; done?: boolean; scope?: unknown };
   } catch {
     return Response.json({ error: "invalid_json" }, { status: 400 });
   }
 
-  const patch: { text?: string; done?: boolean } = {};
+  const patch: { text?: string; done?: boolean; scope?: TodoScope } = {};
   if (typeof body.text === "string") {
     const t = body.text.trim();
     if (!t) return Response.json({ error: "missing_text" }, { status: 400 });
@@ -37,6 +40,12 @@ export async function PATCH(
   }
   if (typeof body.done === "boolean") {
     patch.done = body.done;
+  }
+  if (typeof body.scope === "string") {
+    if (!(VALID_SCOPES as string[]).includes(body.scope)) {
+      return Response.json({ error: "invalid_scope" }, { status: 400 });
+    }
+    patch.scope = body.scope as TodoScope;
   }
   if (Object.keys(patch).length === 0) {
     return Response.json({ error: "no_changes" }, { status: 400 });

@@ -5,7 +5,15 @@ import {
   isTodoStorageConfigured,
   listTodos,
   statsOf,
+  type TodoScope,
 } from "@/lib/todos";
+
+const VALID_SCOPES: TodoScope[] = ["day", "week", "month"];
+function parseScope(v: unknown): TodoScope | undefined {
+  return typeof v === "string" && (VALID_SCOPES as string[]).includes(v)
+    ? (v as TodoScope)
+    : undefined;
+}
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -30,9 +38,9 @@ export async function POST(req: NextRequest) {
   if (!session?.email) {
     return Response.json({ error: "not_connected" }, { status: 401 });
   }
-  let body: { text?: string };
+  let body: { text?: string; scope?: unknown };
   try {
-    body = (await req.json()) as { text?: string };
+    body = (await req.json()) as { text?: string; scope?: unknown };
   } catch {
     return Response.json({ error: "invalid_json" }, { status: 400 });
   }
@@ -41,8 +49,9 @@ export async function POST(req: NextRequest) {
   if (text.length > 280) {
     return Response.json({ error: "text_too_long" }, { status: 400 });
   }
+  const scope = parseScope(body.scope) ?? "day";
   try {
-    const todo = await addTodo(session.email, text);
+    const todo = await addTodo(session.email, text, scope);
     return Response.json({ ok: true, todo });
   } catch (e) {
     const msg = e instanceof Error ? e.message : "add_failed";

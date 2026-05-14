@@ -549,10 +549,11 @@ export function CsvImport({ onImported }: { onImported?: () => void }) {
 
 function toSheetCsvUrl(rawUrl: string): string | null {
   // iOS Safari paste often inserts invisible chars (zero-width range U+200B-200F,
-  // BOM U+FEFF, NBSP U+00A0, line/paragraph separators U+2028/2029) and
-  // auto-correct may swap straight quotes with curly variants. Normalize.
+  // BOM U+FEFF, NBSP U+00A0, line/paragraph separators U+2028/2029, word joiner
+  // U+2060, soft hyphen U+00AD) and auto-correct may swap straight quotes with
+  // curly variants. Normalize.
   const url = rawUrl
-    .replace(/[\u200b-\u200f\u2028\u2029\ufeff\u00a0]/g, "")
+    .replace(/[\u200b-\u200f\u2028\u2029\u2060\ufeff\u00a0\u00ad]/g, "")
     .replace(/[\u2018\u2019\u201c\u201d]/g, "")
     .trim();
 
@@ -567,11 +568,28 @@ function toSheetCsvUrl(rawUrl: string): string | null {
       : `https://docs.google.com/spreadsheets/d/e/${id}/pub?output=csv`;
   }
 
-  // Standard /spreadsheets/d/{ID} or signed-in variant /spreadsheets/u/{N}/d/{ID}
-  const match = url.match(/\/spreadsheets\/(?:u\/\d+\/)?d\/([a-zA-Z0-9-_]+)/);
-  if (!match) return null;
-  const id = match[1];
   const gidMatch = url.match(/gid=(\d+)/);
   const gid = gidMatch ? gidMatch[1] : "0";
-  return `https://docs.google.com/spreadsheets/d/${id}/export?format=csv&gid=${gid}`;
+
+  // Standard /spreadsheets/d/{ID} or signed-in variant /spreadsheets/u/{N}/d/{ID}
+  const sheetMatch = url.match(/\/spreadsheets\/(?:u\/\d+\/)?d\/([a-zA-Z0-9-_]+)/);
+  if (sheetMatch) {
+    return `https://docs.google.com/spreadsheets/d/${sheetMatch[1]}/export?format=csv&gid=${gid}`;
+  }
+
+  // \ubaa8\ubc14\uc77c(\ud2b9\ud788 iOS/Android Drive\u00b7Sheets \uc571)\uc5d0\uc11c "\ub9c1\ud06c \ubcf5\uc0ac"\ub294 \uc885\uc885 Drive \ud615\uc2dd\uc758
+  // URL\uc744 \uc900\ub2e4. \uc2dc\ud2b8 \ud30c\uc77c ID\ub85c \uadf8\ub300\ub85c export URL\uc744 \ub9cc\ub4e4 \uc218 \uc788\ub2e4.
+  //   https://drive.google.com/open?id={ID}
+  //   https://drive.google.com/file/d/{ID}/view?usp=drivesdk
+  //   https://drive.google.com/file/d/{ID}/edit?usp=sharing
+  const driveOpen = url.match(/[?&]id=([a-zA-Z0-9-_]{20,})/);
+  if (driveOpen) {
+    return `https://docs.google.com/spreadsheets/d/${driveOpen[1]}/export?format=csv&gid=${gid}`;
+  }
+  const driveFile = url.match(/\/file\/d\/([a-zA-Z0-9-_]+)/);
+  if (driveFile) {
+    return `https://docs.google.com/spreadsheets/d/${driveFile[1]}/export?format=csv&gid=${gid}`;
+  }
+
+  return null;
 }
