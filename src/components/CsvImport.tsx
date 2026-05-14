@@ -569,12 +569,15 @@ function toSheetCsvUrl(rawUrl: string): string | null {
   }
 
   const gidMatch = url.match(/gid=(\d+)/);
-  const gid = gidMatch ? gidMatch[1] : "0";
+  // gid\uac00 \uc785\ub825 URL\uc5d0 \uc5c6\uc73c\uba74 export URL\uc5d0\uc11c\ub3c4 \uc0dd\ub7b5\ud55c\ub2e4. \uae30\ubcf8\uac12 0\uc744 \uac15\uc81c\ub85c \ubd99\uc774\uba74
+  // \uccab \ud0ed\uc758 \uc2e4\uc81c gid\uac00 0\uc774 \uc544\ub2cc \uc2dc\ud2b8(\ud0ed\uc744 \uc9c0\uc6e0\ub2e4 \ub2e4\uc2dc \ub9cc\ub4e0 \uacbd\uc6b0 \ub4f1)\uc5d0\uc11c Google\uc774
+  // 400\uc744 \ub3cc\ub824\uc900\ub2e4. \ubaa8\ubc14\uc77c \uacf5\uc720 URL(?usp=drivesdk)\uc740 \ubcf4\ud1b5 gid\ub97c \ud3ec\ud568\ud558\uc9c0 \uc54a\ub294\ub2e4.
+  const gidQuery = gidMatch ? `&gid=${gidMatch[1]}` : "";
 
   // Standard /spreadsheets/d/{ID} or signed-in variant /spreadsheets/u/{N}/d/{ID}
   const sheetMatch = url.match(/\/spreadsheets\/(?:u\/\d+\/)?d\/([a-zA-Z0-9-_]+)/);
   if (sheetMatch) {
-    return `https://docs.google.com/spreadsheets/d/${sheetMatch[1]}/export?format=csv&gid=${gid}`;
+    return `https://docs.google.com/spreadsheets/d/${sheetMatch[1]}/export?format=csv${gidQuery}`;
   }
 
   // \ubaa8\ubc14\uc77c(\ud2b9\ud788 iOS/Android Drive\u00b7Sheets \uc571)\uc5d0\uc11c "\ub9c1\ud06c \ubcf5\uc0ac"\ub294 \uc885\uc885 Drive \ud615\uc2dd\uc758
@@ -584,11 +587,11 @@ function toSheetCsvUrl(rawUrl: string): string | null {
   //   https://drive.google.com/file/d/{ID}/edit?usp=sharing
   const driveOpen = url.match(/[?&]id=([a-zA-Z0-9-_]{20,})/);
   if (driveOpen) {
-    return `https://docs.google.com/spreadsheets/d/${driveOpen[1]}/export?format=csv&gid=${gid}`;
+    return `https://docs.google.com/spreadsheets/d/${driveOpen[1]}/export?format=csv${gidQuery}`;
   }
   const driveFile = url.match(/\/file\/d\/([a-zA-Z0-9-_]+)/);
   if (driveFile) {
-    return `https://docs.google.com/spreadsheets/d/${driveFile[1]}/export?format=csv&gid=${gid}`;
+    return `https://docs.google.com/spreadsheets/d/${driveFile[1]}/export?format=csv${gidQuery}`;
   }
 
   return null;
