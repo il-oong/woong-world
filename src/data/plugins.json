@@ -24,5 +24,18 @@
     "embeddable": true,
     "accent": "#86efac",
     "tags": ["체크리스트", "공유"]
+  },
+  {
+    "id": "life-dashboard",
+    "name": "라이프 대시보드",
+    "description": "습관 트래커, 연간 목표, 로드맵, 재정 오버뷰를 한 곳에.",
+    "repo": "il-oong/woong-world",
+    "branch": "main",
+    "pr": null,
+    "path": "/apps/life-dashboard",
+    "url": null,
+    "embeddable": true,
+    "accent": "#60a5fa",
+    "tags": ["습관", "목표", "재정"]
   }
 ]
