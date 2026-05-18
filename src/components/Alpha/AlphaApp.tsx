@@ -6,10 +6,12 @@ import WatchlistSheet from "./WatchlistSheet";
 import JkpAnalysis from "./JkpAnalysis";
 import EconomicCalendar from "./EconomicCalendar";
 import InvestSettings from "./InvestSettings";
+import FearIndex from "./FearIndex";
 
-type Tab = "portfolio" | "watchlist" | "jkp" | "calendar" | "settings";
+type Tab = "fear" | "portfolio" | "watchlist" | "jkp" | "calendar" | "settings";
 
 const TABS: { id: Tab; label: string }[] = [
+  { id: "fear", label: "시장 공포" },
   { id: "portfolio", label: "포트폴리오" },
   { id: "watchlist", label: "관심종목" },
   { id: "jkp", label: "JKP 분석" },
@@ -18,7 +20,7 @@ const TABS: { id: Tab; label: string }[] = [
 ];
 
 export default function AlphaApp() {
-  const [tab, setTab] = useState<Tab>("portfolio");
+  const [tab, setTab] = useState<Tab>("fear");
 
   return (
     <div className="space-y-6">
@@ -42,6 +44,7 @@ export default function AlphaApp() {
 
       {/* Content */}
       <div>
+        {tab === "fear" && <FearIndex />}
         {tab === "portfolio" && <PortfolioSheet />}
         {tab === "watchlist" && <WatchlistSheet />}
         {tab === "jkp" && <JkpAnalysis />}
