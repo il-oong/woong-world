@@ -13,7 +13,8 @@ type WidgetId =
   | "plans"
   | "todo"
   | "routine"
-  | "subscription";
+  | "subscription"
+  | "alpha";
 
 const STORAGE_KEY = "wh-dashboard-config";
 
@@ -41,6 +42,7 @@ const WIDGET_META: Record<WidgetId, WidgetMeta> = {
     span: 1,
     adminOnly: true,
   },
+  alpha: { id: "alpha", label: "ALPHA 투자 분석", span: 1 },
 };
 
 const DEFAULT_ORDER: WidgetId[] = [
@@ -48,6 +50,7 @@ const DEFAULT_ORDER: WidgetId[] = [
   "calendar",
   "plans",
   "todo",
+  "alpha",
   "routine",
   "subscription",
 ];
@@ -262,6 +265,18 @@ function Widget({
           title="구독 관리"
           desc="결제일 자동 캘린더 등록 + 월 합산."
           footer="캘린더 연동 · 비용"
+        />
+      );
+    case "alpha":
+      return (
+        <LinkCard
+          href="/apps/alpha"
+          accentClass="text-amber-400"
+          hoverClass="hover:border-amber-500/40"
+          kicker="biseo / alpha"
+          title="ALPHA 투자 분석"
+          desc="JKP AI 분석으로 매수·매도 시점을 단정적으로 제시합니다. 포트폴리오·관심종목·경제 캘린더 통합."
+          footer="JKP 분석 · 포트폴리오 · 경제 캘린더"
         />
       );
   }

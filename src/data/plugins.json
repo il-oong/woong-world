@@ -37,5 +37,18 @@
     "embeddable": true,
     "accent": "#60a5fa",
     "tags": ["습관", "목표", "재정"]
+  },
+  {
+    "id": "alpha",
+    "name": "ALPHA 투자 분석",
+    "description": "JKP AI 분석, 포트폴리오, 관심종목, 경제 캘린더 — 자동매매 없는 순수 분석 도구.",
+    "repo": "il-oong/woong-world",
+    "branch": "main",
+    "pr": null,
+    "path": "/apps/alpha",
+    "url": null,
+    "embeddable": true,
+    "accent": "#f59e0b",
+    "tags": ["주식", "AI분석", "포트폴리오"]
   }
 ]
