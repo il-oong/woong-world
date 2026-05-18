@@ -37,6 +37,8 @@ export default function EconomicCalendar() {
   const [events, setEvents] = useState<EconEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
+  const [autoLoading, setAutoLoading] = useState(false);
+  const [autoResult, setAutoResult] = useState<string | null>(null);
   const [adviceLoading, setAdviceLoading] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [form, setForm] = useState({
@@ -83,6 +85,21 @@ export default function EconomicCalendar() {
     fetchEvents();
   };
 
+  const handleAutoFill = async () => {
+    setAutoLoading(true);
+    setAutoResult(null);
+    const res = await fetch("/api/alpha/calendar/auto", { method: "POST" });
+    setAutoLoading(false);
+    if (res.ok) {
+      const data = await res.json() as { added: number };
+      setAutoResult(`${data.added}개 일정 추가됨`);
+      fetchEvents();
+      setTimeout(() => setAutoResult(null), 3000);
+    } else {
+      setAutoResult("자동 수집 실패");
+    }
+  };
+
   const handleGetAdvice = async (id: string) => {
     setAdviceLoading(id);
     const res = await fetch("/api/alpha/calendar/advice", {
@@ -102,15 +119,28 @@ export default function EconomicCalendar() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-2">
         <p className="text-xs text-zinc-500">{upcoming.length}개 예정 · {past.length}개 지남</p>
-        <button
-          type="button"
-          onClick={() => setShowForm((v) => !v)}
-          className="rounded-md border border-zinc-700 px-3 py-1 text-xs text-zinc-300 hover:border-amber-500/50 hover:text-amber-300 transition"
-        >
-          {showForm ? "취소" : "+ 일정 추가"}
-        </button>
+        <div className="flex items-center gap-2">
+          {autoResult && (
+            <span className="text-[10px] text-emerald-400">{autoResult}</span>
+          )}
+          <button
+            type="button"
+            onClick={handleAutoFill}
+            disabled={autoLoading}
+            className="rounded-md border border-zinc-700 px-3 py-1 text-xs text-zinc-400 hover:border-amber-500/50 hover:text-amber-300 transition disabled:opacity-50"
+          >
+            {autoLoading ? "수집 중…" : "AI 자동 채우기"}
+          </button>
+          <button
+            type="button"
+            onClick={() => setShowForm((v) => !v)}
+            className="rounded-md border border-zinc-700 px-3 py-1 text-xs text-zinc-300 hover:border-amber-500/50 hover:text-amber-300 transition"
+          >
+            {showForm ? "취소" : "+ 직접 추가"}
+          </button>
+        </div>
       </div>
 
       {showForm && (
