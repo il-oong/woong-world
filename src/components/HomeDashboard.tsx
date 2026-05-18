@@ -13,7 +13,8 @@ type WidgetId =
   | "plans"
   | "todo"
   | "routine"
-  | "subscription";
+  | "subscription"
+  | "life-dashboard";
 
 const STORAGE_KEY = "wh-dashboard-config";
 
@@ -41,6 +42,7 @@ const WIDGET_META: Record<WidgetId, WidgetMeta> = {
     span: 1,
     adminOnly: true,
   },
+  "life-dashboard": { id: "life-dashboard", label: "라이프 대시보드", span: 1 },
 };
 
 const DEFAULT_ORDER: WidgetId[] = [
@@ -48,6 +50,7 @@ const DEFAULT_ORDER: WidgetId[] = [
   "calendar",
   "plans",
   "todo",
+  "life-dashboard",
   "routine",
   "subscription",
 ];
@@ -262,6 +265,18 @@ function Widget({
           title="구독 관리"
           desc="결제일 자동 캘린더 등록 + 월 합산."
           footer="캘린더 연동 · 비용"
+        />
+      );
+    case "life-dashboard":
+      return (
+        <LinkCard
+          href="/apps/life-dashboard"
+          accentClass="text-blue-400"
+          hoverClass="hover:border-blue-400/40"
+          kicker="biseo / life"
+          title="라이프 대시보드"
+          desc="습관 트래커, 연간 목표, 로드맵, 재정 오버뷰를 한 곳에."
+          footer="습관 · 목표 · 재정"
         />
       );
   }
