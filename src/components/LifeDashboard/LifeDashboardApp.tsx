@@ -2,54 +2,72 @@
 
 import { useState } from "react";
 import dynamic from "next/dynamic";
-import type { computeStats } from "@/lib/life-dashboard";
 
+const HomeOverview = dynamic(() => import("./HomeOverview"), { ssr: false });
 const HabitTracker = dynamic(() => import("./HabitTracker"), { ssr: false });
-const HabitStats = dynamic(() => import("./HabitStats"), { ssr: false });
 const IdentitySheet = dynamic(() => import("./IdentitySheet"), { ssr: false });
 const RoadmapSheet = dynamic(() => import("./RoadmapSheet"), { ssr: false });
 const FinanceSheet = dynamic(() => import("./FinanceSheet"), { ssr: false });
+const AnalyticsSheet = dynamic(() => import("./AnalyticsSheet"), { ssr: false });
+// Reuse existing standalone apps
+const RoutineApp = dynamic(() => import("../RoutineApp").then(m => ({ default: m.RoutineApp })), { ssr: false });
+const TodoApp = dynamic(() => import("../TodoApp").then(m => ({ default: m.TodoApp })), { ssr: false });
+const SubscriptionApp = dynamic(() => import("../SubscriptionApp").then(m => ({ default: m.SubscriptionApp })), { ssr: false });
 
-type Tab = "tracker" | "stats" | "identity" | "roadmap" | "finance";
+type Tab = "home" | "routine" | "todo" | "habit" | "goal" | "finance" | "subscription" | "analytics";
 
-const TABS: { id: Tab; label: string }[] = [
-  { id: "tracker", label: "습관 트래커" },
-  { id: "stats", label: "통계" },
-  { id: "identity", label: "연간 목표" },
-  { id: "roadmap", label: "로드맵" },
-  { id: "finance", label: "재정" },
+const TABS: { id: Tab; label: string; icon: string }[] = [
+  { id: "home", label: "홈", icon: "⌂" },
+  { id: "routine", label: "루틴", icon: "↺" },
+  { id: "todo", label: "할일", icon: "✓" },
+  { id: "habit", label: "습관", icon: "◉" },
+  { id: "goal", label: "목표", icon: "◎" },
+  { id: "finance", label: "재정", icon: "₩" },
+  { id: "subscription", label: "구독", icon: "□" },
+  { id: "analytics", label: "분석", icon: "↗" },
 ];
 
 export default function LifeDashboardApp() {
-  const [tab, setTab] = useState<Tab>("tracker");
-  const [stats, setStats] = useState<ReturnType<typeof computeStats> | null>(null);
+  const [tab, setTab] = useState<Tab>("home");
 
   return (
-    <div className="space-y-6">
-      {/* Tabs */}
-      <div className="flex gap-1 bg-zinc-900 rounded-xl p-1 border border-zinc-800">
-        {TABS.map(t => (
-          <button
-            key={t.id}
-            onClick={() => setTab(t.id)}
-            className={`flex-1 py-2 text-xs font-medium rounded-lg transition-colors ${
-              tab === t.id
-                ? "bg-blue-600 text-white"
-                : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800"
-            }`}
-          >
-            {t.label}
-          </button>
-        ))}
+    <div className="space-y-5">
+      {/* Tab bar — scrollable on mobile */}
+      <div className="overflow-x-auto -mx-4 px-4">
+        <div className="flex gap-0.5 border-b border-zinc-800 pb-0 min-w-max">
+          {TABS.map((t) => (
+            <button
+              key={t.id}
+              type="button"
+              onClick={() => setTab(t.id)}
+              className={`flex items-center gap-1.5 shrink-0 rounded-t-md px-3.5 py-2 text-xs font-medium transition ${
+                tab === t.id
+                  ? "border border-b-0 border-zinc-700 bg-zinc-900 text-blue-400"
+                  : "text-zinc-500 hover:text-zinc-300"
+              }`}
+            >
+              <span className="text-[11px]">{t.icon}</span>
+              {t.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Content */}
       <div>
-        {tab === "tracker" && <HabitTracker onStatsChange={setStats} />}
-        {tab === "stats" && <HabitStats stats={stats} />}
-        {tab === "identity" && <IdentitySheet />}
-        {tab === "roadmap" && <RoadmapSheet />}
+        {tab === "home" && <HomeOverview />}
+        {tab === "routine" && <RoutineApp />}
+        {tab === "todo" && <TodoApp />}
+        {tab === "habit" && <HabitTracker onStatsChange={() => {}} />}
+        {tab === "goal" && (
+          <div className="space-y-8">
+            <IdentitySheet />
+            <RoadmapSheet />
+          </div>
+        )}
         {tab === "finance" && <FinanceSheet />}
+        {tab === "subscription" && <SubscriptionApp />}
+        {tab === "analytics" && <AnalyticsSheet />}
       </div>
     </div>
   );
