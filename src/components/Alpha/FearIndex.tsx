@@ -168,6 +168,21 @@ export default function FearIndex() {
           <span>중립 50</span>
           <span>100 극단적 공포</span>
         </div>
+
+        {/* 해석 가이드 */}
+        <div className="mt-3 rounded-lg bg-black/30 px-3 py-2 text-[10px] leading-relaxed text-zinc-400">
+          {composite.score >= 75 ? (
+            <span><span className="text-rose-400 font-medium">극단적 공포 구간</span> — 시장이 패닉 상태. 역발상 매수 기회로 볼 수 있으나 추가 하락 리스크 존재. 우량주 분할 매수 고려.</span>
+          ) : composite.score >= 55 ? (
+            <span><span className="text-orange-400 font-medium">공포 구간</span> — 투자 심리 위축. 현금 비중 유지하며 저점 분할 매수 전략 유효. 손절 기준 엄격히.</span>
+          ) : composite.score >= 45 ? (
+            <span><span className="text-zinc-300 font-medium">중립 구간</span> — 방향성 불명확. 기존 포지션 유지하되 신규 진입은 신중히. 개별 종목 수급 위주로 판단.</span>
+          ) : composite.score >= 25 ? (
+            <span><span className="text-emerald-400 font-medium">탐욕 구간</span> — 과열 징후. 보유 종목 부분 익절 검토. 신규 진입 비중 줄이고 목표가 도달 종목 정리.</span>
+          ) : (
+            <span><span className="text-cyan-400 font-medium">극단적 탐욕 구간</span> — 시장 버블 경고. 리스크 자산 비중 축소 권고. 현금화·방어주 이동 고려.</span>
+          )}
+        </div>
       </div>
 
       {/* Volatility */}
