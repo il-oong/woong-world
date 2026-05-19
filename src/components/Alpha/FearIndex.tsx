@@ -194,14 +194,14 @@ export default function FearIndex() {
 
       {/* Major Indices */}
       <div className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-3">
-        <p className="text-[10px] font-mono uppercase tracking-wider text-zinc-500 mb-2">주요 지수</p>
-        <div className="grid grid-cols-2 gap-x-6 gap-y-2">
-          <IndexRow label="S&P 500" price={sp500.price} chg={sp500.changePercent} decimals={0} />
-          <IndexRow label="KOSPI" price={kospi.price} chg={kospi.changePercent} decimals={2} />
-          <IndexRow label="NASDAQ" price={nasdaq.price} chg={nasdaq.changePercent} decimals={0} />
-          <IndexRow label="금 (XAU/USD)" price={gold.price} chg={gold.changePercent} decimals={1} />
-          <IndexRow label="미국 10Y 금리" price={usTreasury10y.price} chg={usTreasury10y.changePercent} suffix="%" decimals={3} />
-          <IndexRow label="달러 인덱스" price={dxy.price} chg={dxy.changePercent} decimals={2} />
+        <p className="text-[10px] font-mono uppercase tracking-wider text-zinc-500 mb-2">주요 지수 — 전날 대비</p>
+        <div className="space-y-2">
+          <IndexRow label="S&P 500" price={sp500.price} change={sp500.change} chg={sp500.changePercent} decimals={0} />
+          <IndexRow label="KOSPI" price={kospi.price} change={kospi.change} chg={kospi.changePercent} decimals={2} />
+          <IndexRow label="NASDAQ" price={nasdaq.price} change={nasdaq.change} chg={nasdaq.changePercent} decimals={0} />
+          <IndexRow label="금 (XAU/USD)" price={gold.price} change={gold.change} chg={gold.changePercent} decimals={1} />
+          <IndexRow label="미국 10Y 금리" price={usTreasury10y.price} change={usTreasury10y.change} chg={usTreasury10y.changePercent} suffix="%" decimals={3} />
+          <IndexRow label="달러 인덱스" price={dxy.price} change={dxy.change} chg={dxy.changePercent} decimals={2} />
         </div>
       </div>
 
@@ -235,13 +235,13 @@ export default function FearIndex() {
 
       {/* Extended indicators */}
       <div className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-3">
-        <p className="text-[10px] font-mono uppercase tracking-wider text-zinc-500 mb-2">원자재 · 자산</p>
-        <div className="grid grid-cols-2 gap-x-6 gap-y-2">
-          <IndexRow label="WTI 원유" price={oil?.price ?? null} chg={oil?.changePercent ?? null} decimals={2} />
-          <IndexRow label="은 (XAG)" price={silver?.price ?? null} chg={silver?.changePercent ?? null} decimals={2} />
-          <IndexRow label="비트코인" price={bitcoin?.price ?? null} chg={bitcoin?.changePercent ?? null} decimals={0} />
-          <IndexRow label="반도체(SOXX)" price={semiconductor?.price ?? null} chg={semiconductor?.changePercent ?? null} decimals={2} />
-          <IndexRow label="달러/원" price={usdKrw?.price ?? null} chg={usdKrw?.changePercent ?? null} decimals={2} />
+        <p className="text-[10px] font-mono uppercase tracking-wider text-zinc-500 mb-2">원자재 · 자산 — 전날 대비</p>
+        <div className="space-y-2">
+          <IndexRow label="WTI 원유" price={oil?.price ?? null} change={oil?.change ?? null} chg={oil?.changePercent ?? null} decimals={2} />
+          <IndexRow label="은 (XAG)" price={silver?.price ?? null} change={silver?.change ?? null} chg={silver?.changePercent ?? null} decimals={2} />
+          <IndexRow label="비트코인" price={bitcoin?.price ?? null} change={bitcoin?.change ?? null} chg={bitcoin?.changePercent ?? null} decimals={0} />
+          <IndexRow label="반도체(SOXX)" price={semiconductor?.price ?? null} change={semiconductor?.change ?? null} chg={semiconductor?.changePercent ?? null} decimals={2} />
+          <IndexRow label="달러/원" price={usdKrw?.price ?? null} change={usdKrw?.change ?? null} chg={usdKrw?.changePercent ?? null} decimals={2} />
         </div>
       </div>
 
@@ -305,26 +305,38 @@ function Panel({ title, children }: { title: string; children: React.ReactNode }
 function IndexRow({
   label,
   price,
+  change,
   chg,
   decimals = 2,
   suffix = "",
 }: {
   label: string;
   price: number | null;
+  change?: number | null;
   chg: number | null;
   decimals?: number;
   suffix?: string;
 }) {
+  const isUp = (change ?? chg ?? 0) > 0;
+  const isDown = (change ?? chg ?? 0) < 0;
+  const barColor = isUp ? "bg-emerald-500" : isDown ? "bg-rose-500" : "bg-zinc-600";
+
   return (
-    <div className="flex items-center justify-between gap-2">
-      <span className="text-[11px] text-zinc-500 shrink-0">{label}</span>
-      <div className="flex items-center gap-2">
+    <div className="flex items-center gap-2">
+      <span className="text-[11px] text-zinc-500 w-28 shrink-0">{label}</span>
+      <div className={`w-0.5 h-3.5 rounded-full shrink-0 ${barColor}`} />
+      <div className="flex items-center gap-2 flex-1 min-w-0">
         {price !== null ? (
-          <span className="text-[11px] font-mono text-zinc-300">
+          <span className="text-[11px] font-mono text-zinc-300 shrink-0">
             {price.toLocaleString(undefined, { minimumFractionDigits: decimals, maximumFractionDigits: decimals })}{suffix}
           </span>
         ) : (
-          <span className="text-[11px] text-zinc-700">—</span>
+          <span className="text-[11px] text-zinc-700 shrink-0">—</span>
+        )}
+        {change !== null && change !== undefined && (
+          <span className={`text-[10px] font-mono shrink-0 ${isUp ? "text-emerald-400" : isDown ? "text-rose-400" : "text-zinc-500"}`}>
+            {isUp ? "+" : ""}{change.toLocaleString(undefined, { minimumFractionDigits: decimals, maximumFractionDigits: decimals })}{suffix}
+          </span>
         )}
         <Chg v={chg} />
       </div>

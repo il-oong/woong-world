@@ -166,15 +166,38 @@ export default function PortfolioSheet() {
   };
 
   const handleSelectTicker = (match: TickerMatch) => {
-    setForm((f) => ({
-      ...f,
+    const updated = {
       ticker: match.ticker,
       name: match.name,
-      market: match.market === "KR" ? "KR" : "US",
-    }));
+      market: (match.market === "KR" ? "KR" : "US") as "KR" | "US",
+    };
+    setForm((f) => ({ ...f, ...updated }));
     setShowDropdown(false);
     setSearchResults([]);
     setAgentSuggestion(null);
+    // Auto-trigger agent analysis
+    setTimeout(() => {
+      setAgentLoading(true);
+      fetch("/api/alpha/agent-review", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ticker: match.ticker, name: match.name, market: updated.market }),
+      })
+        .then((r) => r.ok ? r.json() as Promise<AgentReviewResult> : null)
+        .then((data) => {
+          if (data) {
+            setAgentSuggestion({
+              stop_loss: data.buyTiming?.stop_loss ?? "",
+              target_short: data.buyTiming?.target_short ?? "",
+              target_long: data.buyTiming?.target_long ?? "",
+              consensus: data.consensus ?? "",
+              jkp_final: data.jkp_final ?? "",
+            });
+          }
+        })
+        .catch(() => {})
+        .finally(() => setAgentLoading(false));
+    }, 50);
   };
 
   // Agent auto-fill for form
@@ -218,6 +241,9 @@ export default function PortfolioSheet() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
+    const target1 = agentSuggestion ? parsePriceNumber(agentSuggestion.target_short) : form.target1;
+    const target2 = agentSuggestion ? parsePriceNumber(agentSuggestion.target_long) : form.target2;
+    const stopLoss = agentSuggestion ? parsePriceNumber(agentSuggestion.stop_loss) : form.stopLoss;
     const res = await fetch("/api/alpha/portfolio", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -227,9 +253,9 @@ export default function PortfolioSheet() {
         market: form.market,
         qty: form.qty,
         avgBuyPrice: form.avgBuyPrice,
-        target1: form.target1,
-        target2: form.target2,
-        stopLoss: form.stopLoss,
+        target1,
+        target2,
+        stopLoss,
         memo: form.memo,
       }),
     });
@@ -322,68 +348,54 @@ export default function PortfolioSheet() {
           onSubmit={handleSubmit}
           className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-4 space-y-3"
         >
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-            <Field label="티커" required>
-              <input
-                required
-                placeholder="005930.KS"
-                value={form.ticker}
-                onChange={(e) => setForm((f) => ({ ...f, ticker: e.target.value }))}
-                className={inputCls}
-              />
-            </Field>
-            <Field label="종목명" required>
-              <div className="relative">
-                <div className="relative flex items-center">
-                  <input
-                    required
-                    placeholder="삼성전자"
-                    value={form.name}
-                    onChange={(e) => handleNameChange(e.target.value)}
-                    onBlur={() => setTimeout(() => setShowDropdown(false), 200)}
-                    onFocus={() => searchResults.length > 0 && setShowDropdown(true)}
-                    className={inputCls}
-                  />
-                  {searchLoading && (
-                    <span className="absolute right-2 top-1/2 -translate-y-1/2 text-zinc-500 text-[10px]">
-                      ⏳
-                    </span>
-                  )}
-                </div>
-                {showDropdown && searchResults.length > 0 && (
-                  <div className="absolute top-full left-0 right-0 z-50 mt-1 rounded-lg border border-zinc-700 bg-zinc-900 shadow-xl overflow-hidden">
-                    {searchResults.map((r) => (
-                      <div
-                        key={r.ticker}
-                        onMouseDown={() => handleSelectTicker(r)}
-                        className="px-3 py-2 text-xs hover:bg-zinc-800 cursor-pointer flex items-center gap-2"
-                      >
-                        <span className="font-mono text-amber-400">{r.ticker}</span>
-                        <span className="text-zinc-300 flex-1 truncate">{r.name}</span>
-                        <span className={`rounded px-1 py-0.5 text-[10px] ${r.market === "KR" ? "bg-zinc-800 text-zinc-400" : "bg-blue-500/10 text-blue-400"}`}>
-                          {r.market === "OTHER" ? r.exchange : r.market}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
+          {/* Step 1: 종목명 검색 */}
+          <Field label="종목명 검색" required>
+            <div className="relative">
+              <div className="relative flex items-center">
+                <input
+                  required
+                  placeholder="삼성전자, AAPL, 엔비디아…"
+                  value={form.name}
+                  onChange={(e) => handleNameChange(e.target.value)}
+                  onBlur={() => setTimeout(() => setShowDropdown(false), 200)}
+                  onFocus={() => searchResults.length > 0 && setShowDropdown(true)}
+                  className={inputCls}
+                />
+                {searchLoading && (
+                  <span className="absolute right-2 top-1/2 -translate-y-1/2 text-zinc-500 text-[10px]">⏳</span>
+                )}
+                {form.ticker && !searchLoading && (
+                  <span className="absolute right-2 top-1/2 -translate-y-1/2 text-amber-400 text-[10px] font-mono">{form.ticker}</span>
                 )}
               </div>
-            </Field>
-            <Field label="시장">
-              <select
-                value={form.market}
-                onChange={(e) => setForm((f) => ({ ...f, market: e.target.value as "KR" | "US" }))}
-                className={inputCls}
-              >
-                <option value="KR">KR</option>
-                <option value="US">US</option>
-              </select>
-            </Field>
+              {showDropdown && searchResults.length > 0 && (
+                <div className="absolute top-full left-0 right-0 z-50 mt-1 rounded-lg border border-zinc-700 bg-zinc-900 shadow-xl overflow-hidden">
+                  {searchResults.map((r) => (
+                    <div
+                      key={r.ticker}
+                      onMouseDown={() => handleSelectTicker(r)}
+                      className="px-3 py-2 text-xs hover:bg-zinc-800 cursor-pointer flex items-center gap-2"
+                    >
+                      <span className="font-mono text-amber-400">{r.ticker}</span>
+                      <span className="text-zinc-300 flex-1 truncate">{r.name}</span>
+                      <span className={`rounded px-1 py-0.5 text-[10px] ${r.market === "KR" ? "bg-zinc-800 text-zinc-400" : "bg-blue-500/10 text-blue-400"}`}>
+                        {r.market === "OTHER" ? r.exchange : r.market}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </Field>
+
+          {/* Step 2: 수량 + 매수가 */}
+          <div className="grid grid-cols-2 gap-2">
             <Field label="수량" required>
               <input
                 required
                 type="number"
                 min="1"
+                placeholder="10"
                 value={form.qty}
                 onChange={(e) => setForm((f) => ({ ...f, qty: e.target.value }))}
                 className={inputCls}
@@ -394,94 +406,50 @@ export default function PortfolioSheet() {
                 required
                 type="number"
                 min="0"
+                placeholder="75000"
                 value={form.avgBuyPrice}
                 onChange={(e) => setForm((f) => ({ ...f, avgBuyPrice: e.target.value }))}
                 className={inputCls}
               />
             </Field>
-            <Field label="목표가 1">
-              <input
-                type="number"
-                min="0"
-                value={form.target1}
-                onChange={(e) => setForm((f) => ({ ...f, target1: e.target.value }))}
-                className={inputCls}
-              />
-            </Field>
-            <Field label="목표가 2">
-              <input
-                type="number"
-                min="0"
-                value={form.target2}
-                onChange={(e) => setForm((f) => ({ ...f, target2: e.target.value }))}
-                className={inputCls}
-              />
-            </Field>
-            <Field label="손절가">
-              <input
-                type="number"
-                min="0"
-                value={form.stopLoss}
-                onChange={(e) => setForm((f) => ({ ...f, stopLoss: e.target.value }))}
-                className={inputCls}
-              />
-            </Field>
           </div>
 
-          {/* Agent suggestion button (visible when ticker is filled) */}
-          {form.ticker && form.name && (
+          {/* Agent auto-analysis — shown after ticker selected */}
+          {form.ticker && (
             <div className="space-y-2">
-              <button
-                type="button"
-                onClick={handleAgentSuggest}
-                disabled={agentLoading}
-                className="rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-1.5 text-xs text-amber-300 hover:bg-amber-500/20 transition disabled:opacity-50 flex items-center gap-2"
-              >
-                {agentLoading ? (
-                  <>
-                    <span className="inline-block h-3 w-3 animate-spin rounded-full border border-amber-400 border-t-transparent" />
-                    분석 중…
-                  </>
-                ) : (
-                  "에이전트 분석으로 자동 설정"
-                )}
-              </button>
-
-              {agentSuggestion && (
-                <div className="rounded-lg border border-amber-500/20 bg-amber-500/5 p-3 space-y-2">
+              {agentLoading ? (
+                <div className="flex items-center gap-2 text-[11px] text-amber-400">
+                  <span className="inline-block h-3 w-3 animate-spin rounded-full border border-amber-400 border-t-transparent" />
+                  JKP 에이전트 분석 중… 손절/목표가 자동 설정
+                </div>
+              ) : agentSuggestion ? (
+                <div className="rounded-lg border border-amber-500/20 bg-amber-500/5 p-3 space-y-1.5">
                   <div className="flex flex-wrap gap-2 items-center">
-                    <span className="text-[10px] text-zinc-500 uppercase tracking-wider">에이전트 제안</span>
-                    <span className="rounded bg-amber-500/20 px-2 py-0.5 text-[11px] text-amber-300">
-                      손절 {agentSuggestion.stop_loss}
-                    </span>
-                    <span className="rounded bg-emerald-500/20 px-2 py-0.5 text-[11px] text-emerald-300">
-                      T1 {agentSuggestion.target_short}
-                    </span>
-                    <span className="rounded bg-blue-500/20 px-2 py-0.5 text-[11px] text-blue-300">
-                      T2 {agentSuggestion.target_long}
-                    </span>
-                    <span className="rounded bg-zinc-700 px-2 py-0.5 text-[11px] text-zinc-300">
-                      {agentSuggestion.consensus}
-                    </span>
+                    <span className="text-[10px] text-zinc-500">JKP 자동 설정</span>
+                    <span className="rounded bg-amber-500/20 px-2 py-0.5 text-[11px] text-amber-300">손절 {agentSuggestion.stop_loss}</span>
+                    <span className="rounded bg-emerald-500/20 px-2 py-0.5 text-[11px] text-emerald-300">T1 {agentSuggestion.target_short}</span>
+                    <span className="rounded bg-blue-500/20 px-2 py-0.5 text-[11px] text-blue-300">T2 {agentSuggestion.target_long}</span>
+                    <span className="rounded bg-zinc-700 px-2 py-0.5 text-[11px] text-zinc-300">{agentSuggestion.consensus}</span>
                   </div>
                   {agentSuggestion.jkp_final && (
                     <p className="text-[11px] text-zinc-400 italic">{agentSuggestion.jkp_final}</p>
                   )}
-                  <button
-                    type="button"
-                    onClick={applyAgentSuggestion}
-                    className="rounded bg-amber-500/20 border border-amber-500/30 px-3 py-1 text-[11px] text-amber-300 hover:bg-amber-500/30 transition"
-                  >
-                    적용
-                  </button>
                 </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleAgentSuggest}
+                  className="text-[11px] text-zinc-500 hover:text-amber-400 transition underline underline-offset-2"
+                >
+                  에이전트 분석 재시도
+                </button>
               )}
             </div>
           )}
 
           <Field label="메모">
             <input
-              placeholder="간단한 메모"
+              placeholder="간단한 메모 (선택)"
               value={form.memo}
               onChange={(e) => setForm((f) => ({ ...f, memo: e.target.value }))}
               className={inputCls}
@@ -489,7 +457,7 @@ export default function PortfolioSheet() {
           </Field>
           <button
             type="submit"
-            disabled={saving}
+            disabled={saving || !form.ticker}
             className="rounded-md bg-amber-500/20 border border-amber-500/40 px-4 py-1.5 text-xs text-amber-300 hover:bg-amber-500/30 transition disabled:opacity-50"
           >
             {saving ? "저장 중…" : "추가"}

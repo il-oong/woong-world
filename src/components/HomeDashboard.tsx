@@ -35,7 +35,7 @@ const WIDGET_META: Record<WidgetId, WidgetMeta> = {
   calendar: { id: "calendar", label: "캘린더", span: 2 },
   plans: { id: "plans", label: "계획 관리", span: 1 },
   "life-dashboard": { id: "life-dashboard", label: "라이프 대시보드", span: 1 },
-  alpha: { id: "alpha", label: "ALPHA 투자 분석", span: 1 },
+  alpha: { id: "alpha", label: "ALPHA 투자 분석", span: 2 },
 };
 
 const DEFAULT_ORDER: WidgetId[] = [
@@ -131,10 +131,6 @@ export function HomeDashboard({
 
   return (
     <>
-      {/* Stock Banner — always shown at top */}
-      <div className="mb-6">
-        <StockBanner />
-      </div>
 
       <div className="mb-4 flex justify-end">
         <button
@@ -236,7 +232,7 @@ function Widget({
     case "life-dashboard":
       return <HomeLifeWidget />;
     case "alpha":
-      return <AlphaHomeWidget />;
+      return <StockBanner />;
   }
 }
 

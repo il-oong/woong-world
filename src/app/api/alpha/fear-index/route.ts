@@ -9,6 +9,7 @@ type TickerQuote = {
   price: number | null;
   changePercent: number | null;
   prev: number | null;
+  firstClose: number | null;
 };
 
 async function fetchYahooQuote(ticker: string): Promise<TickerQuote> {
@@ -18,7 +19,7 @@ async function fetchYahooQuote(ticker: string): Promise<TickerQuote> {
       headers: YF_HEADERS,
       signal: AbortSignal.timeout(6000),
     });
-    if (!res.ok) return { price: null, changePercent: null, prev: null };
+    if (!res.ok) return { price: null, changePercent: null, prev: null, firstClose: null };
     const data = (await res.json()) as {
       chart?: {
         result?: {
@@ -31,13 +32,15 @@ async function fetchYahooQuote(ticker: string): Promise<TickerQuote> {
     const closes = data.chart?.result?.[0]?.indicators?.quote?.[0]?.close ?? [];
     const validCloses = closes.filter((v): v is number => v !== null && v !== undefined);
     const prev = validCloses.length >= 2 ? validCloses[validCloses.length - 2] : null;
+    const firstClose = validCloses.length >= 1 ? validCloses[0] : null;
     return {
       price: meta?.regularMarketPrice ?? null,
       changePercent: meta?.regularMarketChangePercent ?? null,
       prev,
+      firstClose,
     };
   } catch {
-    return { price: null, changePercent: null, prev: null };
+    return { price: null, changePercent: null, prev: null, firstClose: null };
   }
 }
 
@@ -102,25 +105,41 @@ function compositeLabel(score: number): { label: string; color: string } {
   return { label: "극단적 탐욕", color: "cyan" };
 }
 
+type IndexQuote = { price: number | null; change: number | null; changePercent: number | null; changePercentWeek: number | null };
+
 export type FearIndexData = {
   composite: { score: number; label: string; color: string };
-  vix: { price: number | null; changePercent: number | null; level: { label: string; color: string } | null };
-  vkospi: { price: number | null; changePercent: number | null; level: { label: string; color: string } | null };
-  sp500: { price: number | null; changePercent: number | null };
-  kospi: { price: number | null; changePercent: number | null };
-  nasdaq: { price: number | null; changePercent: number | null };
-  gold: { price: number | null; changePercent: number | null };
-  usTreasury10y: { price: number | null; changePercent: number | null };
-  dxy: { price: number | null; changePercent: number | null };
+  vix: IndexQuote & { level: { label: string; color: string } | null };
+  vkospi: IndexQuote & { level: { label: string; color: string } | null };
+  sp500: IndexQuote;
+  kospi: IndexQuote;
+  nasdaq: IndexQuote;
+  gold: IndexQuote;
+  usTreasury10y: IndexQuote;
+  dxy: IndexQuote;
   cryptoFearGreed: { value: number; label: string } | null;
-  // Extended indicators
-  oil: { price: number | null; changePercent: number | null };
-  silver: { price: number | null; changePercent: number | null };
-  bitcoin: { price: number | null; changePercent: number | null };
-  semiconductor: { price: number | null; changePercent: number | null };
-  usdKrw: { price: number | null; changePercent: number | null };
+  oil: IndexQuote;
+  silver: IndexQuote;
+  bitcoin: IndexQuote;
+  semiconductor: IndexQuote;
+  usdKrw: IndexQuote;
   fetchedAt: number;
 };
+
+function toIndexQuote(q: TickerQuote): IndexQuote {
+  const changePercent =
+    q.changePercent ??
+    (q.price !== null && q.prev !== null && q.prev !== 0
+      ? ((q.price - q.prev) / q.prev) * 100
+      : null);
+  const change =
+    q.price !== null && q.prev !== null ? q.price - q.prev : null;
+  const changePercentWeek =
+    q.price !== null && q.firstClose !== null && q.firstClose !== 0
+      ? ((q.price - q.firstClose) / q.firstClose) * 100
+      : null;
+  return { price: q.price, change, changePercent, changePercentWeek };
+}
 
 export async function GET() {
   const session = await getValidSession();
@@ -149,28 +168,20 @@ export async function GET() {
 
   const result: FearIndexData = {
     composite,
-    vix: {
-      price: vixQ.price,
-      changePercent: vixQ.changePercent,
-      level: vixQ.price !== null ? vixLevel(vixQ.price) : null,
-    },
-    vkospi: {
-      price: vkospiQ.price,
-      changePercent: vkospiQ.changePercent,
-      level: vkospiQ.price !== null ? vixLevel(vkospiQ.price) : null,
-    },
-    sp500: { price: sp500Q.price, changePercent: sp500Q.changePercent },
-    kospi: { price: kospiQ.price, changePercent: kospiQ.changePercent },
-    nasdaq: { price: nasdaqQ.price, changePercent: nasdaqQ.changePercent },
-    gold: { price: goldQ.price, changePercent: goldQ.changePercent },
-    usTreasury10y: { price: tnxQ.price, changePercent: tnxQ.changePercent },
-    dxy: { price: dxyQ.price, changePercent: dxyQ.changePercent },
+    vix: { ...toIndexQuote(vixQ), level: vixQ.price !== null ? vixLevel(vixQ.price) : null },
+    vkospi: { ...toIndexQuote(vkospiQ), level: vkospiQ.price !== null ? vixLevel(vkospiQ.price) : null },
+    sp500: toIndexQuote(sp500Q),
+    kospi: toIndexQuote(kospiQ),
+    nasdaq: toIndexQuote(nasdaqQ),
+    gold: toIndexQuote(goldQ),
+    usTreasury10y: toIndexQuote(tnxQ),
+    dxy: toIndexQuote(dxyQ),
     cryptoFearGreed: cryptoFG,
-    oil: { price: oilQ.price, changePercent: oilQ.changePercent },
-    silver: { price: silverQ.price, changePercent: silverQ.changePercent },
-    bitcoin: { price: btcQ.price, changePercent: btcQ.changePercent },
-    semiconductor: { price: soxxQ.price, changePercent: soxxQ.changePercent },
-    usdKrw: { price: usdKrwQ.price, changePercent: usdKrwQ.changePercent },
+    oil: toIndexQuote(oilQ),
+    silver: toIndexQuote(silverQ),
+    bitcoin: toIndexQuote(btcQ),
+    semiconductor: toIndexQuote(soxxQ),
+    usdKrw: toIndexQuote(usdKrwQ),
     fetchedAt: Date.now(),
   };
 
