@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import type { FearIndexData } from "@/app/api/alpha/fear-index/route";
+import type { MarketGuidance } from "@/app/api/alpha/market-guidance/route";
 
 const COLOR: Record<string, string> = {
   rose: "text-rose-400",
@@ -36,10 +37,25 @@ function Num({ v, decimals = 2 }: { v: number | null; decimals?: number }) {
   return <span className="text-xs text-zinc-200 font-mono">{v.toFixed(decimals)}</span>;
 }
 
+const STANCE_LABEL: Record<string, string> = {
+  bullish: "강세 (매수)",
+  bearish: "약세 (매도)",
+  neutral: "중립 (관망)",
+  cautious: "신중 (축소)",
+};
+const STANCE_COLOR: Record<string, string> = {
+  bullish: "text-emerald-400",
+  bearish: "text-rose-400",
+  neutral: "text-zinc-400",
+  cautious: "text-amber-400",
+};
+
 export default function FearIndex() {
   const [data, setData] = useState<FearIndexData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [guidance, setGuidance] = useState<MarketGuidance | null>(null);
+  const [guidanceLoading, setGuidanceLoading] = useState(false);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -53,7 +69,45 @@ export default function FearIndex() {
     setLoading(false);
   }, []);
 
-  useEffect(() => { fetchData(); }, [fetchData]);
+  useEffect(() => {
+    fetchData();
+    // Load cached guidance on mount
+    fetch("/api/alpha/market-guidance")
+      .then((r) => r.ok ? r.json() as Promise<MarketGuidance | null> : null)
+      .then((g) => { if (g) setGuidance(g); })
+      .catch(() => {});
+  }, [fetchData]);
+
+  async function fetchGuidance() {
+    if (!data || guidanceLoading) return;
+    setGuidanceLoading(true);
+    const marketContext = buildMarketContext(data);
+    const res = await fetch("/api/alpha/market-guidance", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ marketContext }),
+    });
+    if (res.ok) setGuidance(await res.json() as MarketGuidance);
+    setGuidanceLoading(false);
+  }
+
+  function buildMarketContext(d: FearIndexData): string {
+    const lines = [
+      `시장 공포 지수: ${d.composite.score} (${d.composite.label})`,
+      d.sp500.price !== null ? `S&P500: ${d.sp500.price.toFixed(0)} (${d.sp500.changePercent?.toFixed(2)}%)` : "",
+      d.kospi.price !== null ? `KOSPI: ${d.kospi.price.toFixed(2)} (${d.kospi.changePercent?.toFixed(2)}%)` : "",
+      d.nasdaq.price !== null ? `NASDAQ: ${d.nasdaq.price.toFixed(0)} (${d.nasdaq.changePercent?.toFixed(2)}%)` : "",
+      d.vix.price !== null ? `VIX: ${d.vix.price.toFixed(2)} — ${d.vix.level?.label ?? ""}` : "",
+      d.gold.price !== null ? `금: ${d.gold.price.toFixed(1)} (${d.gold.changePercent?.toFixed(2)}%)` : "",
+      d.oil?.price !== null ? `WTI 원유: ${d.oil.price?.toFixed(2)} (${d.oil.changePercent?.toFixed(2)}%)` : "",
+      d.bitcoin?.price !== null ? `비트코인: ${d.bitcoin.price?.toFixed(0)} (${d.bitcoin.changePercent?.toFixed(2)}%)` : "",
+      d.semiconductor?.price !== null ? `반도체(SOXX): ${d.semiconductor.price?.toFixed(2)} (${d.semiconductor.changePercent?.toFixed(2)}%)` : "",
+      d.usdKrw?.price !== null ? `달러/원: ${d.usdKrw.price?.toFixed(2)}` : "",
+      d.usTreasury10y.price !== null ? `미국 10Y 금리: ${d.usTreasury10y.price.toFixed(3)}%` : "",
+      d.cryptoFearGreed !== null ? `크립토 공포·탐욕: ${d.cryptoFearGreed?.value} (${d.cryptoFearGreed?.label})` : "",
+    ].filter(Boolean);
+    return lines.join("\n");
+  }
 
   if (loading) {
     return (
@@ -72,7 +126,7 @@ export default function FearIndex() {
     );
   }
 
-  const { composite, vix, vkospi, sp500, kospi, nasdaq, gold, usTreasury10y, dxy, cryptoFearGreed } = data;
+  const { composite, vix, vkospi, sp500, kospi, nasdaq, gold, usTreasury10y, dxy, cryptoFearGreed, oil, silver, bitcoin, semiconductor, usdKrw } = data;
 
   return (
     <div className="space-y-3">
@@ -178,6 +232,63 @@ export default function FearIndex() {
           </div>
         </Panel>
       )}
+
+      {/* Extended indicators */}
+      <div className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-3">
+        <p className="text-[10px] font-mono uppercase tracking-wider text-zinc-500 mb-2">원자재 · 자산</p>
+        <div className="grid grid-cols-2 gap-x-6 gap-y-2">
+          <IndexRow label="WTI 원유" price={oil?.price ?? null} chg={oil?.changePercent ?? null} decimals={2} />
+          <IndexRow label="은 (XAG)" price={silver?.price ?? null} chg={silver?.changePercent ?? null} decimals={2} />
+          <IndexRow label="비트코인" price={bitcoin?.price ?? null} chg={bitcoin?.changePercent ?? null} decimals={0} />
+          <IndexRow label="반도체(SOXX)" price={semiconductor?.price ?? null} chg={semiconductor?.changePercent ?? null} decimals={2} />
+          <IndexRow label="달러/원" price={usdKrw?.price ?? null} chg={usdKrw?.changePercent ?? null} decimals={2} />
+        </div>
+      </div>
+
+      {/* JKP Market Guidance */}
+      <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-4">
+        <div className="flex items-center justify-between mb-3">
+          <p className="text-[10px] font-mono uppercase tracking-wider text-amber-400">JKP 행동 지침</p>
+          <button
+            type="button"
+            onClick={fetchGuidance}
+            disabled={guidanceLoading}
+            className="rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-1 text-[10px] text-amber-300 hover:bg-amber-500/20 disabled:opacity-50 transition"
+          >
+            {guidanceLoading ? "분석 중…" : guidance ? "재생성" : "지침 생성"}
+          </button>
+        </div>
+
+        {guidance ? (
+          <div className="space-y-3">
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] text-zinc-500">JKP 포지션</span>
+              <span className={`text-xs font-semibold ${STANCE_COLOR[guidance.stance] ?? "text-zinc-400"}`}>
+                {STANCE_LABEL[guidance.stance] ?? guidance.stance}
+              </span>
+            </div>
+            <div>
+              <p className="text-[10px] text-zinc-600 mb-1">오늘의 지침</p>
+              <p className="text-xs text-zinc-200 leading-relaxed">{guidance.today}</p>
+            </div>
+            <div>
+              <p className="text-[10px] text-zinc-600 mb-1">주간 전략</p>
+              <p className="text-xs text-zinc-200 leading-relaxed">{guidance.week}</p>
+            </div>
+            <div className="rounded-lg border border-rose-500/20 bg-rose-500/5 px-3 py-2">
+              <p className="text-[10px] text-rose-400/70 mb-0.5">핵심 리스크</p>
+              <p className="text-xs text-zinc-300">{guidance.keyRisk}</p>
+            </div>
+            <p className="text-[9px] text-zinc-700">
+              {new Date(guidance.generatedAt).toLocaleString("ko-KR", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })} 생성
+            </p>
+          </div>
+        ) : (
+          <p className="text-[11px] text-zinc-600">
+            현재 지표를 기반으로 JKP의 오늘/주간 행동 지침을 생성합니다.
+          </p>
+        )}
+      </div>
     </div>
   );
 }

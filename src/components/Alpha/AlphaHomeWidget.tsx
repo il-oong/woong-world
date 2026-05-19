@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import type { AlertsResponse, PortfolioAlert } from "@/app/api/alpha/alerts/route";
 import type { RecommendationsCache } from "@/app/api/alpha/recommendations/route";
+import type { StockHolding } from "@/lib/alpha";
 
 const ALERT_ICON: Record<string, string> = {
   danger: "🔴",
@@ -26,15 +27,18 @@ const FEAR_BG = (score: number) =>
 export default function AlphaHomeWidget() {
   const [alerts, setAlerts] = useState<AlertsResponse | null>(null);
   const [recs, setRecs] = useState<RecommendationsCache | null>(null);
+  const [holdings, setHoldings] = useState<StockHolding[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     Promise.all([
       fetch("/api/alpha/alerts").then((r) => r.ok ? r.json() as Promise<AlertsResponse> : null),
       fetch("/api/alpha/recommendations").then((r) => r.ok ? r.json() as Promise<RecommendationsCache> : null),
-    ]).then(([a, r]) => {
+      fetch("/api/alpha/portfolio").then((r) => r.ok ? r.json() as Promise<StockHolding[]> : null),
+    ]).then(([a, r, h]) => {
       setAlerts(a);
       setRecs(r);
+      setHoldings(h ?? []);
       setLoading(false);
     }).catch(() => setLoading(false));
   }, []);
@@ -42,9 +46,17 @@ export default function AlphaHomeWidget() {
   const topRec = recs?.items?.[0] ?? null;
   const shownAlerts = (alerts?.alerts ?? []).slice(0, 3);
 
+  // Build currentPrice map from alerts data (alerts already fetched prices)
+  const priceMap = new Map<string, { price: number; changePercent: number | null }>();
+  for (const a of alerts?.alerts ?? []) {
+    priceMap.set(a.holdingId, { price: a.currentPrice, changePercent: a.changePercent });
+  }
+
+  const shownHoldings = holdings.slice(0, 4);
+
   return (
     <Link
-      href="/apps/alpha"
+      href="/alpha"
       className="group flex h-full flex-col rounded-xl border border-[var(--border)] bg-[var(--card)] p-5 transition hover:border-amber-500/40"
     >
       {/* Header */}
@@ -61,6 +73,53 @@ export default function AlphaHomeWidget() {
         <p className="text-[11px] text-zinc-600 animate-pulse py-4 text-center">불러오는 중…</p>
       ) : (
         <div className="flex-1 space-y-3">
+          {/* Portfolio holdings */}
+          {shownHoldings.length > 0 && (
+            <div>
+              <p className="text-[10px] text-zinc-600 mb-1.5 font-mono uppercase tracking-wider">보유 종목</p>
+              <div className="space-y-1">
+                {shownHoldings.map((h) => {
+                  const pd = priceMap.get(h.id);
+                  const currentPrice = pd?.price ?? null;
+                  const chg = pd?.changePercent ?? null;
+                  const pnl = currentPrice !== null && h.avgBuyPrice > 0
+                    ? ((currentPrice - h.avgBuyPrice) / h.avgBuyPrice) * 100
+                    : null;
+                  return (
+                    <div key={h.id} className="flex items-center justify-between text-[11px] gap-2">
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <span className="font-medium text-zinc-200 truncate">{h.name}</span>
+                        <span className="text-zinc-600 font-mono text-[10px] shrink-0">{h.ticker}</span>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        {currentPrice !== null && (
+                          <span className="font-mono text-zinc-400">
+                            {h.market === "KR"
+                              ? `₩${currentPrice.toLocaleString()}`
+                              : `$${currentPrice.toFixed(2)}`}
+                          </span>
+                        )}
+                        {chg !== null && (
+                          <span className={`font-mono text-[10px] ${chg >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
+                            {chg >= 0 ? "+" : ""}{chg.toFixed(2)}%
+                          </span>
+                        )}
+                        {pnl !== null && (
+                          <span className={`font-mono text-[10px] ${pnl >= 0 ? "text-emerald-400/70" : "text-rose-400/70"}`}>
+                            ({pnl >= 0 ? "+" : ""}{pnl.toFixed(1)}%)
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+                {holdings.length > 4 && (
+                  <p className="text-[10px] text-zinc-600">+{holdings.length - 4}개 더</p>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* Alerts */}
           {shownAlerts.length > 0 && (
             <div className="space-y-1.5">
@@ -79,7 +138,7 @@ export default function AlphaHomeWidget() {
             </div>
           )}
 
-          {shownAlerts.length === 0 && (
+          {shownAlerts.length === 0 && shownHoldings.length === 0 && (
             <p className="text-[11px] text-zinc-600">포트폴리오 알림 없음</p>
           )}
 
@@ -98,7 +157,7 @@ export default function AlphaHomeWidget() {
             </div>
           )}
 
-          {!topRec && (
+          {!topRec && shownHoldings.length === 0 && (
             <p className="text-[11px] text-zinc-600">추천 종목 없음 — ALPHA 앱에서 생성하세요</p>
           )}
         </div>

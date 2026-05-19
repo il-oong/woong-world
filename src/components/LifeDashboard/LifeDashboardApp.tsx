@@ -9,7 +9,7 @@ const RoadmapSheet = dynamic(() => import("./RoadmapSheet"), { ssr: false });
 const FinanceSheet = dynamic(() => import("./FinanceSheet"), { ssr: false });
 const AnalyticsSheet = dynamic(() => import("./AnalyticsSheet"), { ssr: false });
 // Reuse existing standalone apps
-const RoutineApp = dynamic(() => import("../RoutineApp").then(m => ({ default: m.RoutineApp })), { ssr: false });
+const RoutineHabitApp = dynamic(() => import("./RoutineHabitApp"), { ssr: false });
 const TodoApp = dynamic(() => import("../TodoApp").then(m => ({ default: m.TodoApp })), { ssr: false });
 
 type Tab = "home" | "routine" | "todo" | "goal" | "finance" | "analytics";
@@ -52,7 +52,7 @@ export default function LifeDashboardApp() {
       {/* Content */}
       <div>
         {tab === "home" && <HomeOverview />}
-        {tab === "routine" && <RoutineApp />}
+        {tab === "routine" && <RoutineHabitApp />}
         {tab === "todo" && <TodoApp />}
         {tab === "goal" && (
           <div className="space-y-8">
