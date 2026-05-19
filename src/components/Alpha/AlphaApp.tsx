@@ -26,6 +26,13 @@ export default function AlphaApp() {
 
   return (
     <div className="space-y-6">
+      {/* JKP info chip */}
+      <div className="flex items-center justify-between mb-1">
+        <p className="text-[10px] text-zinc-600">
+          <span className="font-mono text-amber-500/70">JKP</span> — James K. Park · 전 Bridgewater 시니어 펀드매니저 · O&apos;Neil/Lynch/Weinstein/Minervini 4에이전트 기반 AI 투자 어시스턴트
+        </p>
+      </div>
+
       {/* Tab bar */}
       <div className="flex gap-1 overflow-x-auto border-b border-zinc-800 pb-0">
         {TABS.map((t) => (

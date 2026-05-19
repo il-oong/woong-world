@@ -4,7 +4,6 @@ import { useState } from "react";
 import dynamic from "next/dynamic";
 
 const HomeOverview = dynamic(() => import("./HomeOverview"), { ssr: false });
-const HabitTracker = dynamic(() => import("./HabitTracker"), { ssr: false });
 const IdentitySheet = dynamic(() => import("./IdentitySheet"), { ssr: false });
 const RoadmapSheet = dynamic(() => import("./RoadmapSheet"), { ssr: false });
 const FinanceSheet = dynamic(() => import("./FinanceSheet"), { ssr: false });
@@ -12,18 +11,15 @@ const AnalyticsSheet = dynamic(() => import("./AnalyticsSheet"), { ssr: false })
 // Reuse existing standalone apps
 const RoutineApp = dynamic(() => import("../RoutineApp").then(m => ({ default: m.RoutineApp })), { ssr: false });
 const TodoApp = dynamic(() => import("../TodoApp").then(m => ({ default: m.TodoApp })), { ssr: false });
-const SubscriptionApp = dynamic(() => import("../SubscriptionApp").then(m => ({ default: m.SubscriptionApp })), { ssr: false });
 
-type Tab = "home" | "routine" | "todo" | "habit" | "goal" | "finance" | "subscription" | "analytics";
+type Tab = "home" | "routine" | "todo" | "goal" | "finance" | "analytics";
 
 const TABS: { id: Tab; label: string; icon: string }[] = [
   { id: "home", label: "홈", icon: "⌂" },
   { id: "routine", label: "루틴", icon: "↺" },
   { id: "todo", label: "할일", icon: "✓" },
-  { id: "habit", label: "습관", icon: "◉" },
   { id: "goal", label: "목표", icon: "◎" },
   { id: "finance", label: "재정", icon: "₩" },
-  { id: "subscription", label: "구독", icon: "□" },
   { id: "analytics", label: "분석", icon: "↗" },
 ];
 
@@ -58,7 +54,6 @@ export default function LifeDashboardApp() {
         {tab === "home" && <HomeOverview />}
         {tab === "routine" && <RoutineApp />}
         {tab === "todo" && <TodoApp />}
-        {tab === "habit" && <HabitTracker onStatsChange={() => {}} />}
         {tab === "goal" && (
           <div className="space-y-8">
             <IdentitySheet />
@@ -66,7 +61,6 @@ export default function LifeDashboardApp() {
           </div>
         )}
         {tab === "finance" && <FinanceSheet />}
-        {tab === "subscription" && <SubscriptionApp />}
         {tab === "analytics" && <AnalyticsSheet />}
       </div>
     </div>

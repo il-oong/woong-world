@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import type { EconEvent, PositionAction } from "@/lib/alpha";
 
 const IMPORTANCE_LABEL: Record<string, string> = { high: "높음", medium: "보통", low: "낮음" };
@@ -8,6 +8,11 @@ const IMPORTANCE_COLOR: Record<string, string> = {
   high: "text-rose-400 bg-rose-500/10 border-rose-500/30",
   medium: "text-amber-400 bg-amber-500/10 border-amber-500/30",
   low: "text-zinc-400 bg-zinc-800 border-zinc-700",
+};
+const DOT_COLOR: Record<string, string> = {
+  high: "bg-rose-400",
+  medium: "bg-amber-400",
+  low: "bg-zinc-400",
 };
 const ACTION_COLOR: Record<PositionAction, string> = {
   매수: "text-emerald-400 bg-emerald-500/10",
@@ -17,6 +22,8 @@ const ACTION_COLOR: Record<PositionAction, string> = {
   보유: "text-zinc-300 bg-zinc-800",
   관망: "text-zinc-400 bg-zinc-800",
 };
+
+const WEEKDAYS = ["월", "화", "수", "목", "금", "토", "일"];
 
 function daysLeft(dateStr: string): number {
   const today = new Date();
@@ -33,6 +40,10 @@ function DayBadge({ d }: { d: number }) {
   return <span className="text-[10px] text-zinc-500">D-{d}</span>;
 }
 
+function toDateStr(year: number, month: number, day: number): string {
+  return `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+}
+
 export default function EconomicCalendar() {
   const [events, setEvents] = useState<EconEvent[]>([]);
   const [loading, setLoading] = useState(true);
@@ -41,6 +52,12 @@ export default function EconomicCalendar() {
   const [autoResult, setAutoResult] = useState<string | null>(null);
   const [adviceLoading, setAdviceLoading] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
+
+  const now = new Date();
+  const [viewYear, setViewYear] = useState(now.getFullYear());
+  const [viewMonth, setViewMonth] = useState(now.getMonth());
+
   const [form, setForm] = useState({
     title: "",
     eventDate: "",
@@ -114,13 +131,68 @@ export default function EconomicCalendar() {
     }
   };
 
+  // Calendar grid computation
+  const calendarGrid = useMemo(() => {
+    // Map events by date string
+    const byDate: Record<string, EconEvent[]> = {};
+    for (const ev of events) {
+      if (!byDate[ev.eventDate]) byDate[ev.eventDate] = [];
+      byDate[ev.eventDate].push(ev);
+    }
+
+    const firstDay = new Date(viewYear, viewMonth, 1);
+    // JS getDay(): 0=Sun,1=Mon,...6=Sat → convert to Mon-first: Mon=0,...Sun=6
+    const rawFirst = firstDay.getDay();
+    const startOffset = rawFirst === 0 ? 6 : rawFirst - 1;
+    const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
+    const totalCells = Math.ceil((startOffset + daysInMonth) / 7) * 7;
+
+    const cells: { day: number | null; dateStr: string | null }[] = [];
+    for (let i = 0; i < totalCells; i++) {
+      const dayNum = i - startOffset + 1;
+      if (dayNum < 1 || dayNum > daysInMonth) {
+        cells.push({ day: null, dateStr: null });
+      } else {
+        cells.push({ day: dayNum, dateStr: toDateStr(viewYear, viewMonth, dayNum) });
+      }
+    }
+
+    return { cells, byDate };
+  }, [events, viewYear, viewMonth]);
+
+  const todayStr = toDateStr(now.getFullYear(), now.getMonth(), now.getDate());
+
+  const selectedEvents = useMemo(() => {
+    if (!selectedDate) return [];
+    return calendarGrid.byDate[selectedDate] ?? [];
+  }, [selectedDate, calendarGrid.byDate]);
+
+  const prevMonth = () => {
+    if (viewMonth === 0) { setViewYear(y => y - 1); setViewMonth(11); }
+    else setViewMonth(m => m - 1);
+    setSelectedDate(null);
+  };
+  const nextMonth = () => {
+    if (viewMonth === 11) { setViewYear(y => y + 1); setViewMonth(0); }
+    else setViewMonth(m => m + 1);
+    setSelectedDate(null);
+  };
+
   const upcoming = events.filter((e) => daysLeft(e.eventDate) >= 0);
   const past = events.filter((e) => daysLeft(e.eventDate) < 0);
 
   return (
     <div className="space-y-4">
+      {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-2">
-        <p className="text-xs text-zinc-500">{upcoming.length}개 예정 · {past.length}개 지남</p>
+        <div className="flex items-center gap-2">
+          <button type="button" onClick={prevMonth} className="rounded p-1 text-zinc-400 hover:text-zinc-200 transition">←</button>
+          <span className="text-sm font-medium text-zinc-200 min-w-[7rem] text-center">
+            {viewYear}년 {viewMonth + 1}월
+          </span>
+          <button type="button" onClick={nextMonth} className="rounded p-1 text-zinc-400 hover:text-zinc-200 transition">→</button>
+          <span className="text-[10px] text-zinc-600">{upcoming.length}개 예정 · {past.length}개 지남</span>
+        </div>
         <div className="flex items-center gap-2">
           {autoResult && (
             <span className="text-[10px] text-emerald-400">{autoResult}</span>
@@ -181,15 +253,115 @@ export default function EconomicCalendar() {
         </form>
       )}
 
+      {/* Calendar grid */}
       {loading ? (
         <p className="text-xs text-zinc-600 py-8 text-center">불러오는 중…</p>
-      ) : events.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-zinc-800 py-12 text-center text-xs text-zinc-600">
-          FOMC, CPI, 실적발표 등 중요 일정을 추가하세요
-        </div>
       ) : (
+        <div className="rounded-xl border border-zinc-800 bg-zinc-900/40 overflow-hidden">
+          {/* Weekday headers */}
+          <div className="grid grid-cols-7 border-b border-zinc-800">
+            {WEEKDAYS.map((wd, i) => (
+              <div
+                key={wd}
+                className={`py-1.5 text-center text-[10px] font-medium ${
+                  i === 5 ? "text-blue-400/70" : i === 6 ? "text-rose-400/70" : "text-zinc-500"
+                }`}
+              >
+                {wd}
+              </div>
+            ))}
+          </div>
+
+          {/* Day cells */}
+          <div className="grid grid-cols-7">
+            {calendarGrid.cells.map((cell, idx) => {
+              if (!cell.day || !cell.dateStr) {
+                return <div key={idx} className="min-h-[56px] border-b border-r border-zinc-800/50 last:border-r-0" />;
+              }
+              const cellEvents = calendarGrid.byDate[cell.dateStr] ?? [];
+              const isToday = cell.dateStr === todayStr;
+              const isPast = cell.dateStr < todayStr;
+              const isSelected = cell.dateStr === selectedDate;
+              const hasEvents = cellEvents.length > 0;
+              const highestImportance = cellEvents.find(e => e.importance === "high")
+                ? "high"
+                : cellEvents.find(e => e.importance === "medium")
+                  ? "medium"
+                  : cellEvents.length > 0 ? "low" : null;
+
+              return (
+                <div
+                  key={idx}
+                  onClick={() => {
+                    if (hasEvents) setSelectedDate(isSelected ? null : cell.dateStr);
+                  }}
+                  className={`min-h-[56px] border-b border-r border-zinc-800/50 last:border-r-0 p-1 flex flex-col gap-0.5 transition ${
+                    hasEvents ? "cursor-pointer hover:bg-zinc-800/40" : ""
+                  } ${isSelected ? "bg-zinc-800/60 ring-inset ring-1 ring-amber-500/30" : ""} ${
+                    isPast ? "opacity-50" : ""
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span
+                      className={`text-[11px] font-medium rounded-full w-5 h-5 flex items-center justify-center ${
+                        isToday
+                          ? "ring-1 ring-blue-500 text-blue-300"
+                          : isPast
+                            ? "text-zinc-700"
+                            : "text-zinc-400"
+                      }`}
+                    >
+                      {cell.day}
+                    </span>
+                    {hasEvents && (
+                      <span className="text-[9px] text-zinc-600">{cellEvents.length}</span>
+                    )}
+                  </div>
+                  {/* Event dots */}
+                  {hasEvents && (
+                    <div className="flex flex-wrap gap-0.5 mt-0.5">
+                      {cellEvents.slice(0, 3).map((ev) => (
+                        <span
+                          key={ev.id}
+                          className={`block rounded-full w-1.5 h-1.5 ${DOT_COLOR[ev.importance]}`}
+                          title={ev.title}
+                        />
+                      ))}
+                    </div>
+                  )}
+                  {/* D-day badge for important upcoming events */}
+                  {hasEvents && !isPast && highestImportance === "high" && (
+                    <span className="text-[9px] text-rose-400/80 leading-none">
+                      {(() => {
+                        const d = daysLeft(cell.dateStr);
+                        if (d === 0) return "D-DAY";
+                        if (d > 0 && d <= 7) return `D-${d}`;
+                        return null;
+                      })()}
+                    </span>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Legend */}
+      <div className="flex items-center gap-3 flex-wrap">
+        {(["high", "medium", "low"] as const).map(imp => (
+          <div key={imp} className="flex items-center gap-1">
+            <span className={`w-2 h-2 rounded-full ${DOT_COLOR[imp]}`} />
+            <span className="text-[10px] text-zinc-600">{IMPORTANCE_LABEL[imp]}</span>
+          </div>
+        ))}
+      </div>
+
+      {/* Selected date events */}
+      {selectedDate && selectedEvents.length > 0 && (
         <div className="space-y-2">
-          {[...upcoming, ...past].map((ev) => {
+          <p className="text-[10px] text-zinc-500 uppercase tracking-wider">{selectedDate} 일정</p>
+          {selectedEvents.map((ev) => {
             const d = daysLeft(ev.eventDate);
             const isPast = d < 0;
             const isExpanded = expandedId === ev.id;
@@ -268,6 +440,12 @@ export default function EconomicCalendar() {
               </div>
             );
           })}
+        </div>
+      )}
+
+      {!loading && events.length === 0 && (
+        <div className="rounded-xl border border-dashed border-zinc-800 py-12 text-center text-xs text-zinc-600">
+          FOMC, CPI, 실적발표 등 중요 일정을 추가하세요
         </div>
       )}
     </div>
