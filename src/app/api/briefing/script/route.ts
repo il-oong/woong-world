@@ -7,6 +7,7 @@ import { getProfile } from "@/lib/secretary";
 import { generateBriefingScript, getBriefingMode, type BriefingPerformance } from "@/lib/gemini";
 import { getCalendarFilter } from "@/lib/calendar-filter";
 import { listHabits, getLogs } from "@/lib/life-dashboard";
+import { listHoldings, listWatchlist, listEvents } from "@/lib/alpha";
 import { Redis } from "@upstash/redis";
 
 export const dynamic = "force-dynamic";
@@ -35,6 +36,9 @@ async function collectPerformance(email: string): Promise<BriefingPerformance> {
     weekRoutineRate: null,
     openTodos: null,
     doneTodosToday: null,
+    portfolioAlerts: null,
+    watchlistItems: null,
+    upcomingEconEvents: null,
   };
 
   try {
@@ -114,6 +118,62 @@ async function collectPerformance(email: string): Promise<BriefingPerformance> {
         return new Date(t.doneAt).toISOString().slice(0, 10) === todayStr;
       }).length;
     }
+  } catch {
+    // optional
+  }
+
+  try {
+    const [holdings, watchlist, econEvents] = await Promise.all([
+      listHoldings(email),
+      listWatchlist(email),
+      listEvents(email),
+    ]);
+
+    // Portfolio sell signals: holdings near stop-loss or target
+    const alerts: { name: string; ticker: string; alertType: string; message: string }[] = [];
+    for (const h of holdings) {
+      if (h.stopLoss > 0) {
+        alerts.push({
+          name: h.name,
+          ticker: h.ticker,
+          alertType: "손절 기준 보유",
+          message: `손절가 ${h.stopLoss.toLocaleString()} 설정됨 — 매수가 ${h.avgBuyPrice.toLocaleString()}`,
+        });
+      }
+      if (h.target1 > 0) {
+        alerts.push({
+          name: h.name,
+          ticker: h.ticker,
+          alertType: "목표가 설정",
+          message: `1차 목표 ${h.target1.toLocaleString()}${h.target2 > 0 ? `, 2차 ${h.target2.toLocaleString()}` : ""}`,
+        });
+      }
+    }
+    if (alerts.length > 0) perf.portfolioAlerts = alerts.slice(0, 6);
+
+    // Watchlist
+    if (watchlist.length > 0) {
+      perf.watchlistItems = watchlist.slice(0, 5).map((w) => ({
+        name: w.name,
+        ticker: w.ticker,
+        memo: w.memo,
+      }));
+    }
+
+    // Upcoming economic events (next 7 days)
+    const todayDate = now.toISOString().slice(0, 10);
+    const sevenDaysLater = new Date(now);
+    sevenDaysLater.setDate(sevenDaysLater.getDate() + 7);
+    const upcoming = econEvents
+      .filter((e) => e.eventDate >= todayDate && e.eventDate <= sevenDaysLater.toISOString().slice(0, 10))
+      .sort((a, b) => a.eventDate.localeCompare(b.eventDate))
+      .slice(0, 5)
+      .map((e) => {
+        const diffMs = new Date(e.eventDate).getTime() - new Date(todayDate).getTime();
+        const daysLeft = Math.round(diffMs / 86400000);
+        return { title: e.title, eventDate: e.eventDate, importance: e.importance, daysLeft };
+      });
+    if (upcoming.length > 0) perf.upcomingEconEvents = upcoming;
   } catch {
     // optional
   }

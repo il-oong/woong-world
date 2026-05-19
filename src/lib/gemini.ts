@@ -614,6 +614,9 @@ export type BriefingPerformance = {
   weekRoutineRate: number | null;       // 0–100
   openTodos: number | null;
   doneTodosToday: number | null;
+  portfolioAlerts: { name: string; ticker: string; alertType: string; message: string }[] | null;
+  watchlistItems: { name: string; ticker: string; memo: string }[] | null;
+  upcomingEconEvents: { title: string; eventDate: string; importance: string; daysLeft: number }[] | null;
 };
 
 export async function generateBriefingScript(
@@ -688,8 +691,33 @@ export async function generateBriefingScript(
       lines.push(`오늘 완료한 할 일: ${p.doneTodosToday}개`);
     }
 
+    if (p.portfolioAlerts && p.portfolioAlerts.length > 0) {
+      lines.push(`\n[포트폴리오 신호]`);
+      for (const a of p.portfolioAlerts) {
+        lines.push(`- ${a.name}(${a.ticker}): ${a.alertType} — ${a.message}`);
+      }
+      lines.push("→ 위 포트폴리오 신호들을 브리핑에 포함해. JKP처럼 단호하게 매도/보유 판단을 언급해줘.");
+    }
+
+    if (p.watchlistItems && p.watchlistItems.length > 0) {
+      lines.push(`\n[관심종목 — 매수 검토 후보]`);
+      for (const w of p.watchlistItems) {
+        lines.push(`- ${w.name}(${w.ticker})${w.memo ? `: ${w.memo}` : ""}`);
+      }
+      lines.push("→ 관심종목들을 짧게 언급하며 오늘 주의 깊게 봐야 할 종목이라고 언급해줘.");
+    }
+
+    if (p.upcomingEconEvents && p.upcomingEconEvents.length > 0) {
+      lines.push(`\n[다가오는 경제 일정]`);
+      for (const e of p.upcomingEconEvents) {
+        const dayStr = e.daysLeft === 0 ? "오늘" : e.daysLeft === 1 ? "내일" : `D-${e.daysLeft}`;
+        lines.push(`- ${dayStr} ${e.title} (${e.importance === "high" ? "고중요도" : e.importance === "medium" ? "중요도 보통" : "저중요도"})`);
+      }
+      lines.push("→ 경제 일정들을 브리핑에 포함하고, 고중요도 이벤트는 포지션에 미치는 영향을 JKP 스타일로 간략히 언급해.");
+    }
+
     if (lines.length > 0) {
-      performanceInstruction = `\n\n[실적 피드백 — 반드시 브리핑에 자연스럽게 녹여줘. 수치를 직접 언급하고, 잘한 건 칭찬, 못한 건 따끔하게 야단칠 것]\n${lines.join("\n")}`;
+      performanceInstruction = `\n\n[실적·투자 피드백 — 반드시 브리핑에 자연스럽게 녹여줘. 수치를 직접 언급하고, 잘한 건 칭찬, 못한 건 따끔하게 야단칠 것]\n${lines.join("\n")}`;
     }
   }
 
