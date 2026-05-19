@@ -1,9 +1,16 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import type { WatchItem } from "@/lib/alpha";
 
 type PriceData = { price: number | null; changePercent: number | null };
+
+type TickerMatch = {
+  ticker: string;
+  name: string;
+  market: "KR" | "US" | "OTHER";
+  exchange: string;
+};
 
 export default function WatchlistSheet() {
   const [items, setItems] = useState<WatchItem[]>([]);
@@ -15,6 +22,12 @@ export default function WatchlistSheet() {
   const [market, setMarket] = useState<"KR" | "US">("KR");
   const [memo, setMemo] = useState("");
   const [saving, setSaving] = useState(false);
+
+  // Ticker search state
+  const [searchResults, setSearchResults] = useState<TickerMatch[]>([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [showDropdown, setShowDropdown] = useState(false);
+  const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const fetchItems = useCallback(async () => {
     setLoading(true);
@@ -43,6 +56,43 @@ export default function WatchlistSheet() {
 
   useEffect(() => { fetchItems(); }, [fetchItems]);
   useEffect(() => { if (items.length) fetchPrices(items); }, [items, fetchPrices]);
+
+  // Ticker name search with debounce
+  const handleNameChange = (value: string) => {
+    setName(value);
+
+    if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+
+    if (value.trim().length < 1) {
+      setSearchResults([]);
+      setShowDropdown(false);
+      return;
+    }
+
+    searchTimerRef.current = setTimeout(async () => {
+      setSearchLoading(true);
+      try {
+        const res = await fetch(`/api/alpha/ticker-search?q=${encodeURIComponent(value.trim())}`);
+        if (res.ok) {
+          const data = await res.json() as TickerMatch[];
+          setSearchResults(data);
+          setShowDropdown(data.length > 0);
+        }
+      } catch {
+        // ignore
+      } finally {
+        setSearchLoading(false);
+      }
+    }, 400);
+  };
+
+  const handleSelectTicker = (match: TickerMatch) => {
+    setTicker(match.ticker);
+    setName(match.name);
+    setMarket(match.market === "KR" ? "KR" : "US");
+    setShowDropdown(false);
+    setSearchResults([]);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -91,7 +141,41 @@ export default function WatchlistSheet() {
             </label>
             <label className="flex flex-col gap-1 col-span-1">
               <span className="text-[10px] text-zinc-500 uppercase tracking-wider">종목명 *</span>
-              <input required placeholder="Apple" value={name} onChange={(e) => setName(e.target.value)} className={inputCls} />
+              <div className="relative">
+                <div className="relative flex items-center">
+                  <input
+                    required
+                    placeholder="Apple"
+                    value={name}
+                    onChange={(e) => handleNameChange(e.target.value)}
+                    onBlur={() => setTimeout(() => setShowDropdown(false), 200)}
+                    onFocus={() => searchResults.length > 0 && setShowDropdown(true)}
+                    className={inputCls}
+                  />
+                  {searchLoading && (
+                    <span className="absolute right-2 top-1/2 -translate-y-1/2 text-zinc-500 text-[10px]">
+                      ⏳
+                    </span>
+                  )}
+                </div>
+                {showDropdown && searchResults.length > 0 && (
+                  <div className="absolute top-full left-0 right-0 z-50 mt-1 rounded-lg border border-zinc-700 bg-zinc-900 shadow-xl overflow-hidden">
+                    {searchResults.map((r) => (
+                      <div
+                        key={r.ticker}
+                        onMouseDown={() => handleSelectTicker(r)}
+                        className="px-3 py-2 text-xs hover:bg-zinc-800 cursor-pointer flex items-center gap-2"
+                      >
+                        <span className="font-mono text-amber-400">{r.ticker}</span>
+                        <span className="text-zinc-300 flex-1 truncate">{r.name}</span>
+                        <span className={`rounded px-1 py-0.5 text-[10px] ${r.market === "KR" ? "bg-zinc-800 text-zinc-400" : "bg-blue-500/10 text-blue-400"}`}>
+                          {r.market === "OTHER" ? r.exchange : r.market}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </label>
             <label className="flex flex-col gap-1">
               <span className="text-[10px] text-zinc-500 uppercase tracking-wider">시장</span>

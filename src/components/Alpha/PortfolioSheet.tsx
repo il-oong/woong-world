@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import type { StockHolding } from "@/lib/alpha";
+import type { AgentReviewResult } from "@/app/api/alpha/agent-review/route";
 
 type PriceData = {
   price: number | null;
@@ -18,6 +19,21 @@ type HoldingForm = {
   target2: string;
   stopLoss: string;
   memo: string;
+};
+
+type TickerMatch = {
+  ticker: string;
+  name: string;
+  market: "KR" | "US" | "OTHER";
+  exchange: string;
+};
+
+type AgentSuggestion = {
+  stop_loss: string;
+  target_short: string;
+  target_long: string;
+  consensus: string;
+  jkp_final: string;
 };
 
 const EMPTY_FORM: HoldingForm = {
@@ -51,6 +67,12 @@ function PctBadge({ value }: { value: number }) {
   );
 }
 
+/** Parse a price number from strings like "150,000원", "$145", "145.50" */
+function parsePriceNumber(str: string): string {
+  const match = str.replace(/,/g, "").match(/[\d]+(?:\.\d+)?/);
+  return match ? match[0] : "";
+}
+
 export default function PortfolioSheet() {
   const [holdings, setHoldings] = useState<StockHolding[]>([]);
   const [prices, setPrices] = useState<Record<string, PriceData>>({});
@@ -59,6 +81,22 @@ export default function PortfolioSheet() {
   const [form, setForm] = useState<HoldingForm>(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
   const [priceLoading, setPriceLoading] = useState(false);
+
+  // Ticker search state
+  const [searchResults, setSearchResults] = useState<TickerMatch[]>([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [showDropdown, setShowDropdown] = useState(false);
+  const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Agent suggestion state (form)
+  const [agentLoading, setAgentLoading] = useState(false);
+  const [agentSuggestion, setAgentSuggestion] = useState<AgentSuggestion | null>(null);
+
+  // Per-holding agent review state
+  const [holdingAgentLoading, setHoldingAgentLoading] = useState<Record<string, boolean>>({});
+  const [holdingAgentReview, setHoldingAgentReview] = useState<Record<string, AgentReviewResult>>({});
+  const [holdingAgentOpen, setHoldingAgentOpen] = useState<Record<string, boolean>>({});
+  const [holdingUpdating, setHoldingUpdating] = useState<Record<string, boolean>>({});
 
   const fetchHoldings = useCallback(async () => {
     setLoading(true);
@@ -97,6 +135,86 @@ export default function PortfolioSheet() {
     if (holdings.length) fetchPrices(holdings);
   }, [holdings, fetchPrices]);
 
+  // Ticker name search with debounce
+  const handleNameChange = (value: string) => {
+    setForm((f) => ({ ...f, name: value }));
+    setAgentSuggestion(null);
+
+    if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+
+    if (value.trim().length < 1) {
+      setSearchResults([]);
+      setShowDropdown(false);
+      return;
+    }
+
+    searchTimerRef.current = setTimeout(async () => {
+      setSearchLoading(true);
+      try {
+        const res = await fetch(`/api/alpha/ticker-search?q=${encodeURIComponent(value.trim())}`);
+        if (res.ok) {
+          const data = await res.json() as TickerMatch[];
+          setSearchResults(data);
+          setShowDropdown(data.length > 0);
+        }
+      } catch {
+        // ignore
+      } finally {
+        setSearchLoading(false);
+      }
+    }, 400);
+  };
+
+  const handleSelectTicker = (match: TickerMatch) => {
+    setForm((f) => ({
+      ...f,
+      ticker: match.ticker,
+      name: match.name,
+      market: match.market === "KR" ? "KR" : "US",
+    }));
+    setShowDropdown(false);
+    setSearchResults([]);
+    setAgentSuggestion(null);
+  };
+
+  // Agent auto-fill for form
+  const handleAgentSuggest = async () => {
+    if (!form.ticker || !form.name) return;
+    setAgentLoading(true);
+    setAgentSuggestion(null);
+    try {
+      const res = await fetch("/api/alpha/agent-review", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ticker: form.ticker, name: form.name, market: form.market }),
+      });
+      if (res.ok) {
+        const data = await res.json() as AgentReviewResult;
+        setAgentSuggestion({
+          stop_loss: data.buyTiming?.stop_loss ?? "",
+          target_short: data.buyTiming?.target_short ?? "",
+          target_long: data.buyTiming?.target_long ?? "",
+          consensus: data.consensus ?? "",
+          jkp_final: data.jkp_final ?? "",
+        });
+      }
+    } catch {
+      // ignore
+    } finally {
+      setAgentLoading(false);
+    }
+  };
+
+  const applyAgentSuggestion = () => {
+    if (!agentSuggestion) return;
+    setForm((f) => ({
+      ...f,
+      stopLoss: parsePriceNumber(agentSuggestion.stop_loss) || f.stopLoss,
+      target1: parsePriceNumber(agentSuggestion.target_short) || f.target1,
+      target2: parsePriceNumber(agentSuggestion.target_long) || f.target2,
+    }));
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
@@ -119,6 +237,7 @@ export default function PortfolioSheet() {
     if (res.ok) {
       setForm(EMPTY_FORM);
       setShowForm(false);
+      setAgentSuggestion(null);
       fetchHoldings();
     }
   };
@@ -131,6 +250,55 @@ export default function PortfolioSheet() {
       body: JSON.stringify({ id }),
     });
     fetchHoldings();
+  };
+
+  // Per-holding agent review
+  const handleHoldingAgentReview = async (h: StockHolding) => {
+    setHoldingAgentLoading((prev) => ({ ...prev, [h.id]: true }));
+    try {
+      const res = await fetch("/api/alpha/agent-review", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ticker: h.ticker, name: h.name, market: h.market }),
+      });
+      if (res.ok) {
+        const data = await res.json() as AgentReviewResult;
+        setHoldingAgentReview((prev) => ({ ...prev, [h.id]: data }));
+        setHoldingAgentOpen((prev) => ({ ...prev, [h.id]: true }));
+      }
+    } catch {
+      // ignore
+    } finally {
+      setHoldingAgentLoading((prev) => ({ ...prev, [h.id]: false }));
+    }
+  };
+
+  const handleApplyHoldingReview = async (h: StockHolding) => {
+    const review = holdingAgentReview[h.id];
+    if (!review) return;
+    const stopLoss = parsePriceNumber(review.buyTiming?.stop_loss ?? "");
+    const target1 = parsePriceNumber(review.buyTiming?.target_short ?? "");
+    const target2 = parsePriceNumber(review.buyTiming?.target_long ?? "");
+
+    setHoldingUpdating((prev) => ({ ...prev, [h.id]: true }));
+    try {
+      await fetch("/api/alpha/portfolio", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: h.id,
+          stopLoss: stopLoss ? Number(stopLoss) : h.stopLoss,
+          target1: target1 ? Number(target1) : h.target1,
+          target2: target2 ? Number(target2) : h.target2,
+        }),
+      });
+      fetchHoldings();
+      setHoldingAgentOpen((prev) => ({ ...prev, [h.id]: false }));
+    } catch {
+      // ignore
+    } finally {
+      setHoldingUpdating((prev) => ({ ...prev, [h.id]: false }));
+    }
   };
 
   return (
@@ -165,13 +333,41 @@ export default function PortfolioSheet() {
               />
             </Field>
             <Field label="종목명" required>
-              <input
-                required
-                placeholder="삼성전자"
-                value={form.name}
-                onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-                className={inputCls}
-              />
+              <div className="relative">
+                <div className="relative flex items-center">
+                  <input
+                    required
+                    placeholder="삼성전자"
+                    value={form.name}
+                    onChange={(e) => handleNameChange(e.target.value)}
+                    onBlur={() => setTimeout(() => setShowDropdown(false), 200)}
+                    onFocus={() => searchResults.length > 0 && setShowDropdown(true)}
+                    className={inputCls}
+                  />
+                  {searchLoading && (
+                    <span className="absolute right-2 top-1/2 -translate-y-1/2 text-zinc-500 text-[10px]">
+                      ⏳
+                    </span>
+                  )}
+                </div>
+                {showDropdown && searchResults.length > 0 && (
+                  <div className="absolute top-full left-0 right-0 z-50 mt-1 rounded-lg border border-zinc-700 bg-zinc-900 shadow-xl overflow-hidden">
+                    {searchResults.map((r) => (
+                      <div
+                        key={r.ticker}
+                        onMouseDown={() => handleSelectTicker(r)}
+                        className="px-3 py-2 text-xs hover:bg-zinc-800 cursor-pointer flex items-center gap-2"
+                      >
+                        <span className="font-mono text-amber-400">{r.ticker}</span>
+                        <span className="text-zinc-300 flex-1 truncate">{r.name}</span>
+                        <span className={`rounded px-1 py-0.5 text-[10px] ${r.market === "KR" ? "bg-zinc-800 text-zinc-400" : "bg-blue-500/10 text-blue-400"}`}>
+                          {r.market === "OTHER" ? r.exchange : r.market}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </Field>
             <Field label="시장">
               <select
@@ -231,6 +427,58 @@ export default function PortfolioSheet() {
               />
             </Field>
           </div>
+
+          {/* Agent suggestion button (visible when ticker is filled) */}
+          {form.ticker && form.name && (
+            <div className="space-y-2">
+              <button
+                type="button"
+                onClick={handleAgentSuggest}
+                disabled={agentLoading}
+                className="rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-1.5 text-xs text-amber-300 hover:bg-amber-500/20 transition disabled:opacity-50 flex items-center gap-2"
+              >
+                {agentLoading ? (
+                  <>
+                    <span className="inline-block h-3 w-3 animate-spin rounded-full border border-amber-400 border-t-transparent" />
+                    분석 중…
+                  </>
+                ) : (
+                  "에이전트 분석으로 자동 설정"
+                )}
+              </button>
+
+              {agentSuggestion && (
+                <div className="rounded-lg border border-amber-500/20 bg-amber-500/5 p-3 space-y-2">
+                  <div className="flex flex-wrap gap-2 items-center">
+                    <span className="text-[10px] text-zinc-500 uppercase tracking-wider">에이전트 제안</span>
+                    <span className="rounded bg-amber-500/20 px-2 py-0.5 text-[11px] text-amber-300">
+                      손절 {agentSuggestion.stop_loss}
+                    </span>
+                    <span className="rounded bg-emerald-500/20 px-2 py-0.5 text-[11px] text-emerald-300">
+                      T1 {agentSuggestion.target_short}
+                    </span>
+                    <span className="rounded bg-blue-500/20 px-2 py-0.5 text-[11px] text-blue-300">
+                      T2 {agentSuggestion.target_long}
+                    </span>
+                    <span className="rounded bg-zinc-700 px-2 py-0.5 text-[11px] text-zinc-300">
+                      {agentSuggestion.consensus}
+                    </span>
+                  </div>
+                  {agentSuggestion.jkp_final && (
+                    <p className="text-[11px] text-zinc-400 italic">{agentSuggestion.jkp_final}</p>
+                  )}
+                  <button
+                    type="button"
+                    onClick={applyAgentSuggestion}
+                    className="rounded bg-amber-500/20 border border-amber-500/30 px-3 py-1 text-[11px] text-amber-300 hover:bg-amber-500/30 transition"
+                  >
+                    적용
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
           <Field label="메모">
             <input
               placeholder="간단한 메모"
@@ -264,6 +512,8 @@ export default function PortfolioSheet() {
             const nearStop = currentPrice !== null && h.stopLoss > 0 && currentPrice <= h.stopLoss * 1.03;
             const nearTarget1 = currentPrice !== null && h.target1 > 0 && currentPrice >= h.target1 * 0.97;
             const nearTarget2 = currentPrice !== null && h.target2 > 0 && currentPrice >= h.target2 * 0.97;
+            const agentReview = holdingAgentReview[h.id];
+            const isAgentOpen = holdingAgentOpen[h.id];
 
             return (
               <div
@@ -279,7 +529,7 @@ export default function PortfolioSheet() {
                 }`}
               >
                 <div className="flex items-start justify-between gap-2">
-                  <div>
+                  <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-medium text-sm text-white">{h.name}</span>
                       <span className="font-mono text-[10px] text-zinc-500">{h.ticker}</span>
@@ -329,6 +579,71 @@ export default function PortfolioSheet() {
                       {h.stopLoss > 0 && <span className="text-rose-500/70">SL: {h.stopLoss.toLocaleString()}</span>}
                     </div>
                     {h.memo && <p className="mt-1 text-[11px] text-zinc-600">{h.memo}</p>}
+
+                    {/* Per-holding agent review panel */}
+                    <div className="mt-2">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          agentReview
+                            ? setHoldingAgentOpen((prev) => ({ ...prev, [h.id]: !prev[h.id] }))
+                            : handleHoldingAgentReview(h)
+                        }
+                        disabled={holdingAgentLoading[h.id]}
+                        className="rounded border border-zinc-700 px-2 py-0.5 text-[10px] text-zinc-400 hover:border-amber-500/40 hover:text-amber-300 transition disabled:opacity-50 flex items-center gap-1"
+                      >
+                        {holdingAgentLoading[h.id] ? (
+                          <>
+                            <span className="inline-block h-2.5 w-2.5 animate-spin rounded-full border border-amber-400 border-t-transparent" />
+                            분석 중…
+                          </>
+                        ) : (
+                          <>에이전트 분석{agentReview ? (isAgentOpen ? " ▲" : " ▼") : ""}</>
+                        )}
+                      </button>
+
+                      {agentReview && isAgentOpen && (
+                        <div className="mt-2 rounded-lg border border-zinc-700 bg-zinc-900/80 p-3 space-y-2 text-[11px]">
+                          <div className="flex flex-wrap gap-2 items-center">
+                            <span className={`rounded px-2 py-0.5 font-medium ${
+                              agentReview.consensus === "강력매수" ? "bg-emerald-500/20 text-emerald-300" :
+                              agentReview.consensus === "매수" ? "bg-green-500/20 text-green-300" :
+                              agentReview.consensus === "매도" ? "bg-rose-500/20 text-rose-300" :
+                              agentReview.consensus === "강력매도" ? "bg-red-600/20 text-red-400" :
+                              "bg-zinc-700 text-zinc-300"
+                            }`}>
+                              {agentReview.consensus}
+                            </span>
+                            {agentReview.buyTiming?.stop_loss && (
+                              <span className="rounded bg-rose-500/10 px-2 py-0.5 text-rose-300">
+                                손절 {agentReview.buyTiming.stop_loss}
+                              </span>
+                            )}
+                            {agentReview.buyTiming?.target_short && (
+                              <span className="rounded bg-amber-500/10 px-2 py-0.5 text-amber-300">
+                                T1 {agentReview.buyTiming.target_short}
+                              </span>
+                            )}
+                            {agentReview.buyTiming?.target_long && (
+                              <span className="rounded bg-emerald-500/10 px-2 py-0.5 text-emerald-300">
+                                T2 {agentReview.buyTiming.target_long}
+                              </span>
+                            )}
+                          </div>
+                          {agentReview.jkp_final && (
+                            <p className="text-zinc-400 italic">{agentReview.jkp_final}</p>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => handleApplyHoldingReview(h)}
+                            disabled={holdingUpdating[h.id]}
+                            className="rounded bg-amber-500/20 border border-amber-500/30 px-3 py-1 text-[11px] text-amber-300 hover:bg-amber-500/30 transition disabled:opacity-50"
+                          >
+                            {holdingUpdating[h.id] ? "업데이트 중…" : "이 값으로 업데이트"}
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   </div>
                   <button
                     type="button"

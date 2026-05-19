@@ -19,12 +19,20 @@ export type GoalDomain = {
   metric: string;
 };
 
+export type WeeklyGoal = {
+  id: string;
+  text: string;
+  done: boolean;
+  week: string; // "2026-W20" format
+};
+
 export type Goals = {
   year: number;
   keywords: string[];
   statements: { keyword: string; statement: string }[];
   domains: GoalDomain[];
   books: { title: string; category: string; source: string; memo: string }[];
+  weeklyGoals?: WeeklyGoal[];
 };
 
 export type Milestone = {

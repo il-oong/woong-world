@@ -5,6 +5,7 @@ import Link from "next/link";
 import { CalendarWidget } from "./CalendarWidget";
 import { BriefingPlayer } from "./BriefingPlayer";
 import AlphaHomeWidget from "./Alpha/AlphaHomeWidget";
+import StockBanner from "./Alpha/StockBanner";
 
 type WidgetId =
   | "briefing"
@@ -128,6 +129,11 @@ export function HomeDashboard({
 
   return (
     <>
+      {/* Stock Banner — always shown at top */}
+      <div className="mb-6">
+        <StockBanner />
+      </div>
+
       <div className="mb-4 flex justify-end">
         <button
           type="button"
