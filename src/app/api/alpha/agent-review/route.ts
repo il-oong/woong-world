@@ -33,6 +33,8 @@ export type BuyTiming = {
   stop_loss: string;
   target_short: string;
   target_long: string;
+  partial_exit?: string;
+  full_exit?: string;
 };
 
 export type AgentReviewResult = {
@@ -177,7 +179,9 @@ export async function POST(req: NextRequest) {
     "entry_trigger": "진입 트리거 한 문장 (어떤 조건이 충족될 때)",
     "stop_loss": "손절 기준",
     "target_short": "단기 목표가",
-    "target_long": "장기 목표가"
+    "target_long": "장기 목표가",
+    "partial_exit": "1차 목표 도달 시 몇 % 익절하고 언제 매도할지",
+    "full_exit": "완전 청산해야 하는 구체적 조건 (가격·이벤트·기간)"
   },
   "consensus": "강력매수" | "매수" | "관망" | "매도" | "강력매도",
   "consensusScore": 0~100,

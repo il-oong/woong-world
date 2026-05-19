@@ -72,6 +72,11 @@ export type JkpAnalysisResult = {
     target_2: string;
     target_2_reason: string;
   };
+  sell_plan: {
+    partial_exit: string;       // 1차 목표 도달 시 부분 매도 전략
+    full_exit: string;          // 완전 청산 조건
+    trailing_stop: string;      // 트레일링 스탑 기준
+  };
   stop_loss: string;
   stop_loss_reason: string;
   risk_reward_ratio: string;

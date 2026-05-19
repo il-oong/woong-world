@@ -131,11 +131,20 @@ export default function JkpAnalysis() {
               <Row label="1차" value={`${result.target_price.target_1} — ${result.target_price.target_1_reason}`} />
               <Row label="2차" value={`${result.target_price.target_2} — ${result.target_price.target_2_reason}`} />
             </Section>
-            <Section title="손절">
-              <Row label="손절가" value={result.stop_loss} highlight="rose" />
-              <Row label="이유" value={result.stop_loss_reason} />
+            <Section title="매도 플랜">
+              {result.sell_plan ? (
+                <>
+                  <Row label="부분 매도" value={result.sell_plan.partial_exit} highlight="emerald" />
+                  <Row label="완전 청산" value={result.sell_plan.full_exit} highlight="amber" />
+                  <Row label="트레일링 스탑" value={result.sell_plan.trailing_stop} />
+                </>
+              ) : (
+                <Row label="손절가" value={result.stop_loss} highlight="rose" />
+              )}
             </Section>
-            <Section title="메타">
+            <Section title="손절 / 메타">
+              <Row label="손절가" value={result.stop_loss} highlight="rose" />
+              <Row label="손절 이유" value={result.stop_loss_reason} />
               <Row label="리스크/수익" value={result.risk_reward_ratio} />
               <Row label="투자 기간" value={result.time_horizon} />
             </Section>

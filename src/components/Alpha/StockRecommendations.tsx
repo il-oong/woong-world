@@ -142,6 +142,8 @@ function ReviewModal({ ticker, name, market, onClose }: { ticker: string; name: 
                 <TimingRow label="손절 기준" value={data.buyTiming.stop_loss} highlight="rose" />
                 <TimingRow label="단기 목표" value={data.buyTiming.target_short} highlight="emerald" />
                 <TimingRow label="장기 목표" value={data.buyTiming.target_long} highlight="emerald" />
+                {data.buyTiming.partial_exit && <TimingRow label="부분 매도" value={data.buyTiming.partial_exit} highlight="amber" />}
+                {data.buyTiming.full_exit && <TimingRow label="완전 청산" value={data.buyTiming.full_exit} />}
               </div>
             </div>
 

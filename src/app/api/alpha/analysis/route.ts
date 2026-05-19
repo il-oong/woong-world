@@ -228,6 +228,11 @@ ${marketContext}
   "confidence": number,
   "buy_zone": { "entry_price": string, "entry_condition": string, "additional_buy": string },
   "target_price": { "target_1": string, "target_1_reason": string, "target_2": string, "target_2_reason": string },
+  "sell_plan": {
+    "partial_exit": "1차 목표 도달 시 몇 % 매도, 조건",
+    "full_exit": "완전 청산해야 하는 구체적 조건 (가격/이벤트/기간)",
+    "trailing_stop": "수익 보전을 위한 트레일링 스탑 기준"
+  },
   "stop_loss": string,
   "stop_loss_reason": string,
   "risk_reward_ratio": string,
