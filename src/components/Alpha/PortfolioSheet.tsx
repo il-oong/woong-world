@@ -241,22 +241,43 @@ export default function PortfolioSheet() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
-    const target1 = agentSuggestion ? parsePriceNumber(agentSuggestion.target_short) : form.target1;
-    const target2 = agentSuggestion ? parsePriceNumber(agentSuggestion.target_long) : form.target2;
-    const stopLoss = agentSuggestion ? parsePriceNumber(agentSuggestion.stop_loss) : form.stopLoss;
+
+    // ticker가 없으면 이름으로 자동 검색해서 첫 번째 결과 사용
+    let resolvedForm = { ...form };
+    if (!resolvedForm.ticker && resolvedForm.name) {
+      try {
+        const res = await fetch(`/api/alpha/ticker-search?q=${encodeURIComponent(resolvedForm.name.trim())}`);
+        if (res.ok) {
+          const matches = await res.json() as TickerMatch[];
+          if (matches.length > 0) {
+            resolvedForm = {
+              ...resolvedForm,
+              ticker: matches[0].ticker,
+              name: matches[0].name,
+              market: (matches[0].market === "KR" ? "KR" : "US") as "KR" | "US",
+            };
+            setForm(resolvedForm);
+          }
+        }
+      } catch { /* ignore, proceed with name as-is */ }
+    }
+
+    const target1 = agentSuggestion ? parsePriceNumber(agentSuggestion.target_short) : resolvedForm.target1;
+    const target2 = agentSuggestion ? parsePriceNumber(agentSuggestion.target_long) : resolvedForm.target2;
+    const stopLoss = agentSuggestion ? parsePriceNumber(agentSuggestion.stop_loss) : resolvedForm.stopLoss;
     const res = await fetch("/api/alpha/portfolio", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        ticker: form.ticker.toUpperCase(),
-        name: form.name,
-        market: form.market,
-        qty: form.qty,
-        avgBuyPrice: form.avgBuyPrice,
+        ticker: (resolvedForm.ticker || resolvedForm.name).toUpperCase(),
+        name: resolvedForm.name,
+        market: resolvedForm.market,
+        qty: resolvedForm.qty,
+        avgBuyPrice: resolvedForm.avgBuyPrice,
         target1,
         target2,
         stopLoss,
-        memo: form.memo,
+        memo: resolvedForm.memo,
       }),
     });
     setSaving(false);
@@ -457,10 +478,10 @@ export default function PortfolioSheet() {
           </Field>
           <button
             type="submit"
-            disabled={saving || !form.ticker}
+            disabled={saving || !form.name || !form.qty || !form.avgBuyPrice}
             className="rounded-md bg-amber-500/20 border border-amber-500/40 px-4 py-1.5 text-xs text-amber-300 hover:bg-amber-500/30 transition disabled:opacity-50"
           >
-            {saving ? "저장 중…" : "추가"}
+            {saving ? "검색 후 저장 중…" : "추가"}
           </button>
         </form>
       )}
