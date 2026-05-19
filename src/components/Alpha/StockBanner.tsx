@@ -246,8 +246,10 @@ export default function StockBanner() {
           {topRecs.length > 0 && (
             <div className="divide-y divide-zinc-800/40">
               {topRecs.map((rec: StockRecommendation) => (
-                <div key={rec.ticker} className="flex items-start gap-3 px-4 py-2.5 bg-amber-500/5">
-                  <span className="shrink-0 text-[9px] font-mono uppercase tracking-[0.2em] text-amber-500/60 mt-0.5">JKP 추천</span>
+                <div key={rec.ticker} className={`flex items-start gap-3 px-4 py-2.5 ${rec.type === "inverse" ? "bg-rose-500/5" : rec.type === "etf" ? "bg-violet-500/5" : "bg-amber-500/5"}`}>
+                  <span className={`shrink-0 text-[9px] font-mono uppercase tracking-[0.2em] mt-0.5 ${rec.type === "inverse" ? "text-rose-500/60" : rec.type === "etf" ? "text-violet-500/60" : "text-amber-500/60"}`}>
+                    {rec.type === "inverse" ? "인버스" : rec.type === "etf" ? "ETF" : "JKP 추천"}
+                  </span>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="text-xs font-semibold text-white">{rec.name}</span>

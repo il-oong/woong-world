@@ -251,6 +251,12 @@ export default function StockRecommendations() {
                     <span className={`rounded px-1.5 py-0.5 text-[10px] font-mono ${stock.market === "US" ? "bg-blue-500/10 text-blue-400" : "bg-zinc-800 text-zinc-400"}`}>
                       {stock.market}
                     </span>
+                    {stock.type === "inverse" && (
+                      <span className="rounded px-1.5 py-0.5 text-[10px] bg-rose-500/15 text-rose-400 font-medium">인버스</span>
+                    )}
+                    {stock.type === "etf" && (
+                      <span className="rounded px-1.5 py-0.5 text-[10px] bg-violet-500/15 text-violet-400 font-medium">ETF</span>
+                    )}
                   </div>
                   <p className="text-[10px] text-amber-400 mt-1">{stock.theme}</p>
                 </div>

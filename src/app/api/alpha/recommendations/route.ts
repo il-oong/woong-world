@@ -13,6 +13,7 @@ export type StockRecommendation = {
   ticker: string;
   name: string;
   market: "KR" | "US";
+  type: "stock" | "etf" | "inverse";  // 종목 유형
   theme: string;
   reason: string;
   valuation_view: "심각저평가" | "저평가" | "적정" | "고평가" | "심각고평가";
@@ -82,23 +83,29 @@ export async function POST(req: NextRequest) {
   const userPrompt = `오늘: ${today}
 현재 보유 종목 (제외 권고): ${holdingTickers}
 
-지금 시장 상황에서 주목해야 할 KR/US 종목 10개를 선정하라.
-보유 종목과 겹치지 않도록 하고, 다양한 섹터를 포함하라.
-각 종목마다 구체적인 수치(P/E, 매출성장률, 목표주가 대비 현재 괴리율 등)를 포함해 3~4문장으로 근거를 서술하라.
+지금 시장 상황에서 주목해야 할 종목·ETF·인버스 ETF를 총 12개 선정하라.
+구성:
+- 일반 종목(stock): 6개 — KR/US 혼합, 다양한 섹터
+- 테마 ETF(etf): 3개 — 지금 환경에서 유리한 섹터 ETF (예: 방어주, 금/원자재, 배당 등)
+- 인버스/숏 ETF(inverse): 3개 — 하락 헤지 또는 숏 포지션 (예: SQQQ, KODEX 인버스, 곰 ETF 등)
 
-각 종목에 대해 다음 JSON 배열로만 답하라:
+인버스 ETF는 현재 시장 공포/하락 환경에서 실제 수익 기회로 제시하라.
+보유 종목과 겹치지 않도록 하고, 각 종목마다 구체적 수치(P/E, 자산 추종 지수, 괴리율 등)를 포함해 근거를 서술하라.
+
+다음 JSON 배열로만 답하라:
 [
   {
-    "ticker": "005930.KS 또는 AAPL 형식",
-    "name": "종목명",
+    "ticker": "005930.KS / AAPL / SQQQ / 114800.KS 형식",
+    "name": "종목명 또는 ETF명",
     "market": "KR" | "US",
-    "theme": "핵심 테마 (2~4단어, 예: 반도체 턴어라운드)",
-    "reason": "지금 주목하는 이유 3~4문장. P/E·매출성장률·목표주가 대비 괴리율 등 구체적 수치와 촉매 포함",
+    "type": "stock" | "etf" | "inverse",
+    "theme": "핵심 테마 (2~4단어, 예: 반도체 인버스 헤지)",
+    "reason": "지금 주목하는 이유 2~3문장. 구체적 수치·촉매 포함",
     "valuation_view": "심각저평가" | "저평가" | "적정" | "고평가" | "심각고평가",
     "urgency": "high" | "medium" | "low",
-    "expected_move": "예상 상승/하락 폭 (예: +20~30%)",
-    "entry_hint": "진입 힌트 — 구체적인 가격 레벨 또는 기술적 조건 포함 (예: 52주 저점 대비 15% 반등 후 ₩63,000 재돌파 시 진입)",
-    "risk": "핵심 리스크 — 하방 시나리오와 예상 손실 폭 포함 (예: 금리 재인상 시 -15~20% 조정 가능)"
+    "expected_move": "예상 수익 폭 (예: +15~25%, 하락장 헤지 +20%)",
+    "entry_hint": "진입 조건 — 구체적 가격 레벨 또는 기술적 조건",
+    "risk": "핵심 리스크 — 하방 시나리오와 예상 손실 폭"
   }
 ]`;
 
