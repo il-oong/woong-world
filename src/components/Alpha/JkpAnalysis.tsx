@@ -19,15 +19,36 @@ export default function JkpAnalysis() {
 
   const handleAnalyze = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!ticker.trim() || !name.trim()) return;
+    if (!name.trim()) return;
     setLoading(true);
     setError(null);
     setResult(null);
 
+    // 티커 없으면 종목명으로 자동 검색
+    let resolvedTicker = ticker.trim();
+    let resolvedName = name.trim();
+    let resolvedMarket = market;
+    if (!resolvedTicker) {
+      try {
+        const sr = await fetch(`/api/alpha/ticker-search?q=${encodeURIComponent(resolvedName)}`);
+        if (sr.ok) {
+          const matches = await sr.json() as { ticker: string; name: string; market: string }[];
+          if (matches.length > 0) {
+            resolvedTicker = matches[0].ticker;
+            resolvedName = matches[0].name;
+            resolvedMarket = matches[0].market === "KR" ? "KR" : "US";
+            setTicker(resolvedTicker);
+            setName(resolvedName);
+            setMarket(resolvedMarket);
+          }
+        }
+      } catch { /* use name as-is */ }
+    }
+
     const res = await fetch("/api/alpha/analysis", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ticker: ticker.toUpperCase(), name, market }),
+      body: JSON.stringify({ ticker: (resolvedTicker || resolvedName).toUpperCase(), name: resolvedName, market: resolvedMarket }),
     });
 
     setLoading(false);
@@ -45,23 +66,22 @@ export default function JkpAnalysis() {
     <div className="space-y-5">
       <form onSubmit={handleAnalyze} className="flex flex-wrap items-end gap-2">
         <label className="flex flex-col gap-1">
-          <span className="text-[10px] text-zinc-500 uppercase tracking-wider">티커</span>
+          <span className="text-[10px] text-zinc-500 uppercase tracking-wider">종목명 <span className="text-zinc-600 normal-case">(티커 자동 검색)</span></span>
           <input
             required
+            placeholder="삼성전자, AAPL, 엔비디아…"
+            value={name}
+            onChange={(e) => { setName(e.target.value); setTicker(""); }}
+            className={`${inputCls} w-48`}
+          />
+        </label>
+        <label className="flex flex-col gap-1">
+          <span className="text-[10px] text-zinc-500 uppercase tracking-wider">티커 <span className="text-zinc-600 normal-case">(선택)</span></span>
+          <input
             placeholder="005930.KS"
             value={ticker}
             onChange={(e) => setTicker(e.target.value)}
             className={`${inputCls} w-32`}
-          />
-        </label>
-        <label className="flex flex-col gap-1">
-          <span className="text-[10px] text-zinc-500 uppercase tracking-wider">종목명</span>
-          <input
-            required
-            placeholder="삼성전자"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            className={`${inputCls} w-36`}
           />
         </label>
         <label className="flex flex-col gap-1">

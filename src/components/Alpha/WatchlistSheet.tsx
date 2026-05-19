@@ -97,10 +97,29 @@ export default function WatchlistSheet() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
+
+    // 티커 없으면 종목명으로 자동 검색
+    let resolvedTicker = ticker.trim();
+    let resolvedName = name.trim();
+    let resolvedMarket = market;
+    if (!resolvedTicker && resolvedName) {
+      try {
+        const sr = await fetch(`/api/alpha/ticker-search?q=${encodeURIComponent(resolvedName)}`);
+        if (sr.ok) {
+          const matches = await sr.json() as { ticker: string; name: string; market: string }[];
+          if (matches.length > 0) {
+            resolvedTicker = matches[0].ticker;
+            resolvedName = matches[0].name;
+            resolvedMarket = matches[0].market === "KR" ? "KR" : "US";
+          }
+        }
+      } catch { /* use name as-is */ }
+    }
+
     const res = await fetch("/api/alpha/watchlist", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ticker: ticker.toUpperCase(), name, market, memo }),
+      body: JSON.stringify({ ticker: (resolvedTicker || resolvedName).toUpperCase(), name: resolvedName, market: resolvedMarket, memo }),
     });
     setSaving(false);
     if (res.ok) {
@@ -135,19 +154,15 @@ export default function WatchlistSheet() {
       {showForm && (
         <form onSubmit={handleSubmit} className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-4 space-y-3">
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-            <label className="flex flex-col gap-1 col-span-1">
-              <span className="text-[10px] text-zinc-500 uppercase tracking-wider">티커 *</span>
-              <input required placeholder="AAPL" value={ticker} onChange={(e) => setTicker(e.target.value)} className={inputCls} />
-            </label>
-            <label className="flex flex-col gap-1 col-span-1">
+            <label className="flex flex-col gap-1 col-span-2">
               <span className="text-[10px] text-zinc-500 uppercase tracking-wider">종목명 *</span>
               <div className="relative">
                 <div className="relative flex items-center">
                   <input
                     required
-                    placeholder="Apple"
+                    placeholder="삼성전자, AAPL, 엔비디아…"
                     value={name}
-                    onChange={(e) => handleNameChange(e.target.value)}
+                    onChange={(e) => { handleNameChange(e.target.value); setTicker(""); }}
                     onBlur={() => setTimeout(() => setShowDropdown(false), 200)}
                     onFocus={() => searchResults.length > 0 && setShowDropdown(true)}
                     className={inputCls}
