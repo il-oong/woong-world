@@ -606,11 +606,22 @@ ${fmtEventList(monthEvents.slice(0, 10))}
 ${monthlyPlans}`;
 }
 
+export type BriefingPerformance = {
+  yesterdayHabitRate: number | null;    // 0–100
+  yesterdayHabitChecked: number | null;
+  yesterdayHabitTotal: number | null;
+  weekHabitRate: number | null;         // 0–100
+  weekRoutineRate: number | null;       // 0–100
+  openTodos: number | null;
+  doneTodosToday: number | null;
+};
+
 export async function generateBriefingScript(
   secretaryName: string,
   events: CalendarEvent[],
   plans: Plan[],
   mode?: BriefingMode,
+  performance?: BriefingPerformance,
 ): Promise<string> {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) throw new Error("GEMINI_API_KEY not set");
@@ -633,17 +644,69 @@ export async function generateBriefingScript(
   // 끊기는 원인.)
   const maxTokens = resolvedMode === "monthly" ? 4000 : resolvedMode === "weekly" ? 2500 : 2000;
 
+  // Build performance feedback instruction
+  let performanceInstruction = "";
+  if (performance) {
+    const p = performance;
+    const lines: string[] = [];
+
+    if (p.yesterdayHabitRate !== null && p.yesterdayHabitTotal !== null && p.yesterdayHabitTotal > 0) {
+      const r = p.yesterdayHabitRate;
+      lines.push(`어제 습관 달성률: ${r}% (${p.yesterdayHabitChecked}/${p.yesterdayHabitTotal}개)`);
+      if (r < 30) {
+        lines.push("→ 어제 습관이 심각하게 부진했다. 강하게 야단치되, 포기하지 말라는 메시지를 줘.");
+      } else if (r < 60) {
+        lines.push("→ 어제 습관이 절반도 안 됐다. 날카롭게 지적하고 오늘은 반드시 달라져야 한다고 강조해.");
+      } else if (r < 80) {
+        lines.push("→ 어제 습관이 아쉬웠다. 부드럽게 독려하고 조금만 더 하면 된다고 동기부여해.");
+      } else {
+        lines.push("→ 어제 습관을 잘 지켰다. 진심으로 칭찬하고 오늘도 유지하라고 격려해.");
+      }
+    }
+
+    if (p.weekHabitRate !== null) {
+      const r = p.weekHabitRate;
+      lines.push(`이번주 습관 달성률: ${r}%`);
+      if (r < 40) lines.push("→ 이번 주 전반적으로 습관이 무너지고 있다. 경각심을 줘.");
+      else if (r >= 80) lines.push("→ 이번 주 습관이 훌륭하다. 한 번 더 칭찬해줘.");
+    }
+
+    if (p.weekRoutineRate !== null) {
+      const r = p.weekRoutineRate;
+      lines.push(`이번주 루틴 달성률: ${r}%`);
+      if (r < 50) lines.push("→ 루틴이 흔들리고 있다. 루틴의 중요성을 강조해.");
+      else if (r >= 80) lines.push("→ 루틴을 잘 지키고 있다. 칭찬해줘.");
+    }
+
+    if (p.openTodos !== null) {
+      lines.push(`미완료 할 일: ${p.openTodos}개`);
+      if (p.openTodos > 10) lines.push("→ 할 일이 쌓여 있다. 우선순위를 정하라고 촉구해.");
+      else if (p.openTodos === 0) lines.push("→ 할 일을 모두 처리했다. 칭찬해줘.");
+    }
+
+    if (p.doneTodosToday !== null && p.doneTodosToday > 0) {
+      lines.push(`오늘 완료한 할 일: ${p.doneTodosToday}개`);
+    }
+
+    if (lines.length > 0) {
+      performanceInstruction = `\n\n[실적 피드백 — 반드시 브리핑에 자연스럽게 녹여줘. 수치를 직접 언급하고, 잘한 건 칭찬, 못한 건 따끔하게 야단칠 것]\n${lines.join("\n")}`;
+    }
+  }
+
   const systemPrompt = `너는 "${secretaryName}"이라는 이름의 AI 비서야.
-오늘의 ${modeLabel} 브리핑을 자연스럽고 따뜻하게 읽어줘.
+오늘의 ${modeLabel} 브리핑을 읽어줘.
 
 규칙:
 - "안녕하세요, 저는 ${secretaryName}입니다" 또는 "${secretaryName}예요"로 시작
 - 오늘 날짜와 요일 언급
-- 제공된 데이터 순서대로 브리핑 (월간 → 주간 → 일간)
+- 실적 피드백이 있으면 두 번째 단락에서 자연스럽게 전달 (수치 포함해서 구체적으로)
+  - 잘했으면: 진심 어린 칭찬 + 오늘도 이어가자는 동기부여
+  - 부진했으면: 솔직하고 따끔하게 야단 (너무 가혹하지 않되, 분명하게) + 오늘 다시 시작하자는 메시지
+- 제공된 일정/계획 데이터 순서대로 브리핑 (월간 → 주간 → 일간)
 - 각 섹션 자연스럽게 이어서 읽히도록 구성
 - 짧고 자연스러운 마무리 인사
-- "주인님", "주인", "마스터" 같은 호칭은 절대 사용하지 말 것 (그냥 일정/계획 자체를 자연스럽게 설명)
-- 음성으로 읽기 좋게, JSON/마크다운/특수문자 없이 순수 텍스트`;
+- "주인님", "주인", "마스터" 같은 호칭은 절대 사용하지 말 것
+- 음성으로 읽기 좋게, JSON/마크다운/특수문자 없이 순수 텍스트${performanceInstruction}`;
 
   const userPrompt = sections.join("\n\n");
 

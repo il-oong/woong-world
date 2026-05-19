@@ -4,17 +4,14 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { CalendarWidget } from "./CalendarWidget";
 import { BriefingPlayer } from "./BriefingPlayer";
-import { TodoHomeWidget } from "./TodoHomeWidget";
-import { RoutineHomeWidget } from "./RoutineHomeWidget";
+import AlphaHomeWidget from "./Alpha/AlphaHomeWidget";
 
 type WidgetId =
   | "briefing"
   | "calendar"
   | "plans"
-  | "todo"
-  | "routine"
-  | "subscription"
-  | "life-dashboard";
+  | "life-dashboard"
+  | "alpha";
 
 const STORAGE_KEY = "wh-dashboard-config";
 
@@ -34,25 +31,16 @@ const WIDGET_META: Record<WidgetId, WidgetMeta> = {
   briefing: { id: "briefing", label: "아침 브리핑", span: 2 },
   calendar: { id: "calendar", label: "캘린더", span: 2 },
   plans: { id: "plans", label: "계획 관리", span: 1 },
-  todo: { id: "todo", label: "할 일", span: 1 },
-  routine: { id: "routine", label: "루틴 트래커", span: 1, adminOnly: true },
-  subscription: {
-    id: "subscription",
-    label: "구독 관리",
-    span: 1,
-    adminOnly: true,
-  },
   "life-dashboard": { id: "life-dashboard", label: "라이프 대시보드", span: 1 },
+  alpha: { id: "alpha", label: "ALPHA 투자 분석", span: 1 },
 };
 
 const DEFAULT_ORDER: WidgetId[] = [
   "briefing",
   "calendar",
   "plans",
-  "todo",
   "life-dashboard",
-  "routine",
-  "subscription",
+  "alpha",
 ];
 
 function loadConfig(): DashboardConfig {
@@ -64,9 +52,7 @@ function loadConfig(): DashboardConfig {
     if (!stored) return { order: DEFAULT_ORDER, hidden: [] };
     const parsed = JSON.parse(stored) as Partial<DashboardConfig>;
     return {
-      order: Array.isArray(parsed.order)
-        ? (parsed.order as WidgetId[])
-        : DEFAULT_ORDER,
+      order: Array.isArray(parsed.order) ? (parsed.order as WidgetId[]) : DEFAULT_ORDER,
       hidden: Array.isArray(parsed.hidden) ? (parsed.hidden as WidgetId[]) : [],
     };
   } catch {
@@ -103,13 +89,11 @@ export function HomeDashboard({
     saveConfig(next);
   };
 
-  // Filter to widgets the current user is allowed to see.
   const availableIds: WidgetId[] = (Object.keys(WIDGET_META) as WidgetId[]).filter(
     (id) => !WIDGET_META[id].adminOnly || isAdmin,
   );
   const availableSet = new Set(availableIds);
 
-  // Resolve final ordering: respect stored order, then append newly-added widgets.
   const inConfig = new Set(config.order);
   const orphans = availableIds.filter((id) => !inConfig.has(id));
   const allOrdered: WidgetId[] = [
@@ -251,22 +235,6 @@ function Widget({
           footer="인생 · 회사 · VFX · 앱개발 · 재즈"
         />
       );
-    case "todo":
-      return <TodoHomeWidget />;
-    case "routine":
-      return <RoutineHomeWidget />;
-    case "subscription":
-      return (
-        <LinkCard
-          href="/apps/subscription"
-          accentClass="text-amber-300"
-          hoverClass="hover:border-amber-400/40"
-          kicker="biseo / subscription"
-          title="구독 관리"
-          desc="결제일 자동 캘린더 등록 + 월 합산."
-          footer="캘린더 연동 · 비용"
-        />
-      );
     case "life-dashboard":
       return (
         <LinkCard
@@ -275,10 +243,12 @@ function Widget({
           hoverClass="hover:border-blue-400/40"
           kicker="biseo / life"
           title="라이프 대시보드"
-          desc="습관 트래커, 연간 목표, 로드맵, 재정 오버뷰를 한 곳에."
-          footer="습관 · 목표 · 재정"
+          desc="루틴·할일·습관·목표·재정·구독을 한 곳에서. 1년 분석 그래프 포함."
+          footer="루틴 · 할일 · 습관 · 재정 · 분석"
         />
       );
+    case "alpha":
+      return <AlphaHomeWidget />;
   }
 }
 
@@ -305,9 +275,7 @@ function LinkCard({
       className={`group flex h-full flex-col justify-between rounded-xl border border-[var(--border)] bg-[var(--card)] p-5 transition ${hoverClass}`}
     >
       <div>
-        <p
-          className={`font-mono text-[10px] uppercase tracking-[0.3em] ${accentClass}`}
-        >
+        <p className={`font-mono text-[10px] uppercase tracking-[0.3em] ${accentClass}`}>
           {kicker}
         </p>
         <h2 className="mt-2 text-base font-medium">{title}</h2>
