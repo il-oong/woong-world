@@ -7,11 +7,13 @@ import JkpAnalysis from "./JkpAnalysis";
 import EconomicCalendar from "./EconomicCalendar";
 import InvestSettings from "./InvestSettings";
 import FearIndex from "./FearIndex";
+import StockRecommendations from "./StockRecommendations";
 
-type Tab = "fear" | "portfolio" | "watchlist" | "jkp" | "calendar" | "settings";
+type Tab = "fear" | "recs" | "portfolio" | "watchlist" | "jkp" | "calendar" | "settings";
 
 const TABS: { id: Tab; label: string }[] = [
   { id: "fear", label: "시장 공포" },
+  { id: "recs", label: "추천 종목" },
   { id: "portfolio", label: "포트폴리오" },
   { id: "watchlist", label: "관심종목" },
   { id: "jkp", label: "JKP 분석" },
@@ -45,6 +47,7 @@ export default function AlphaApp() {
       {/* Content */}
       <div>
         {tab === "fear" && <FearIndex />}
+        {tab === "recs" && <StockRecommendations />}
         {tab === "portfolio" && <PortfolioSheet />}
         {tab === "watchlist" && <WatchlistSheet />}
         {tab === "jkp" && <JkpAnalysis />}

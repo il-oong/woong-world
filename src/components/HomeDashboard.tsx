@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { CalendarWidget } from "./CalendarWidget";
 import { BriefingPlayer } from "./BriefingPlayer";
+import AlphaHomeWidget from "./Alpha/AlphaHomeWidget";
 
 type WidgetId =
   | "briefing"
@@ -247,17 +248,7 @@ function Widget({
         />
       );
     case "alpha":
-      return (
-        <LinkCard
-          href="/apps/alpha"
-          accentClass="text-amber-400"
-          hoverClass="hover:border-amber-500/40"
-          kicker="biseo / alpha"
-          title="ALPHA 투자 분석"
-          desc="JKP AI 분석으로 매수·매도 시점을 단정적으로 제시합니다. 포트폴리오·관심종목·경제 캘린더 통합."
-          footer="JKP 분석 · 포트폴리오 · 경제 캘린더"
-        />
-      );
+      return <AlphaHomeWidget />;
   }
 }
 
