@@ -5,19 +5,21 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const ITEMS = [
-  { href: "/", label: "홈" },
-  { href: "/calendar", label: "일정" },
-  { href: "/plans", label: "계획" },
-  { href: "/guide", label: "설정 가이드" },
+  { href: "/", label: "홈", amber: false },
+  { href: "/calendar", label: "일정", amber: false },
+  { href: "/plans", label: "계획", amber: false },
+  { href: "/alpha", label: "주식", amber: true },
+  { href: "/guide", label: "설정 가이드", amber: false },
 ];
 
 const ADMIN_ITEMS = [
-  { href: "/", label: "허브" },
-  { href: "/calendar", label: "일정" },
-  { href: "/plans", label: "계획" },
-  { href: "/plugins", label: "플러그인" },
-  { href: "/admin/people", label: "관리자" },
-  { href: "/guide", label: "설정 가이드" },
+  { href: "/", label: "허브", amber: false },
+  { href: "/calendar", label: "일정", amber: false },
+  { href: "/plans", label: "계획", amber: false },
+  { href: "/alpha", label: "주식", amber: true },
+  { href: "/plugins", label: "플러그인", amber: false },
+  { href: "/admin/people", label: "관리자", amber: false },
+  { href: "/guide", label: "설정 가이드", amber: false },
 ];
 
 export function TopNav() {
@@ -95,7 +97,15 @@ export function TopNav() {
               it.href === "/"
                 ? pathname === "/"
                 : pathname.startsWith(it.href);
-            return (
+            return it.amber ? (
+              <Link
+                key={it.href}
+                href={it.href}
+                className={`shrink-0 whitespace-nowrap rounded-md px-2 py-1.5 transition sm:px-2.5 font-medium ${active ? "text-amber-300 bg-amber-500/10" : "text-amber-400 hover:text-amber-300"}`}
+              >
+                {it.label}
+              </Link>
+            ) : (
               <Link
                 key={it.href}
                 href={it.href}

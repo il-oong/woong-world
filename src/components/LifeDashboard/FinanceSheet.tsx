@@ -33,7 +33,6 @@ export default function FinanceSheet() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
-  const [showSubs, setShowSubs] = useState(false);
 
   useEffect(() => {
     Promise.all([
@@ -188,14 +187,11 @@ export default function FinanceSheet() {
         {/* Subscription rows (read-only, auto-synced) */}
         <div>
           <div className="divide-y divide-zinc-800/60">
-            <div
-              className="flex items-center justify-between px-4 py-2.5 bg-orange-500/5 cursor-pointer"
-              onClick={() => setShowSubs((v) => !v)}
-            >
+            <div className="flex items-center justify-between px-4 py-2.5 bg-orange-500/5">
               <span className="text-xs text-orange-400">구독료 ({subs.length}개) — 자동 연동</span>
-              <span className="text-xs text-orange-400 font-mono">₩{subMonthly.toLocaleString()} {showSubs ? "▲" : "▼"}</span>
+              <span className="text-xs text-orange-400 font-mono">₩{subMonthly.toLocaleString()}</span>
             </div>
-            {showSubs && subs.map((s) => {
+            {subs.map((s) => {
               const monthly = s.cycle === "yearly" ? Math.round(s.amount / 12) : s.amount;
               return (
                 <div key={s.id} className="grid grid-cols-[80px_1fr_140px] divide-x divide-zinc-800/60 opacity-70">

@@ -6,6 +6,8 @@ import { CalendarWidget } from "./CalendarWidget";
 import { BriefingPlayer } from "./BriefingPlayer";
 import AlphaHomeWidget from "./Alpha/AlphaHomeWidget";
 import StockBanner from "./Alpha/StockBanner";
+import HomeLifeWidget from "./HomeLifeWidget";
+import HomePlansWidget from "./HomePlansWidget";
 
 type WidgetId =
   | "briefing"
@@ -230,29 +232,9 @@ function Widget({
     case "calendar":
       return <CalendarWidget />;
     case "plans":
-      return (
-        <LinkCard
-          href="/plans"
-          accentClass="text-[var(--accent)]"
-          hoverClass="hover:border-[var(--accent)]/50"
-          kicker="biseo / plans"
-          title="계획 관리"
-          desc="주간 / 월간 / 연간 계획을 카테고리별로 정리하고 Gemini로 보완점을 받습니다."
-          footer="인생 · 회사 · VFX · 앱개발 · 재즈"
-        />
-      );
+      return <HomePlansWidget />;
     case "life-dashboard":
-      return (
-        <LinkCard
-          href="/apps/life-dashboard"
-          accentClass="text-blue-400"
-          hoverClass="hover:border-blue-400/40"
-          kicker="biseo / life"
-          title="라이프 대시보드"
-          desc="루틴·할일·습관·목표·재정·구독을 한 곳에서. 1년 분석 그래프 포함."
-          footer="루틴 · 할일 · 습관 · 재정 · 분석"
-        />
-      );
+      return <HomeLifeWidget />;
     case "alpha":
       return <AlphaHomeWidget />;
   }

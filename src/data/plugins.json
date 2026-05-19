@@ -28,7 +28,7 @@
   {
     "id": "life-dashboard",
     "name": "라이프 대시보드",
-    "description": "습관 트래커, 연간 목표, 로드맵, 재정 오버뷰를 한 곳에.",
+    "description": "루틴·습관·목표·재정·구독을 한 곳에서 관리.",
     "repo": "il-oong/woong-world",
     "branch": "main",
     "pr": null,
@@ -36,7 +36,7 @@
     "url": null,
     "embeddable": true,
     "accent": "#60a5fa",
-    "tags": ["습관", "목표", "재정"]
+    "tags": ["루틴", "목표", "재정"]
   },
   {
     "id": "alpha",
@@ -45,7 +45,7 @@
     "repo": "il-oong/woong-world",
     "branch": "main",
     "pr": null,
-    "path": "/apps/alpha",
+    "path": "/alpha",
     "url": null,
     "embeddable": true,
     "accent": "#f59e0b",

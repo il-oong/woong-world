@@ -113,6 +113,12 @@ export type FearIndexData = {
   usTreasury10y: { price: number | null; changePercent: number | null };
   dxy: { price: number | null; changePercent: number | null };
   cryptoFearGreed: { value: number; label: string } | null;
+  // Extended indicators
+  oil: { price: number | null; changePercent: number | null };
+  silver: { price: number | null; changePercent: number | null };
+  bitcoin: { price: number | null; changePercent: number | null };
+  semiconductor: { price: number | null; changePercent: number | null };
+  usdKrw: { price: number | null; changePercent: number | null };
   fetchedAt: number;
 };
 
@@ -120,7 +126,7 @@ export async function GET() {
   const session = await getValidSession();
   if (!session?.email) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const [vixQ, vkospiQ, sp500Q, kospiQ, nasdaqQ, goldQ, tnxQ, dxyQ, cryptoFG] =
+  const [vixQ, vkospiQ, sp500Q, kospiQ, nasdaqQ, goldQ, tnxQ, dxyQ, cryptoFG, oilQ, silverQ, btcQ, soxxQ, usdKrwQ] =
     await Promise.all([
       fetchYahooQuote("^VIX"),
       fetchYahooQuote("^VKOSPI"),
@@ -131,6 +137,11 @@ export async function GET() {
       fetchYahooQuote("^TNX"),
       fetchYahooQuote("DX-Y.NYB"),
       fetchCryptoFearGreed(),
+      fetchYahooQuote("CL=F"),
+      fetchYahooQuote("SI=F"),
+      fetchYahooQuote("BTC-USD"),
+      fetchYahooQuote("SOXX"),
+      fetchYahooQuote("KRW=X"),
     ]);
 
   const score = fearScore(vixQ.price, vkospiQ.price, cryptoFG?.value ?? null);
@@ -155,6 +166,11 @@ export async function GET() {
     usTreasury10y: { price: tnxQ.price, changePercent: tnxQ.changePercent },
     dxy: { price: dxyQ.price, changePercent: dxyQ.changePercent },
     cryptoFearGreed: cryptoFG,
+    oil: { price: oilQ.price, changePercent: oilQ.changePercent },
+    silver: { price: silverQ.price, changePercent: silverQ.changePercent },
+    bitcoin: { price: btcQ.price, changePercent: btcQ.changePercent },
+    semiconductor: { price: soxxQ.price, changePercent: soxxQ.changePercent },
+    usdKrw: { price: usdKrwQ.price, changePercent: usdKrwQ.changePercent },
     fetchedAt: Date.now(),
   };
 
