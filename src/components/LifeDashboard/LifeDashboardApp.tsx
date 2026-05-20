@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import dynamic from "next/dynamic";
 
 const HomeOverview = dynamic(() => import("./HomeOverview"), { ssr: false });
@@ -24,7 +25,14 @@ const TABS: { id: Tab; label: string; icon: string }[] = [
 ];
 
 export default function LifeDashboardApp() {
-  const [tab, setTab] = useState<Tab>("home");
+  const searchParams = useSearchParams();
+  const initialTab = (searchParams.get("tab") as Tab | null) ?? "home";
+  const [tab, setTab] = useState<Tab>(TABS.some(t => t.id === initialTab) ? initialTab : "home");
+
+  useEffect(() => {
+    const t = searchParams.get("tab") as Tab | null;
+    if (t && TABS.some(x => x.id === t)) setTab(t);
+  }, [searchParams]);
 
   return (
     <div className="space-y-5">
