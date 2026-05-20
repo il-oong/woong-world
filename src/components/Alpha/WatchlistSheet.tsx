@@ -149,8 +149,7 @@ export default function WatchlistSheet() {
 
       {showForm && (
         <form onSubmit={handleSubmit} className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-4 space-y-3">
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-            <div className="flex flex-col gap-1 col-span-2">
+          <div className="flex flex-col gap-1">
               <span className="text-[10px] text-zinc-500 uppercase tracking-wider">종목명 *</span>
               <div className="relative flex items-center">
                 <input
@@ -182,18 +181,12 @@ export default function WatchlistSheet() {
                   ))}
                 </div>
               )}
-            </div>
-            <label className="flex flex-col gap-1">
-              <span className="text-[10px] text-zinc-500 uppercase tracking-wider">시장</span>
-              <select value={market} onChange={(e) => setMarket(e.target.value as "KR" | "US")} className={inputCls}>
-                <option value="KR">KR</option>
-                <option value="US">US</option>
-              </select>
-            </label>
-            <label className="flex flex-col gap-1">
-              <span className="text-[10px] text-zinc-500 uppercase tracking-wider">메모</span>
-              <input placeholder="메모" value={memo} onChange={(e) => setMemo(e.target.value)} className={inputCls} />
-            </label>
+            <input
+              placeholder="메모 (선택)"
+              value={memo}
+              onChange={(e) => setMemo(e.target.value)}
+              className={inputCls}
+            />
           </div>
           <button type="submit" disabled={saving} className="rounded-md bg-amber-500/20 border border-amber-500/40 px-4 py-1.5 text-xs text-amber-300 hover:bg-amber-500/30 transition disabled:opacity-50">
             {saving ? "저장 중…" : "추가"}
