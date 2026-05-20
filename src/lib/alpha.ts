@@ -56,6 +56,7 @@ export type InvestSettings = {
     lynch: number;
   };
   defaultStopLossRate: number;
+  cashBalance?: number; // 보유 현금 (원화 기준)
 };
 
 export type JkpAnalysisResult = {
