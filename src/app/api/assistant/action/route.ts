@@ -1,6 +1,7 @@
 import { type NextRequest } from "next/server";
 import { createEvent, getValidSession } from "@/lib/google";
 import { createPlan, updatePlan } from "@/lib/plans";
+import { addRoutine } from "@/lib/routines";
 import {
   isAssistantStorageConfigured,
   updateActionStatus,
@@ -90,6 +91,14 @@ export async function POST(req: NextRequest) {
         );
       }
       return Response.json({ ok: true, status: "approved", result: { plan } });
+    }
+    if (r.action.type === "create_routine") {
+      const routine = await addRoutine(
+        session.email,
+        r.action.params.name,
+        r.action.params.weekdays,
+      );
+      return Response.json({ ok: true, status: "approved", result: { routine } });
     }
     if (r.action.type === "suggest_command") {
       // No server execution — the user runs the command locally. Approval just

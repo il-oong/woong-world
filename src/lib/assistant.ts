@@ -52,6 +52,15 @@ export type ProposedAction =
     }
   | {
       id: string;
+      type: "create_routine";
+      status: "pending" | "approved" | "rejected";
+      params: {
+        name: string;
+        weekdays?: number[]; // 0=Sun,1=Mon,...,6=Sat. empty = every day
+      };
+    }
+  | {
+      id: string;
       // Suggest a shell command for the user to run locally — not executed by the server.
       // The UI offers a copy button and an explanation.
       type: "suggest_command";

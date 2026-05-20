@@ -172,6 +172,8 @@ const CHAT_SYSTEM_PROMPT = `너는 사용자의 인생 비서다 ("뇌 대리").
   <action>{"type":"add_event","params":{"summary":"...","kind":"timed","start":"2026-04-27T10:00","end":"2026-04-27:11:00","categoryId":"company","reminderMinutes":30}}</action>
   <action>{"type":"create_plan","params":{"period":"weekly","periodKey":"2026-W18","title":"...","items":[{"text":"..."}],"categoryId":"life"}}</action>
   <action>{"type":"update_plan","params":{"planId":"pl_...","patch":{"title":"..."}}}</action>
+  <action>{"type":"create_routine","params":{"name":"아침 맨몸운동 15분","weekdays":[1,2,3,4,5,6,0]}}</action>
+- weekdays 배열: 0=일,1=월,2=화,3=수,4=목,5=금,6=토. 빈 배열이면 매일.
 - 액션은 최종적으로 사용자가 [승인] 버튼을 눌러야만 실행된다. 자유롭게 제안하되, 사용자 의도가 불분명하면 먼저 물어봐라.
 - categoryId는 다음 중 하나: "life"(인생), "company"(회사), "vfx"(VFX), "appdev"(앱개발), "jazz"(재즈)
 - 시간은 ISO 8601 (한국 시간 기준 'Asia/Seoul'). timed면 'YYYY-MM-DDTHH:mm', allday/project면 'YYYY-MM-DD'.

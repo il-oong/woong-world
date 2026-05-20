@@ -127,6 +127,9 @@ function ActionCard({
             {action.type === "suggest_command" && (
               <SuggestCommandBody params={action.params} />
             )}
+            {action.type === "create_routine" && (
+              <CreateRoutineBody params={action.params} />
+            )}
           </div>
 
           {action.status === "pending" && action.type === "suggest_command" && (
@@ -685,7 +688,27 @@ function labelForType(type: ProposedAction["type"]): string {
       return "✎ 계획 수정";
     case "suggest_command":
       return "⌘ 명령어 제안";
+    case "create_routine":
+      return "+ 루틴 추가";
   }
+}
+
+const WEEKDAY_LABELS = ["일", "월", "화", "수", "목", "금", "토"];
+
+function CreateRoutineBody({
+  params,
+}: {
+  params: Extract<ProposedAction, { type: "create_routine" }>["params"];
+}) {
+  const days = params.weekdays?.length
+    ? params.weekdays.map((d) => WEEKDAY_LABELS[d]).join("/")
+    : "매일";
+  return (
+    <div className="space-y-1">
+      <p className="font-medium text-foreground">{params.name}</p>
+      <p className="text-[var(--muted)]">반복: {days}</p>
+    </div>
+  );
 }
 
 function StatusBadge({ status }: { status: ProposedAction["status"] }) {
