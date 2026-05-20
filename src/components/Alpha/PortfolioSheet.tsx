@@ -85,7 +85,6 @@ export default function PortfolioSheet() {
   // Ticker search state
   const [searchResults, setSearchResults] = useState<TickerMatch[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
-  const [showDropdown, setShowDropdown] = useState(false);
   const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Agent suggestion state (form)
@@ -144,7 +143,6 @@ export default function PortfolioSheet() {
 
     if (value.trim().length < 1) {
       setSearchResults([]);
-      setShowDropdown(false);
       return;
     }
 
@@ -155,7 +153,6 @@ export default function PortfolioSheet() {
         if (res.ok) {
           const data = await res.json() as TickerMatch[];
           setSearchResults(data);
-          setShowDropdown(data.length > 0);
         }
       } catch {
         // ignore
@@ -172,7 +169,6 @@ export default function PortfolioSheet() {
       market: (match.market === "KR" ? "KR" : "US") as "KR" | "US",
     };
     setForm((f) => ({ ...f, ...updated }));
-    setShowDropdown(false);
     setSearchResults([]);
     setAgentSuggestion(null);
     // Auto-trigger agent analysis
@@ -371,42 +367,39 @@ export default function PortfolioSheet() {
         >
           {/* Step 1: 종목명 검색 */}
           <Field label="종목명 검색" required>
-            <div className="relative">
-              <div className="relative flex items-center">
-                <input
-                  required
-                  placeholder="삼성전자, AAPL, 엔비디아…"
-                  value={form.name}
-                  onChange={(e) => handleNameChange(e.target.value)}
-                  onBlur={() => setTimeout(() => setShowDropdown(false), 200)}
-                  onFocus={() => searchResults.length > 0 && setShowDropdown(true)}
-                  className={inputCls}
-                />
-                {searchLoading && (
-                  <span className="absolute right-2 top-1/2 -translate-y-1/2 text-zinc-500 text-[10px]">⏳</span>
-                )}
-                {form.ticker && !searchLoading && (
-                  <span className="absolute right-2 top-1/2 -translate-y-1/2 text-amber-400 text-[10px] font-mono">{form.ticker}</span>
-                )}
-              </div>
-              {showDropdown && searchResults.length > 0 && (
-                <div className="absolute top-full left-0 right-0 z-50 mt-1 rounded-lg border border-zinc-700 bg-zinc-900 shadow-xl overflow-hidden">
-                  {searchResults.map((r) => (
-                    <div
-                      key={r.ticker}
-                      onMouseDown={() => handleSelectTicker(r)}
-                      className="px-3 py-2 text-xs hover:bg-zinc-800 cursor-pointer flex items-center gap-2"
-                    >
-                      <span className="font-mono text-amber-400">{r.ticker}</span>
-                      <span className="text-zinc-300 flex-1 truncate">{r.name}</span>
-                      <span className={`rounded px-1 py-0.5 text-[10px] ${r.market === "KR" ? "bg-zinc-800 text-zinc-400" : "bg-blue-500/10 text-blue-400"}`}>
-                        {r.market === "OTHER" ? r.exchange : r.market}
-                      </span>
-                    </div>
-                  ))}
-                </div>
+            <div className="relative flex items-center">
+              <input
+                required
+                placeholder="삼성전자, AAPL, 엔비디아…"
+                value={form.name}
+                onChange={(e) => handleNameChange(e.target.value)}
+                className={inputCls}
+              />
+              {searchLoading && (
+                <span className="absolute right-2 top-1/2 -translate-y-1/2 text-zinc-500 text-[10px]">⏳</span>
+              )}
+              {form.ticker && !searchLoading && (
+                <span className="absolute right-2 top-1/2 -translate-y-1/2 text-amber-400 text-[10px] font-mono">{form.ticker}</span>
               )}
             </div>
+            {searchResults.length > 0 && (
+              <div className="mt-1 rounded-lg border border-zinc-700 bg-zinc-900/95 overflow-hidden">
+                {searchResults.map((r) => (
+                  <button
+                    key={r.ticker}
+                    type="button"
+                    onClick={() => handleSelectTicker(r)}
+                    className="w-full px-3 py-2 text-xs hover:bg-zinc-800 cursor-pointer flex items-center gap-2 text-left"
+                  >
+                    <span className="font-mono text-amber-400">{r.ticker}</span>
+                    <span className="text-zinc-300 flex-1 truncate">{r.name}</span>
+                    <span className={`rounded px-1 py-0.5 text-[10px] ${r.market === "KR" ? "bg-zinc-800 text-zinc-400" : "bg-blue-500/10 text-blue-400"}`}>
+                      {r.market === "OTHER" ? r.exchange : r.market}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
           </Field>
 
           {/* Step 2: 수량 + 매수가 */}

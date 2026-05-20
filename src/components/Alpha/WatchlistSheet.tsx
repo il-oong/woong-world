@@ -26,7 +26,6 @@ export default function WatchlistSheet() {
   // Ticker search state
   const [searchResults, setSearchResults] = useState<TickerMatch[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
-  const [showDropdown, setShowDropdown] = useState(false);
   const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const fetchItems = useCallback(async () => {
@@ -65,7 +64,6 @@ export default function WatchlistSheet() {
 
     if (value.trim().length < 1) {
       setSearchResults([]);
-      setShowDropdown(false);
       return;
     }
 
@@ -76,7 +74,6 @@ export default function WatchlistSheet() {
         if (res.ok) {
           const data = await res.json() as TickerMatch[];
           setSearchResults(data);
-          setShowDropdown(data.length > 0);
         }
       } catch {
         // ignore
@@ -90,7 +87,6 @@ export default function WatchlistSheet() {
     setTicker(match.ticker);
     setName(match.name);
     setMarket(match.market === "KR" ? "KR" : "US");
-    setShowDropdown(false);
     setSearchResults([]);
   };
 
@@ -154,44 +150,39 @@ export default function WatchlistSheet() {
       {showForm && (
         <form onSubmit={handleSubmit} className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-4 space-y-3">
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-            <label className="flex flex-col gap-1 col-span-2">
+            <div className="flex flex-col gap-1 col-span-2">
               <span className="text-[10px] text-zinc-500 uppercase tracking-wider">종목명 *</span>
-              <div className="relative">
-                <div className="relative flex items-center">
-                  <input
-                    required
-                    placeholder="삼성전자, AAPL, 엔비디아…"
-                    value={name}
-                    onChange={(e) => { handleNameChange(e.target.value); setTicker(""); }}
-                    onBlur={() => setTimeout(() => setShowDropdown(false), 200)}
-                    onFocus={() => searchResults.length > 0 && setShowDropdown(true)}
-                    className={inputCls}
-                  />
-                  {searchLoading && (
-                    <span className="absolute right-2 top-1/2 -translate-y-1/2 text-zinc-500 text-[10px]">
-                      ⏳
-                    </span>
-                  )}
-                </div>
-                {showDropdown && searchResults.length > 0 && (
-                  <div className="absolute top-full left-0 right-0 z-50 mt-1 rounded-lg border border-zinc-700 bg-zinc-900 shadow-xl overflow-hidden">
-                    {searchResults.map((r) => (
-                      <div
-                        key={r.ticker}
-                        onMouseDown={() => handleSelectTicker(r)}
-                        className="px-3 py-2 text-xs hover:bg-zinc-800 cursor-pointer flex items-center gap-2"
-                      >
-                        <span className="font-mono text-amber-400">{r.ticker}</span>
-                        <span className="text-zinc-300 flex-1 truncate">{r.name}</span>
-                        <span className={`rounded px-1 py-0.5 text-[10px] ${r.market === "KR" ? "bg-zinc-800 text-zinc-400" : "bg-blue-500/10 text-blue-400"}`}>
-                          {r.market === "OTHER" ? r.exchange : r.market}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
+              <div className="relative flex items-center">
+                <input
+                  required
+                  placeholder="삼성전자, AAPL, 엔비디아…"
+                  value={name}
+                  onChange={(e) => { handleNameChange(e.target.value); setTicker(""); }}
+                  className={inputCls}
+                />
+                {searchLoading && (
+                  <span className="absolute right-2 top-1/2 -translate-y-1/2 text-zinc-500 text-[10px]">⏳</span>
                 )}
               </div>
-            </label>
+              {searchResults.length > 0 && (
+                <div className="rounded-lg border border-zinc-700 bg-zinc-900/95 overflow-hidden">
+                  {searchResults.map((r) => (
+                    <button
+                      key={r.ticker}
+                      type="button"
+                      onClick={() => handleSelectTicker(r)}
+                      className="w-full px-3 py-2 text-xs hover:bg-zinc-800 flex items-center gap-2 text-left"
+                    >
+                      <span className="font-mono text-amber-400">{r.ticker}</span>
+                      <span className="text-zinc-300 flex-1 truncate">{r.name}</span>
+                      <span className={`rounded px-1 py-0.5 text-[10px] ${r.market === "KR" ? "bg-zinc-800 text-zinc-400" : "bg-blue-500/10 text-blue-400"}`}>
+                        {r.market === "OTHER" ? r.exchange : r.market}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
             <label className="flex flex-col gap-1">
               <span className="text-[10px] text-zinc-500 uppercase tracking-wider">시장</span>
               <select value={market} onChange={(e) => setMarket(e.target.value as "KR" | "US")} className={inputCls}>

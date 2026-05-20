@@ -21,7 +21,6 @@ export default function JkpAnalysis() {
 
   const [searchResults, setSearchResults] = useState<TickerMatch[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
-  const [showDropdown, setShowDropdown] = useState(false);
   const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const handleNameChange = (value: string) => {
@@ -30,7 +29,6 @@ export default function JkpAnalysis() {
     if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
     if (value.trim().length < 1) {
       setSearchResults([]);
-      setShowDropdown(false);
       return;
     }
     searchTimerRef.current = setTimeout(async () => {
@@ -40,7 +38,6 @@ export default function JkpAnalysis() {
         if (res.ok) {
           const data = await res.json() as TickerMatch[];
           setSearchResults(data);
-          setShowDropdown(data.length > 0);
         }
       } catch { /* ignore */ }
       finally { setSearchLoading(false); }
@@ -51,7 +48,6 @@ export default function JkpAnalysis() {
     setTicker(match.ticker);
     setName(match.name);
     setMarket(match.market === "KR" ? "KR" : "US");
-    setShowDropdown(false);
     setSearchResults([]);
   };
 
@@ -104,15 +100,13 @@ export default function JkpAnalysis() {
       <form onSubmit={handleAnalyze} className="flex flex-wrap items-end gap-2">
         <label className="flex flex-col gap-1">
           <span className="text-[10px] text-zinc-500 uppercase tracking-wider">종목명</span>
-          <div className="relative">
+          <div className="flex flex-col gap-1">
             <div className="relative flex items-center">
               <input
                 required
                 placeholder="삼성전자, AAPL, 엔비디아…"
                 value={name}
                 onChange={(e) => handleNameChange(e.target.value)}
-                onBlur={() => setTimeout(() => setShowDropdown(false), 200)}
-                onFocus={() => searchResults.length > 0 && setShowDropdown(true)}
                 className={`${inputCls} w-52`}
               />
               {searchLoading && (
@@ -122,20 +116,21 @@ export default function JkpAnalysis() {
                 <span className="absolute right-2 top-1/2 -translate-y-1/2 text-amber-400 text-[10px] font-mono">{ticker}</span>
               )}
             </div>
-            {showDropdown && searchResults.length > 0 && (
-              <div className="absolute top-full left-0 right-0 z-50 mt-1 rounded-lg border border-zinc-700 bg-zinc-900 shadow-xl overflow-hidden min-w-[240px]">
+            {searchResults.length > 0 && (
+              <div className="rounded-lg border border-zinc-700 bg-zinc-900/95 overflow-hidden w-64">
                 {searchResults.map((r) => (
-                  <div
+                  <button
                     key={r.ticker}
-                    onMouseDown={() => handleSelect(r)}
-                    className="px-3 py-2 text-xs hover:bg-zinc-800 cursor-pointer flex items-center gap-2"
+                    type="button"
+                    onClick={() => handleSelect(r)}
+                    className="w-full px-3 py-2 text-xs hover:bg-zinc-800 flex items-center gap-2 text-left"
                   >
-                    <span className="font-mono text-amber-400">{r.ticker}</span>
+                    <span className="font-mono text-amber-400 shrink-0">{r.ticker}</span>
                     <span className="text-zinc-300 flex-1 truncate">{r.name}</span>
-                    <span className={`rounded px-1 py-0.5 text-[10px] ${r.market === "KR" ? "bg-zinc-800 text-zinc-400" : "bg-blue-500/10 text-blue-400"}`}>
+                    <span className={`rounded px-1 py-0.5 text-[10px] shrink-0 ${r.market === "KR" ? "bg-zinc-800 text-zinc-400" : "bg-blue-500/10 text-blue-400"}`}>
                       {r.market}
                     </span>
-                  </div>
+                  </button>
                 ))}
               </div>
             )}
