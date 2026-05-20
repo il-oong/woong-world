@@ -62,9 +62,18 @@ export type FinanceLine = {
   amount: number;
 };
 
+export type OneTimeEntry = {
+  id: string;
+  month: number; // 1-12
+  label: string;
+  amount: number;
+  type: "income" | "expense";
+};
+
 export type Finance = {
   year: number;
   lines: FinanceLine[];
+  oneTimeEntries?: OneTimeEntry[];
 };
 
 // ── Redis singleton ───────────────────────────────────────────────────────────
