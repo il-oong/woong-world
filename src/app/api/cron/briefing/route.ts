@@ -156,13 +156,9 @@ export async function GET(req: NextRequest) {
     return Response.json({ skipped: "tts_not_configured" });
   }
 
-  const seoulHour = new Date(
-    new Date().toLocaleString("en-US", { timeZone: "Asia/Seoul" }),
-  ).getHours();
-
   const emails = await getAllSessionEmails();
   if (emails.length === 0) {
-    return Response.json({ processed: 0, hour: seoulHour });
+    return Response.json({ processed: 0 });
   }
 
   const results: { email: string; status: string }[] = [];
@@ -170,12 +166,6 @@ export async function GET(req: NextRequest) {
   for (const email of emails) {
     try {
       const profile = await getProfile(email);
-      // 프로필 없으면 기본 6시, 있으면 설정된 시간 체크
-      const targetHour = profile?.briefingHour ?? 6;
-      if (targetHour !== seoulHour) {
-        results.push({ email, status: "skipped" });
-        continue;
-      }
 
       let session = await getSessionFromRedis(email);
       if (!session) {
@@ -236,5 +226,5 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  return Response.json({ processed: results.length, results, hour: seoulHour });
+  return Response.json({ processed: results.length, results });
 }
