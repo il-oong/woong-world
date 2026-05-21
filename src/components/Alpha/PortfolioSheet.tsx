@@ -82,6 +82,11 @@ export default function PortfolioSheet() {
   const [saving, setSaving] = useState(false);
   const [priceLoading, setPriceLoading] = useState(false);
 
+  // Cash balance
+  const [cashBalance, setCashBalance] = useState<number>(0);
+  const [cashInput, setCashInput] = useState("");
+  const [cashSaving, setCashSaving] = useState(false);
+
   // Ticker search state
   const [searchResults, setSearchResults] = useState<TickerMatch[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
@@ -128,11 +133,30 @@ export default function PortfolioSheet() {
 
   useEffect(() => {
     fetchHoldings();
+    fetch("/api/alpha/settings").then((r) => r.json()).then((d) => {
+      if (typeof d.cashBalance === "number") {
+        setCashBalance(d.cashBalance);
+        setCashInput(d.cashBalance > 0 ? String(d.cashBalance) : "");
+      }
+    });
   }, [fetchHoldings]);
 
   useEffect(() => {
     if (holdings.length) fetchPrices(holdings);
   }, [holdings, fetchPrices]);
+
+  async function saveCash() {
+    const val = Number(cashInput.replace(/[^0-9]/g, "")) || 0;
+    setCashSaving(true);
+    const settings = await fetch("/api/alpha/settings").then((r) => r.json());
+    await fetch("/api/alpha/settings", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...settings, cashBalance: val }),
+    });
+    setCashBalance(val);
+    setCashSaving(false);
+  }
 
   // Ticker name search with debounce
   const handleNameChange = (value: string) => {
@@ -344,8 +368,41 @@ export default function PortfolioSheet() {
     }
   };
 
+  // 총 자산 계산
+  const stockValue = holdings.reduce((sum, h) => {
+    const price = prices[h.ticker]?.price;
+    return sum + (price !== null && price !== undefined ? price * h.qty : h.avgBuyPrice * h.qty);
+  }, 0);
+  const stockCost = holdings.reduce((sum, h) => sum + h.avgBuyPrice * h.qty, 0);
+  const totalAsset = stockValue + cashBalance;
+  const totalProfitPct = stockCost > 0 ? ((stockValue - stockCost) / stockCost) * 100 : 0;
+
   return (
     <div className="space-y-4">
+      {/* 자산 요약 카드 */}
+      {(holdings.length > 0 || cashBalance > 0) && (
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+          <SummaryCard label="총 자산" value={totalAsset} color="amber" />
+          <SummaryCard label="주식 평가금" value={stockValue} color={stockValue >= stockCost ? "emerald" : "rose"} suffix={stockCost > 0 ? `${totalProfitPct >= 0 ? "+" : ""}${totalProfitPct.toFixed(1)}%` : undefined} />
+          <SummaryCard label="매수 원가" value={stockCost} color="zinc" />
+          <SummaryCard label="현금" value={cashBalance} color="blue" />
+        </div>
+      )}
+
+      {/* 현금 보유금액 입력 */}
+      <div className="rounded-xl border border-zinc-800 bg-zinc-900/40 px-4 py-3 flex items-center gap-3">
+        <span className="text-xs text-zinc-400 shrink-0">현금 보유</span>
+        <input
+          value={cashInput}
+          onChange={(e) => setCashInput(e.target.value)}
+          onBlur={saveCash}
+          onKeyDown={(e) => e.key === "Enter" && saveCash()}
+          placeholder="₩0"
+          className="flex-1 bg-transparent text-sm text-white text-right focus:outline-none placeholder-zinc-700 font-mono"
+        />
+        {cashSaving && <span className="text-[10px] text-zinc-600">저장 중…</span>}
+      </div>
+
       <div className="flex items-center justify-between">
         <p className="text-xs text-zinc-500">
           {holdings.length}종목 보유
@@ -662,6 +719,26 @@ function Field({
       </span>
       {children}
     </label>
+  );
+}
+
+function SummaryCard({ label, value, color, suffix }: { label: string; value: number; color: string; suffix?: string }) {
+  const cls: Record<string, string> = {
+    amber: "text-amber-400 border-amber-500/20 bg-amber-500/5",
+    emerald: "text-emerald-400 border-emerald-500/20 bg-emerald-500/5",
+    rose: "text-rose-400 border-rose-500/20 bg-rose-500/5",
+    blue: "text-blue-400 border-blue-500/20 bg-blue-500/5",
+    zinc: "text-zinc-400 border-zinc-700 bg-zinc-800/40",
+  };
+  const c = cls[color] ?? cls.zinc;
+  return (
+    <div className={`rounded-xl border p-3 ${c}`}>
+      <p className="text-[10px] text-zinc-500 mb-1 leading-tight">{label}</p>
+      <p className={`text-sm font-bold font-mono ${c.split(" ")[0]}`}>
+        ₩{value.toLocaleString()}
+      </p>
+      {suffix && <p className={`text-[10px] font-mono mt-0.5 ${c.split(" ")[0]}`}>{suffix}</p>}
+    </div>
   );
 }
 

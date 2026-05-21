@@ -3,5 +3,5 @@ import { redirect } from "next/navigation";
 export const dynamic = "force-dynamic";
 
 export default function SubscriptionPage() {
-  redirect("/apps/life-dashboard");
+  redirect("/apps/life-dashboard?tab=finance");
 }
