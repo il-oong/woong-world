@@ -111,7 +111,7 @@ export async function POST(req: NextRequest) {
   const session = await getValidSession();
   if (!session?.email) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { ticker, name, market } = await req.json() as { ticker: string; name: string; market: string };
+  const { ticker, name, market, recommendationReason } = await req.json() as { ticker: string; name: string; market: string; recommendationReason?: string };
   if (!ticker || !name) return NextResponse.json({ error: "ticker, name required" }, { status: 400 });
 
   const apiKey = process.env.GEMINI_API_KEY;
@@ -124,11 +124,16 @@ export async function POST(req: NextRequest) {
 
   const systemPrompt = `너는 4명의 전설적 투자자들의 관점을 모두 이해하는 멀티에이전트 분석 시스템이다.
 각 에이전트의 철학에 충실하게 분석하되, 불확실해도 결론을 내린다.
+제공된 실시간 펀더멘털 데이터를 최우선으로 활용해 구체적 수치 근거로 결론을 내려라.
 반드시 JSON으로만 답하라 (코드펜스/설명 금지).`;
+
+  const recContext = recommendationReason
+    ? `\nJKP 추천 배경 (참고): ${recommendationReason}\n위 추천 배경과 실시간 데이터를 함께 고려하되, 데이터가 상충할 경우 실시간 데이터를 우선하고 이유를 reason에 명시하라.`
+    : "";
 
   const userPrompt = `종목: ${ticker} (${name}, ${market})
 실시간 데이터: ${fundamentals}
-현재가: ${priceData.price ?? "N/A"} (오늘 ${priceData.changePercent !== null ? `${priceData.changePercent > 0 ? "+" : ""}${priceData.changePercent.toFixed(2)}%` : "N/A"})
+현재가: ${priceData.price ?? "N/A"} (오늘 ${priceData.changePercent !== null ? `${priceData.changePercent > 0 ? "+" : ""}${priceData.changePercent.toFixed(2)}%` : "N/A"})${recContext}
 
 4명의 에이전트 관점 + 종합 분석을 다음 JSON으로만 답하라:
 {
@@ -194,7 +199,7 @@ export async function POST(req: NextRequest) {
     body: JSON.stringify({
       systemInstruction: { parts: [{ text: systemPrompt }] },
       contents: [{ role: "user", parts: [{ text: userPrompt }] }],
-      generationConfig: { temperature: 0.7, responseMimeType: "application/json" },
+      generationConfig: { temperature: 0.2, responseMimeType: "application/json" },
     }),
   });
 

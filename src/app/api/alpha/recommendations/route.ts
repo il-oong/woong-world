@@ -115,7 +115,7 @@ export async function POST(req: NextRequest) {
     body: JSON.stringify({
       systemInstruction: { parts: [{ text: systemPrompt }] },
       contents: [{ role: "user", parts: [{ text: userPrompt }] }],
-      generationConfig: { temperature: 0.8, responseMimeType: "application/json" },
+      generationConfig: { temperature: 0.4, responseMimeType: "application/json" },
     }),
   });
 

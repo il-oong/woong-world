@@ -169,7 +169,7 @@ async function callGeminiJson<T>(systemPrompt: string, userPrompt: string): Prom
     body: JSON.stringify({
       systemInstruction: { parts: [{ text: systemPrompt }] },
       contents: [{ role: "user", parts: [{ text: userPrompt }] }],
-      generationConfig: { temperature: 0.7, responseMimeType: "application/json" },
+      generationConfig: { temperature: 0.2, responseMimeType: "application/json" },
     }),
   });
 
