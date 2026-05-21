@@ -60,7 +60,7 @@ function AgentCard({ review }: { review: AgentReviewResult["agents"][0] }) {
   );
 }
 
-function ReviewModal({ ticker, name, market, onClose }: { ticker: string; name: string; market: string; onClose: () => void }) {
+function ReviewModal({ ticker, name, market, recommendationReason, onClose }: { ticker: string; name: string; market: string; recommendationReason?: string; onClose: () => void }) {
   const [data, setData] = useState<AgentReviewResult | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -69,7 +69,7 @@ function ReviewModal({ ticker, name, market, onClose }: { ticker: string; name: 
     fetch("/api/alpha/agent-review", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ticker, name, market }),
+      body: JSON.stringify({ ticker, name, market, recommendationReason }),
     })
       .then((r) => r.json())
       .then((d) => { setData(d as AgentReviewResult); setLoading(false); })
@@ -284,6 +284,7 @@ export default function StockRecommendations() {
           ticker={selected.ticker}
           name={selected.name}
           market={selected.market}
+          recommendationReason={selected.reason}
           onClose={() => setSelected(null)}
         />
       )}
