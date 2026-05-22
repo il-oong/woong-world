@@ -56,6 +56,9 @@ export type InvestSettings = {
     lynch: number;
   };
   defaultStopLossRate: number;
+  // 사용자가 추천·분석을 집중시킬 섹터/테마 (자유 입력, 쉼표 구분 권장)
+  // 예: "반도체, AI 인프라, 방어주, 배당주"
+  focusThemes?: string;
 };
 
 export type JkpAnalysisResult = {
@@ -109,6 +112,7 @@ const settingsKey = (email: string) => `alpha:settings:${e(email)}`;
 const DEFAULT_SETTINGS: InvestSettings = {
   traderWeights: { livermore: 20, oneil: 20, weinstein: 20, minervini: 20, lynch: 20 },
   defaultStopLossRate: 7,
+  focusThemes: "",
 };
 
 export function newAlphaId(): string {

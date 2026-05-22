@@ -83,6 +83,24 @@ export default function CryptoInvestSettings() {
         })}
       </div>
 
+      <div className="rounded-lg border border-zinc-800 bg-zinc-900/40 p-3">
+        <p className="text-xs text-zinc-300 mb-1">집중 내러티브 · 카테고리</p>
+        <p className="text-[10px] text-zinc-600 mb-2">
+          추천 생성 시 알트 비중을 여기 적은 내러티브 안에서 우선 선정. 쉼표로 구분.
+          예: <span className="font-mono text-zinc-500">L1, L2, AI x crypto, RWA, DePIN</span>
+        </p>
+        <textarea
+          rows={2}
+          value={settings.focusThemes ?? ""}
+          onChange={(e) =>
+            setSettings((s) => (s ? { ...s, focusThemes: e.target.value } : s))
+          }
+          placeholder="비워두면 자유 선정"
+          maxLength={300}
+          className="w-full resize-none rounded border border-zinc-700 bg-black/30 px-2 py-1.5 text-xs text-zinc-200 placeholder:text-zinc-600 focus:border-amber-500/40 focus:outline-none"
+        />
+      </div>
+
       <div className="flex items-center justify-between rounded-lg border border-zinc-800 bg-zinc-900/40 p-3">
         <div>
           <p className="text-xs text-zinc-300">기본 손절률</p>

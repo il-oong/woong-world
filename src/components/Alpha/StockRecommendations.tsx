@@ -177,11 +177,77 @@ function ReviewModal({ ticker, name, market, recommendationReason, onClose }: { 
   );
 }
 
+type TickerMatch = { ticker: string; name: string; market: string };
+type SelectedReview = { ticker: string; name: string; market: string; reason?: string };
+
+function SearchReview({ onPick }: { onPick: (m: SelectedReview) => void }) {
+  const [q, setQ] = useState("");
+  const [matches, setMatches] = useState<TickerMatch[]>([]);
+  const [busy, setBusy] = useState(false);
+  const timer = useState<{ id: ReturnType<typeof setTimeout> | null }>({ id: null })[0];
+
+  const search = (v: string) => {
+    setQ(v);
+    if (timer.id) clearTimeout(timer.id);
+    if (v.trim().length < 1) {
+      setMatches([]);
+      return;
+    }
+    timer.id = setTimeout(async () => {
+      setBusy(true);
+      try {
+        const r = await fetch(`/api/alpha/ticker-search?q=${encodeURIComponent(v.trim())}`);
+        if (r.ok) setMatches((await r.json()) as TickerMatch[]);
+      } finally {
+        setBusy(false);
+      }
+    }, 300);
+  };
+
+  return (
+    <div className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-3">
+      <p className="text-[10px] font-mono uppercase tracking-wider text-zinc-500 mb-2">
+        임의 종목 분석 — 종목명/티커 검색
+      </p>
+      <input
+        type="text"
+        value={q}
+        onChange={(e) => search(e.target.value)}
+        placeholder="예: 스타벅스, AAPL, 삼성전자, 005930"
+        className="w-full rounded border border-zinc-700 bg-black/30 px-3 py-2 text-sm text-zinc-200 placeholder:text-zinc-600 focus:border-amber-500/40 focus:outline-none"
+      />
+      {busy && <p className="mt-2 text-[10px] text-zinc-600 animate-pulse">검색 중…</p>}
+      {matches.length > 0 && (
+        <ul className="mt-2 flex flex-col gap-1 max-h-64 overflow-y-auto">
+          {matches.map((m) => (
+            <li key={`${m.ticker}-${m.name}`}>
+              <button
+                type="button"
+                onClick={() => {
+                  setQ("");
+                  setMatches([]);
+                  onPick({ ticker: m.ticker, name: m.name, market: m.market });
+                }}
+                className="flex w-full items-center justify-between rounded border border-zinc-800 bg-zinc-950 px-3 py-2 text-left text-xs hover:border-amber-500/40 hover:bg-zinc-900"
+              >
+                <span className="text-zinc-200">{m.name}</span>
+                <span className="font-mono text-[10px] text-zinc-500">
+                  {m.ticker} · {m.market}
+                </span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 export default function StockRecommendations() {
   const [cache, setCache] = useState<RecommendationsCache | null>(null);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
-  const [selected, setSelected] = useState<StockRecommendation | null>(null);
+  const [selected, setSelected] = useState<SelectedReview | null>(null);
 
   const fetchRecs = async (force = false) => {
     if (force) setGenerating(true);
@@ -201,6 +267,8 @@ export default function StockRecommendations() {
 
   return (
     <div className="space-y-4">
+      <SearchReview onPick={setSelected} />
+
       <div className="flex items-center justify-between flex-wrap gap-2">
         <div>
           <p className="text-xs text-zinc-300 font-medium">JKP 추천 종목</p>

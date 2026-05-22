@@ -24,6 +24,9 @@ export type CryptoTraderWeights = {
 export type CryptoSettings = {
   traderWeights: CryptoTraderWeights;
   defaultStopLossRate: number; // %
+  // 추천·분석을 집중시킬 섹터/내러티브 (자유 입력)
+  // 예: "L1 인프라, AI x crypto, RWA, DePIN"
+  focusThemes?: string;
 };
 
 // ── Redis ───────────────────────────────────────────────────────────────────
@@ -45,6 +48,7 @@ const settingsKey = (email: string) => `crypto:settings:${e(email)}`;
 export const DEFAULT_CRYPTO_SETTINGS: CryptoSettings = {
   traderWeights: { saylor: 20, hayes: 20, planb: 20, pal: 20, woo: 20 },
   defaultStopLossRate: 15,
+  focusThemes: "",
 };
 
 export function newCryptoId(): string {

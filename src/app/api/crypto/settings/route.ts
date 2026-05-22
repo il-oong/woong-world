@@ -33,6 +33,8 @@ export async function PUT(req: NextRequest) {
       typeof body.defaultStopLossRate === "number"
         ? Math.max(0, Math.min(50, body.defaultStopLossRate))
         : DEFAULT_CRYPTO_SETTINGS.defaultStopLossRate,
+    focusThemes:
+      typeof body.focusThemes === "string" ? body.focusThemes.slice(0, 300) : "",
   };
   await saveCryptoSettings(session.email, next);
   return NextResponse.json(next);

@@ -68,11 +68,16 @@ export async function POST(req: NextRequest) {
     listCryptoHoldings(session.email),
   ]);
   const w = settings.traderWeights;
+  const focusThemes = (settings.focusThemes ?? "").trim();
   const holdingsList = holdings.map((h) => `${h.symbol}(${h.coinId})`).join(", ") || "없음";
   const today = new Date().toISOString().slice(0, 10);
 
+  const focusLine = focusThemes
+    ? `\n사용자 집중 내러티브/카테고리: ${focusThemes}\n→ alt 4~5개 중 최소 3개는 위 내러티브 안에서 선정하라.`
+    : "";
+
   const systemPrompt = `너는 5명의 유명 코인 트레이더의 관점을 종합하는 시장 전략가다.
-트레이더 가중치: Saylor ${w.saylor}% / Hayes ${w.hayes}% / PlanB ${w.planb}% / Pal ${w.pal}% / Woo ${w.woo}%
+트레이더 가중치: Saylor ${w.saylor}% / Hayes ${w.hayes}% / PlanB ${w.planb}% / Pal ${w.pal}% / Woo ${w.woo}%${focusLine}
 - Michael Saylor: BTC 맥시멀리스트. 거시 인플레이션 헤지로서 BTC 장기 hodl.
 - Arthur Hayes: 매크로 파생 트레이더. 펀딩비/옵션·금리/유동성 환경으로 단·중기 방향성.
 - PlanB: Stock-to-Flow. 반감기 사이클로 BTC 적정가 추정, 사이클 단계 판단.
