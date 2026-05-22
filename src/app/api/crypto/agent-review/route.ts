@@ -100,11 +100,12 @@ export async function POST(req: NextRequest) {
   const session = await getValidSession();
   if (!session?.email) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { coinId, name, symbol, recommendationReason } = (await req.json()) as {
+  const { coinId, name, symbol, recommendationReason, recommendationType } = (await req.json()) as {
     coinId: string;
     name: string;
     symbol: string;
     recommendationReason?: string;
+    recommendationType?: "major" | "alt" | "stable_hedge" | "short";
   };
   if (!coinId || !name) return NextResponse.json({ error: "coinId, name required" }, { status: 400 });
 
@@ -135,15 +136,36 @@ export async function POST(req: NextRequest) {
     : ["(CoinGecko 데이터 조회 실패 — 일반 지식과 추천 배경으로 판단)"];
 
   const systemPrompt = `너는 5명의 유명 코인 트레이더 관점을 모두 이해하는 멀티에이전트 분석 시스템이다.
-각 트레이더의 철학에 충실하게 분석하되, 불확실해도 결론을 내린다.
-제공된 실시간 시장 데이터를 최우선으로 활용해 구체적 수치 근거로 결론을 내려라.
-데이터가 비어 있어도 "데이터 부재"를 사유로 일률적으로 관망/매도로 회피하지 마라.
-그 경우엔 추천 배경, 일반적 시장 지식, 코인 카테고리(L1/L2/DeFi/AI 등)로 추정해 각 트레이더의 철학에 맞는 의견을 분명히 내라.
+
+각 트레이더의 철학에 절대적으로 충실하라. 시장 데이터가 어떻든 그 트레이더가 절대로 하지 않을 결론은 내리지 마라:
+
+- Michael Saylor: BTC 영구 hodl. 어떤 시장 상황에서도 BTC에 대해 "매도"/"강력매도" 하지 않는다. BTC는 항상 매수/강력매수. BTC가 아닌 코인은 "내 영역 밖"이라며 관망 또는 회의적 의견.
+- Arthur Hayes: 매크로 파생 단·중기 트레이더. 펀딩비·금리 환경에 따라 적극 롱/숏 모두 가능. 현재 매크로가 risk-off면 매도/숏 적극 권장 OK, risk-on이면 강한 매수.
+- PlanB: BTC 사이클·S2F 기반. 사이클 상승 초기/중기엔 강력매수, 분배기·약세장엔 매도. BTC가 아니면 코멘트 자체를 짧게 (잘 다루지 않음).
+- Raoul Pal: 장기 강세론자. ETH·고품질 alt에 대해 기본 매수 편향. 매크로 일시 약세에도 "장기 관점에서 매수 기회"라고 보는 경향. 매도 의견은 매우 드물게만.
+- Willy Woo: 온체인 지표(NVT/MVRV/CDD)로 축적/분배 판단. 데이터가 "축적" 시그널이면 매수, "분배" 시그널이면 매도. 중립이면 관망.
+
+제공된 실시간 시장 데이터는 참고로 활용하되, 단기 가격이 ATH 대비 많이 빠졌다는 이유만으로 무조건 매도가 되어선 안 된다 (그게 트레이더 본연의 시각이 아니라면).
+데이터가 비어 있어도 "데이터 부재"를 사유로 일률적으로 관망/매도로 회피하지 마라. 각 트레이더 철학에 맞는 의견을 분명히 내라.
+
+추천 타입(recommendationType)이 함께 전달된다:
+- "major" / "alt" / "stable_hedge": 매수·hodl 후보로 선정된 것이다. 따라서 컨센서스는 매수/관망 위주. "매도"/"강력매도"는 5명 중 1명만 명백한 사유가 있을 때만.
+- "short": 명백히 약세 베팅으로 선정된 것이다. 컨센서스는 매도/강력매도 위주가 정상.
+- 누락: 일반 분석 모드. 데이터에 맞게 판단.
+
 반드시 JSON으로만 답하라 (코드펜스/설명 금지).`;
 
-  const recContext = recommendationReason
-    ? `\nJKP 추천 배경 (참고): ${recommendationReason}\n위 추천 배경과 실시간 데이터를 함께 고려하되, 데이터가 상충하면 실시간 데이터를 우선하고 이유를 reason에 명시하라.`
+  const typeLine = recommendationType
+    ? `\n추천 타입: ${recommendationType} (${
+        recommendationType === "short"
+          ? "약세 베팅 후보 — 매도/강력매도가 정답일 가능성 높음"
+          : "매수·hodl 후보 — 매도/강력매도 컨센서스는 부적절"
+      })`
     : "";
+
+  const recContext = recommendationReason
+    ? `\nJKP 추천 배경 (참고): ${recommendationReason}${typeLine}\n위 추천 배경·타입과 실시간 데이터를 함께 고려하되, 데이터가 상충하면 실시간 데이터를 우선하고 이유를 reason에 명시하라.`
+    : typeLine;
 
   const userPrompt = `코인: ${symbol} (${name}, CoinGecko id: ${coinId})
 실시간 데이터: ${dataParts.join(" / ")}${recContext}

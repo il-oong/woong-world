@@ -81,12 +81,14 @@ function ReviewModal({
   name,
   symbol,
   recommendationReason,
+  recommendationType,
   onClose,
 }: {
   coinId: string;
   name: string;
   symbol: string;
   recommendationReason?: string;
+  recommendationType?: SelectedReview["type"];
   onClose: () => void;
 }) {
   const [data, setData] = useState<CryptoReviewResult | null>(null);
@@ -97,7 +99,7 @@ function ReviewModal({
     fetch("/api/crypto/agent-review", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ coinId, name, symbol, recommendationReason }),
+      body: JSON.stringify({ coinId, name, symbol, recommendationReason, recommendationType }),
     })
       .then((r) => r.json())
       .then((d) => {
@@ -108,7 +110,7 @@ function ReviewModal({
         setError("분석 실패");
         setLoading(false);
       });
-  }, [coinId, name, symbol, recommendationReason]);
+  }, [coinId, name, symbol, recommendationReason, recommendationType]);
 
   const consensusColorClass = data ? VERDICT_COLOR[data.consensus] ?? "text-zinc-300 bg-zinc-800" : "";
 
@@ -242,7 +244,13 @@ function ReviewModal({
 }
 
 type CoinMatch = { coinId: string; symbol: string; name: string; rank: number | null; thumb: string | null };
-type SelectedReview = { coinId: string; name: string; symbol: string; reason?: string };
+type SelectedReview = {
+  coinId: string;
+  name: string;
+  symbol: string;
+  reason?: string;
+  type?: "major" | "alt" | "stable_hedge" | "short";
+};
 
 function CoinSearchReview({ onPick }: { onPick: (m: SelectedReview) => void }) {
   const [q, setQ] = useState("");
@@ -383,7 +391,15 @@ export default function CoinRecommendations() {
               <button
                 key={`${coin.coinId}-${i}`}
                 type="button"
-                onClick={() => setSelected(coin)}
+                onClick={() =>
+                  setSelected({
+                    coinId: coin.coinId,
+                    name: coin.name,
+                    symbol: coin.symbol,
+                    reason: coin.reason,
+                    type: coin.type,
+                  })
+                }
                 className="text-left rounded-xl border border-zinc-800 bg-zinc-900/40 p-4 hover:border-amber-500/40 hover:bg-zinc-900/70 transition group"
               >
                 <div className="flex items-start justify-between gap-2 mb-2">
@@ -425,6 +441,7 @@ export default function CoinRecommendations() {
           name={selected.name}
           symbol={selected.symbol}
           recommendationReason={selected.reason}
+          recommendationType={selected.type}
           onClose={() => setSelected(null)}
         />
       )}
