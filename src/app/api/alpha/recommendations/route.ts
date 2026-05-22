@@ -71,12 +71,17 @@ export async function POST(req: NextRequest) {
     listHoldings(session.email),
   ]);
   const { livermore, oneil, weinstein, minervini, lynch } = settings.traderWeights;
+  const focusThemes = (settings.focusThemes ?? "").trim();
 
   const holdingTickers = holdings.map((h) => `${h.name}(${h.ticker})`).join(", ") || "없음";
   const today = new Date().toISOString().slice(0, 10);
 
+  const focusLine = focusThemes
+    ? `\n사용자 집중 섹터/테마: ${focusThemes}\n→ 일반 종목 6개 중 최소 4개는 위 섹터/테마 안에서 선정하라. 나머지는 자유.`
+    : "";
+
   const systemPrompt = `너는 JKP(James K. Park, 전 Bridgewater 펀드매니저)이자 시장 전략가다.
-트레이더 가중치: Livermore ${livermore}% / O'Neil ${oneil}% / Weinstein ${weinstein}% / Minervini ${minervini}% / Lynch ${lynch}%
+트레이더 가중치: Livermore ${livermore}% / O'Neil ${oneil}% / Weinstein ${weinstein}% / Minervini ${minervini}% / Lynch ${lynch}%${focusLine}
 지금 당장 주목할 종목을 선정해야 한다. 모르겠다는 말은 없다. 근거 있는 의견을 낸다.
 반드시 JSON 배열로만 답하라 (설명/코드펜스 금지).`;
 
