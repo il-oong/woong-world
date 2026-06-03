@@ -9,6 +9,7 @@ const ITEMS = [
   { href: "/calendar", label: "일정", amber: false },
   { href: "/plans", label: "계획", amber: false },
   { href: "/alpha", label: "주식", amber: true },
+  { href: "/apps/market", label: "마켓", amber: true },
   { href: "/crypto", label: "코인", amber: true },
   { href: "/guide", label: "설정 가이드", amber: false },
 ];
@@ -18,6 +19,7 @@ const ADMIN_ITEMS = [
   { href: "/calendar", label: "일정", amber: false },
   { href: "/plans", label: "계획", amber: false },
   { href: "/alpha", label: "주식", amber: true },
+  { href: "/apps/market", label: "마켓", amber: true },
   { href: "/crypto", label: "코인", amber: true },
   { href: "/plugins", label: "플러그인", amber: false },
   { href: "/admin/people", label: "관리자", amber: false },
