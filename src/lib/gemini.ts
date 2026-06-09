@@ -9,6 +9,22 @@ import { newId } from "./assistant";
 import type { CalendarEvent } from "./google";
 import { eventOnDay, formatTimeRange, toIso } from "./calendar-util";
 import type { Plugin, PluginStatus } from "./plugins";
+import type {
+  StockHolding,
+  WatchItem,
+  EconEvent,
+  InvestSettings,
+  JkpAnalysisResult,
+} from "./alpha";
+import {
+  runJkpAnalysis,
+  runAgentReview,
+  gatherMarketData,
+  fetchMarketSnapshot,
+  searchTickerSmart,
+  fetchGroundedMarketBrief,
+  type AgentReviewResult,
+} from "./stock-agents";
 
 const GEMINI_MODEL = "gemini-2.5-flash";
 const ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
@@ -185,10 +201,29 @@ const CHAT_SYSTEM_PROMPT = `너는 사용자의 인생 비서다 ("뇌 대리").
 - 한 답변에 명령어는 최대 3개. 한 줄에 너무 많은 단계가 섞이면 단계별로 나눠라.
 - 위험 명령(rm -rf, force push, db drop 등)은 절대 제안하지 말고, 부득이하면 명시적으로 위험성을 설명해라.
 
+주식/투자 질문 (뇌 네트워크 위임):
+- 너는 최상위 뇌 네트워크의 총괄이고, 주식 분석은 하위 전문 에이전트들(JKP 펀드매니저 + O'Neil·Lynch·Weinstein·Minervini 5인)이 Yahoo Finance 실시간 데이터로 수행한다.
+- 사용자가 특정 종목·지수·매크로·포트폴리오·매수/매도 타이밍 등 "투자 판단"이 필요한 질문을 하면, 너는 실시간 시세가 없으므로 직접 수치로 답하지 마라. 절대 가격·목표가를 추측하지 마라.
+- 대신 다른 말 없이 아래 위임 지시 한 줄만 출력해라. 그러면 에이전트들이 분석하고, 그 결과를 받아 네가 종합한다:
+  <delegate-stocks>{"intent":"single","queries":[{"name":"엔비디아","ticker":"NVDA","market":"US"}],"need_macro":true,"focus":"지금 진입해도 되는지"}</delegate-stocks>
+- intent: "single"(특정 종목) | "portfolio"(내 보유 전체 — 이 경우 queries는 비워도 보유 종목으로 자동 채워진다) | "market"(지수·매크로·"시장 어때")
+- queries: 질문에 등장한 종목들. ticker를 알면 채우고(미국=심볼, 한국=6자리코드 또는 .KS/.KQ), 모르면 name만 적어도 서버가 해석한다. market은 "KR"|"US".
+- need_macro: 시장 전반/거시 맥락이 답에 도움되면 true.
+- focus: 사용자가 실제로 궁금해하는 핵심을 한 문장으로.
+- 용어 정의 등 실시간 데이터가 불필요한 단순 질문이면 위임하지 말고 평소처럼 답해라.
+
 규칙:
 - 한국어로 답한다.
 - 액션 블록 외의 본문은 일반 텍스트(마크다운 약간 OK).
-- 모르면 모른다고 답한다. 추측해서 만들지 마라.`;
+- 모르면 모른다고 답한다. 추측해서 만들지 마라. 특히 주식 수치·시세·재무 데이터는 절대 지어내지 말고 위 위임을 통해 실데이터로만 답한다.`;
+
+/** 주식/투자 컨텍스트 — 뇌 네트워크가 보유·관심·일정·설정을 인지하도록 주입. */
+export type StockContext = {
+  holdings: StockHolding[];
+  watchlist: WatchItem[];
+  econEvents: EconEvent[];
+  settings: InvestSettings;
+};
 
 export type AssistantContext = {
   email: string;
@@ -199,6 +234,8 @@ export type AssistantContext = {
   /** Admin-only: plugin registry + their CI/PR status. */
   plugins?: { plugin: Plugin; status: PluginStatus }[];
   isAdmin?: boolean;
+  /** 투자/주식 컨텍스트 (있으면 주식 질문 위임·종합에 사용). */
+  stock?: StockContext;
 };
 
 function summarizeEvents(events: CalendarEvent[], today: string): string {
@@ -265,6 +302,48 @@ function summarizePlugins(
     .join("\n");
 }
 
+function summarizeStock(s: StockContext): string {
+  const lines: string[] = [];
+  if (s.holdings.length) {
+    lines.push("보유 종목:");
+    for (const h of s.holdings.slice(0, 30)) {
+      const extras = [
+        h.target1 ? `목표1 ${h.target1}` : "",
+        h.target2 ? `목표2 ${h.target2}` : "",
+        h.stopLoss ? `손절 ${h.stopLoss}` : "",
+        h.memo ? `메모: ${h.memo}` : "",
+      ]
+        .filter(Boolean)
+        .join(" / ");
+      lines.push(
+        `  - ${h.name}(${h.ticker}, ${h.market}) ${h.qty}주 @평단 ${h.avgBuyPrice}${extras ? ` / ${extras}` : ""}`,
+      );
+    }
+  } else {
+    lines.push("보유 종목: (없음)");
+  }
+  if (s.watchlist.length) {
+    lines.push(
+      "관심 종목: " + s.watchlist.slice(0, 30).map((w) => `${w.name}(${w.ticker})`).join(", "),
+    );
+  }
+  const today = toIso(new Date());
+  const upcoming = s.econEvents.filter((ev) => ev.eventDate >= today).slice(0, 10);
+  if (upcoming.length) {
+    lines.push("다가오는 경제 일정:");
+    for (const ev of upcoming) {
+      const imp = ev.importance === "high" ? "고" : ev.importance === "medium" ? "중" : "저";
+      lines.push(`  - ${ev.eventDate} [${imp}] ${ev.title} (${ev.market})`);
+    }
+  }
+  const w = s.settings.traderWeights;
+  lines.push(
+    `트레이더 가중치: Livermore ${w.livermore} / O'Neil ${w.oneil} / Weinstein ${w.weinstein} / Minervini ${w.minervini} / Lynch ${w.lynch}`,
+  );
+  if (s.settings.focusThemes?.trim()) lines.push(`집중 테마: ${s.settings.focusThemes.trim()}`);
+  return lines.join("\n");
+}
+
 function buildContextBlock(ctx: AssistantContext): string {
   const cats = CATEGORIES.map((c) => `${c.id}=${c.label}`).join(", ");
   const blocks = [
@@ -281,6 +360,9 @@ function buildContextBlock(ctx: AssistantContext): string {
     "[업로드된 파일/링크]",
     summarizeFiles(ctx.files),
   ];
+  if (ctx.stock) {
+    blocks.push("", "[투자/주식 컨텍스트]", summarizeStock(ctx.stock));
+  }
   if (ctx.isAdmin && ctx.plugins?.length) {
     blocks.push(
       "",
@@ -379,6 +461,37 @@ function parseActions(text: string): {
   return { cleanText: cleanText.trim(), actions };
 }
 
+async function callChatGemini(
+  systemText: string,
+  contents: GeminiContent[],
+  temperature: number,
+  maxOutputTokens?: number,
+): Promise<string> {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) throw new Error("GEMINI_API_KEY not set");
+
+  const generationConfig: Record<string, unknown> = { temperature };
+  if (maxOutputTokens) generationConfig.maxOutputTokens = maxOutputTokens;
+
+  const res = await fetch(`${ENDPOINT}?key=${apiKey}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      systemInstruction: { parts: [{ text: systemText }] },
+      contents,
+      generationConfig,
+    }),
+  });
+  if (!res.ok) {
+    const t = await res.text();
+    throw new Error(`Gemini ${res.status}: ${t.slice(0, 300)}`);
+  }
+  const data = (await res.json()) as {
+    candidates?: { content?: { parts?: { text?: string }[] } }[];
+  };
+  return data.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+}
+
 export async function chatWithAssistant(input: {
   history: ChatMessage[];
   userMessage: string;
@@ -395,27 +508,356 @@ export async function chatWithAssistant(input: {
     input.attachments,
   );
 
-  const res = await fetch(`${ENDPOINT}?key=${apiKey}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      systemInstruction: { parts: [{ text: systemText }] },
-      contents,
-      generationConfig: { temperature: 0.7 },
-    }),
-  });
-  if (!res.ok) {
-    const t = await res.text();
-    throw new Error(`Gemini ${res.status}: ${t.slice(0, 300)}`);
-  }
-  const data = (await res.json()) as {
-    candidates?: { content?: { parts?: { text?: string }[] } }[];
-  };
-  const raw = data.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+  // Pass 1 — 라우터/플래너. 평소처럼 답하거나, 주식 질문이면 위임 지시를 낸다.
+  const raw = await callChatGemini(systemText, contents, 0.7);
   if (!raw) return { text: "(빈 응답)", proposedActions: [] };
+
+  // 주식 위임 지시가 있으면 에이전트 네트워크를 돌리고 실데이터로 종합한다.
+  const delegation = parseDelegation(raw);
+  if (delegation) {
+    try {
+      const report = await runStockNetwork(delegation, input.context);
+      const synthesized = await synthesizeStockAnswer({
+        userMessage: input.userMessage,
+        report,
+        context: input.context,
+      });
+      const finalText = synthesized.trim();
+      if (!finalText) {
+        return {
+          text: "주식 에이전트 분석을 받았지만 종합에 실패했어. 잠시 후 다시 시도해줘.",
+          proposedActions: [],
+        };
+      }
+      const { cleanText, actions } = parseActions(finalText);
+      return { text: cleanText || finalText, proposedActions: actions };
+    } catch (e) {
+      // 데이터/네트워크 실패: 환각 대신 솔직히 알린다 (추측 금지 원칙).
+      const msg = e instanceof Error ? e.message : String(e);
+      return {
+        text: `주식 에이전트 분석을 완료하지 못했어. (사유: ${msg})\n실시간 데이터를 못 가져오면 추측으로 답하지 않는다는 원칙이라, 잠시 후 다시 물어봐줘.`,
+        proposedActions: [],
+      };
+    }
+  }
 
   const { cleanText, actions } = parseActions(raw);
   return { text: cleanText || raw, proposedActions: actions };
+}
+
+// =====================================================================
+// 주식 에이전트 네트워크 — 위임 → 실데이터 수집 → 종합
+// =====================================================================
+
+const DEFAULT_INVEST_SETTINGS: InvestSettings = {
+  traderWeights: { livermore: 20, oneil: 20, weinstein: 20, minervini: 20, lynch: 20 },
+  defaultStopLossRate: 7,
+  focusThemes: "",
+};
+
+type StockDelegation = {
+  intent: "single" | "portfolio" | "market";
+  queries: { name: string; ticker?: string; market?: string }[];
+  need_macro?: boolean;
+  focus?: string;
+};
+
+const DELEGATE_REGEX = /<delegate-stocks>([\s\S]*?)<\/delegate-stocks>/;
+
+function parseDelegation(text: string): StockDelegation | null {
+  const m = text.match(DELEGATE_REGEX);
+  if (!m) return null;
+  try {
+    const parsed = JSON.parse(m[1].trim()) as Partial<StockDelegation>;
+    const queries = Array.isArray(parsed.queries)
+      ? parsed.queries.filter(
+          (q): q is { name: string; ticker?: string; market?: string } =>
+            !!q && typeof q.name === "string" && q.name.trim().length > 0,
+        )
+      : [];
+    const intent =
+      parsed.intent === "portfolio" || parsed.intent === "market" ? parsed.intent : "single";
+    // single/마켓이 아닌데 대상이 하나도 없으면 위임 무효(일반 답변으로 폴백).
+    if (intent === "single" && queries.length === 0) return null;
+    return { intent, queries, need_macro: parsed.need_macro, focus: parsed.focus };
+  } catch {
+    return null;
+  }
+}
+
+type TickerReport = {
+  name: string;
+  ticker: string;
+  market: string;
+  dataOk: boolean;
+  asOf: number;
+  price: number | null;
+  changePercent: number | null;
+  holding?: StockHolding;
+  jkp: JkpAnalysisResult | null;
+  review: AgentReviewResult | null;
+  error?: string;
+};
+
+type StockAgentReport = {
+  perTicker: TickerReport[];
+  macro: { text: string; asOf: number } | null;
+  grounded: { text: string; sources: { title: string; uri: string }[] } | null;
+};
+
+function buildGroundingQuery(
+  d: StockDelegation,
+  targets: { name: string }[],
+): string {
+  const today = toIso(new Date());
+  const names = targets.map((t) => t.name).filter(Boolean).join(", ");
+  const focus = d.focus ? ` 사용자 관심: ${d.focus}.` : "";
+  if (d.intent === "market" || !names) {
+    return `오늘(${today}) 글로벌·한국 증시의 최신 흐름과, 이번 주~다음 주 예정된 주요 경제 이벤트(FOMC, CPI, 고용지표, 주요 실적 등)를 날짜와 함께 정리.${focus}`;
+  }
+  return `오늘(${today}) 기준 ${names} 관련 최신 뉴스·이슈와, 향후 예정된 실적 발표일이나 주가에 영향을 줄 이벤트를 날짜와 함께 정리.${focus}`;
+}
+
+async function analyzeTicker(
+  t: { name: string; ticker?: string; market?: string },
+  holdings: StockHolding[],
+  settings: InvestSettings,
+): Promise<TickerReport> {
+  let ticker = t.ticker?.trim() ?? "";
+  let name = t.name;
+  let market = t.market ?? "KR";
+  try {
+    // 티커를 모르면 종목명으로 해석한다(모델 추측에 의존하지 않음).
+    if (!ticker) {
+      const found = await searchTickerSmart(t.name);
+      if (found) {
+        ticker = found.ticker;
+        name = found.name || t.name;
+        market = found.market === "OTHER" ? market : found.market;
+      }
+    }
+    if (!ticker) {
+      return {
+        name,
+        ticker: "?",
+        market,
+        dataOk: false,
+        asOf: Date.now(),
+        price: null,
+        changePercent: null,
+        jkp: null,
+        review: null,
+        error: "티커 해석 실패",
+      };
+    }
+    // 실시간 데이터 1회 수집 → JKP + 5인 에이전트가 같은 데이터로 병렬 분석.
+    const md = await gatherMarketData(ticker, name);
+    const [jkp, review] = await Promise.all([
+      runJkpAnalysis({ ticker: md.ticker, name, market, settings, marketData: md }).catch(
+        () => null,
+      ),
+      runAgentReview({ ticker: md.ticker, name, market, marketData: md }).catch(() => null),
+    ]);
+    const holding = holdings.find(
+      (h) =>
+        h.ticker.toUpperCase() === md.ticker.toUpperCase() ||
+        h.ticker.toUpperCase() === ticker.toUpperCase(),
+    );
+    return {
+      name,
+      ticker: md.ticker,
+      market,
+      dataOk: md.dataOk,
+      asOf: md.asOf,
+      price: md.price,
+      changePercent: md.changePercent,
+      holding,
+      jkp,
+      review,
+    };
+  } catch (e) {
+    return {
+      name,
+      ticker: ticker || "?",
+      market,
+      dataOk: false,
+      asOf: Date.now(),
+      price: null,
+      changePercent: null,
+      jkp: null,
+      review: null,
+      error: e instanceof Error ? e.message : String(e),
+    };
+  }
+}
+
+async function runStockNetwork(
+  d: StockDelegation,
+  ctx: AssistantContext,
+): Promise<StockAgentReport> {
+  const settings = ctx.stock?.settings ?? DEFAULT_INVEST_SETTINGS;
+  const holdings = ctx.stock?.holdings ?? [];
+
+  // 분석 대상 결정 — portfolio면 보유 종목 전체로 채운다.
+  let targets: { name: string; ticker?: string; market?: string }[] = d.queries;
+  if (d.intent === "portfolio" && holdings.length) {
+    targets = holdings.map((h) => ({ name: h.name, ticker: h.ticker, market: h.market }));
+  }
+  targets = targets.slice(0, 3); // 지연/비용 상한 (최대 3종목)
+
+  const wantMacro = d.need_macro || d.intent === "market";
+
+  // 종목 분석 + 거시 스냅샷 + 검색 그라운딩을 모두 병렬로 (60초 상한 내 여유 확보).
+  const [perTicker, macro, grounded] = await Promise.all([
+    Promise.all(targets.map((t) => analyzeTicker(t, holdings, settings))),
+    wantMacro
+      ? fetchMarketSnapshot()
+          .then((s) => (s.ok ? { text: s.text, asOf: s.asOf } : null))
+          .catch(() => null)
+      : Promise.resolve(null),
+    fetchGroundedMarketBrief(buildGroundingQuery(d, targets)).catch(() => null),
+  ]);
+
+  return { perTicker, macro, grounded };
+}
+
+const STOCK_SYNTH_PROMPT = `너는 "뇌대리", 사용자의 최상위 뇌 네트워크 총괄이다.
+아래는 네 전문 하위 주식 에이전트들 — JKP(전 Bridgewater 펀드매니저)와 O'Neil·Lynch·Weinstein·Minervini 5인 — 이 **Yahoo Finance 실시간 데이터**로 작성한 분석 리포트, 그리고 그들이 사용한 원본 수치·거시 스냅샷·검색 그라운딩 결과다.
+너의 역할: 이 리포트들을 종합해 사용자 질문에 하나의 명확한 답을 준다.
+
+절대 규칙 (위반 금지):
+1. 오직 아래 제공된 데이터·리포트에 근거해서만 말한다. 제공되지 않은 수치·사실을 절대 지어내지 마라.
+2. 모든 핵심 수치에는 출처와 기준 시각을 붙여라 (예: "현재가 184.5 — Yahoo Finance, 기준 시각 표기").
+3. 데이터 수집이 "실패"거나 값이 "데이터 없음/N/A"면 그 사실을 명시하고 그 항목은 단정하지 마라. 빈자리를 추측으로 채우지 마라.
+4. 미래 가격을 예언하지 마라. 목표가·시나리오는 반드시 "JKP 분석에 따르면", "5인 합의 기준", "~조건 충족 시"처럼 출처와 조건을 달아 전달하라.
+5. 거짓말·뇌피셜 예측 금지. 데이터가 보여주는 "흐름"과 "근거"만 말한다.
+6. 다가오는 이벤트는 날짜와 함께, 리포트/그라운딩에 명시된 범위에서만 언급하라.
+
+출력 형식 (한국어, 간결·단단하게. 불필요한 서론 금지):
+- 첫 줄: 한 줄 결론 (에이전트 종합 컨센서스 — 매수/관망/매도 + 핵심 이유).
+- 종목별: 현재가(출처·시각)·평가손익(보유 시)·JKP와 5인의 핵심 판단·근거 수치.
+- 에이전트 간 의견이 갈리면 그 대립을 솔직히 드러내라 (누가 왜 강세/약세인지).
+- 핵심 리스크와 다가오는 이벤트(날짜 포함).
+- 마지막 줄에 "이건 투자 권유가 아니라 실시간 데이터 기반 분석"이라는 점과, 데이터 한계가 있었으면 한 줄로 명시.
+- 그라운딩 출처가 있으면 맨 끝에 "출처:" 목록으로 URL을 남겨라.`;
+
+function fmtKDateTime(ts: number): string {
+  return new Date(ts).toLocaleString("ko-KR", { timeZone: "Asia/Seoul" });
+}
+
+function buildReportText(r: StockAgentReport, ctx: AssistantContext): string {
+  const blocks: string[] = [];
+
+  for (const t of r.perTicker) {
+    const lines: string[] = [];
+    lines.push(`### ${t.name} (${t.ticker}, ${t.market})`);
+    if (t.error) lines.push(`수집 오류: ${t.error}`);
+    const chg =
+      t.changePercent !== null
+        ? ` (${t.changePercent > 0 ? "+" : ""}${t.changePercent.toFixed(2)}%)`
+        : "";
+    lines.push(
+      `현재가: ${t.price !== null ? t.price : "데이터 없음"}${chg} — Yahoo Finance, ${fmtKDateTime(t.asOf)} 기준`,
+    );
+    lines.push(`실데이터 수집: ${t.dataOk ? "성공" : "실패 (수치 없음 — 추정 금지)"}`);
+
+    if (t.holding) {
+      const h = t.holding;
+      const pl =
+        t.price !== null && h.avgBuyPrice
+          ? ` → 평가손익 ${(((t.price - h.avgBuyPrice) / h.avgBuyPrice) * 100).toFixed(2)}%`
+          : "";
+      lines.push(`사용자 보유: ${h.qty}주 @평단 ${h.avgBuyPrice}${pl}`);
+      if (h.target1 || h.target2 || h.stopLoss) {
+        lines.push(
+          `사용자 설정 목표/손절: 목표1 ${h.target1 || "-"} / 목표2 ${h.target2 || "-"} / 손절 ${h.stopLoss || "-"}`,
+        );
+      }
+    }
+
+    if (t.jkp) {
+      const j = t.jkp;
+      lines.push(
+        `[JKP 분석] 결론=${j.final_action} (확신 ${j.confidence}) / 매수구간 ${j.buy_zone?.entry_price} / 목표1 ${j.target_price?.target_1} / 목표2 ${j.target_price?.target_2} / 손절 ${j.stop_loss} / 손익비 ${j.risk_reward_ratio} / 기간 ${j.time_horizon}`,
+      );
+      if (j.key_catalysts?.length) lines.push(`  촉매: ${j.key_catalysts.join("; ")}`);
+      if (j.key_risks?.length) lines.push(`  리스크: ${j.key_risks.join("; ")}`);
+      if (j.jkp_comment) lines.push(`  JKP 코멘트: ${j.jkp_comment}`);
+    } else {
+      lines.push("[JKP 분석] 생성 실패");
+    }
+
+    if (t.review) {
+      const v = t.review;
+      lines.push(
+        `[5인 합의] 컨센서스=${v.consensus} (${v.consensusScore}/100) / 밸류에이션 ${v.valuation?.view}`,
+      );
+      for (const a of v.agents ?? []) {
+        lines.push(`  - ${a.agent}(${a.style}): ${a.verdict} ${a.score} — ${a.key_point}`);
+      }
+      if (v.buyTiming) {
+        lines.push(
+          `  타이밍: 스테이지 ${v.buyTiming.current_stage} / 진입 ${v.buyTiming.ideal_entry} / 손절 ${v.buyTiming.stop_loss} / 단기목표 ${v.buyTiming.target_short} / 장기목표 ${v.buyTiming.target_long}`,
+        );
+      }
+      if (v.jkp_final) lines.push(`  JKP 최종: ${v.jkp_final}`);
+    } else {
+      lines.push("[5인 합의] 생성 실패");
+    }
+
+    blocks.push(lines.join("\n"));
+  }
+
+  if (r.macro) {
+    blocks.push(
+      `### 거시 지표 스냅샷 (Yahoo Finance, ${fmtKDateTime(r.macro.asOf)} 기준)\n${r.macro.text}`,
+    );
+  }
+
+  if (r.grounded) {
+    const src = r.grounded.sources.length
+      ? "\n출처:\n" +
+        r.grounded.sources
+          .map((s, i) => `  [${i + 1}] ${s.title || s.uri} — ${s.uri}`)
+          .join("\n")
+      : "";
+    blocks.push(`### 최신 시장/이벤트 브리핑 (Google 검색 그라운딩)\n${r.grounded.text}${src}`);
+  }
+
+  const today = toIso(new Date());
+  const upcoming = (ctx.stock?.econEvents ?? []).filter((ev) => ev.eventDate >= today).slice(0, 8);
+  if (upcoming.length) {
+    blocks.push(
+      "### 사용자 등록 경제 일정\n" +
+        upcoming
+          .map((ev) => `  - ${ev.eventDate} [${ev.importance}] ${ev.title} (${ev.market})`)
+          .join("\n"),
+    );
+  }
+
+  if (blocks.length === 0) {
+    return "(에이전트들이 사용할 수 있는 데이터를 전혀 수집하지 못했다. 추측하지 말고 데이터를 못 가져왔다고 사용자에게 알릴 것.)";
+  }
+  return blocks.join("\n\n");
+}
+
+async function synthesizeStockAnswer(input: {
+  userMessage: string;
+  report: StockAgentReport;
+  context: AssistantContext;
+}): Promise<string> {
+  const reportText = buildReportText(input.report, input.context);
+  const today = toIso(new Date());
+  const systemText = `${STOCK_SYNTH_PROMPT}\n\n[오늘] ${today} (${weekdayLabel(today)})`;
+  const userPrompt = `사용자 질문: "${input.userMessage}"
+
+아래는 네 하위 주식 에이전트들이 실시간 데이터로 작성한 리포트다.
+========================================
+${reportText}
+========================================
+
+위 에이전트 리포트와 원본 데이터만 근거로, 사용자 질문에 종합 답변하라. 제공되지 않은 수치는 절대 만들지 마라.`;
+  return callChatGemini(systemText, [{ role: "user", parts: [{ text: userPrompt }] }], 0.2, 4000);
 }
 
 // =====================================================================
