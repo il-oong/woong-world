@@ -238,7 +238,7 @@ async function fetchQuoteSummary(ticker: string): Promise<QuoteSummaryModules | 
   try {
     const modules = "summaryDetail,financialData,defaultKeyStatistics";
     const url = `https://query1.finance.yahoo.com/v10/finance/quoteSummary/${encodeURIComponent(ticker)}?modules=${modules}`;
-    const res = await fetch(url, { headers: YF_HEADERS, signal: AbortSignal.timeout(6000) });
+    const res = await fetch(url, { headers: YF_HEADERS, signal: AbortSignal.timeout(4000) });
     if (!res.ok) return null;
     const data = (await res.json()) as { quoteSummary?: { result?: QuoteSummaryModules[] } };
     return data.quoteSummary?.result?.[0] ?? null;
@@ -251,7 +251,7 @@ async function fetchNews(ticker: string, name: string): Promise<NewsItem[]> {
   try {
     const query = encodeURIComponent(`${ticker} ${name}`);
     const url = `https://query1.finance.yahoo.com/v1/finance/search?q=${query}&newsCount=6&enableFuzzyQuery=false&quotesCount=0`;
-    const res = await fetch(url, { headers: YF_HEADERS, signal: AbortSignal.timeout(5000) });
+    const res = await fetch(url, { headers: YF_HEADERS, signal: AbortSignal.timeout(3000) });
     if (!res.ok) return [];
     const data = (await res.json()) as { news?: NewsItem[] };
     return data.news?.slice(0, 6) ?? [];
@@ -266,7 +266,7 @@ async function fetchChartQuote(
   try {
     const res = await fetch(
       `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?interval=1d&range=1d`,
-      { headers: YF_HEADERS, signal: AbortSignal.timeout(5000) },
+      { headers: YF_HEADERS, signal: AbortSignal.timeout(3000) },
     );
     if (!res.ok) return { price: null, changePercent: null, ok: false };
     const data = (await res.json()) as {
@@ -344,7 +344,7 @@ async function callGeminiJson<T>(systemPrompt: string, userPrompt: string, tempe
     body: JSON.stringify({
       systemInstruction: { parts: [{ text: systemPrompt }] },
       contents: [{ role: "user", parts: [{ text: userPrompt }] }],
-      generationConfig: { temperature, responseMimeType: "application/json" },
+      generationConfig: { temperature, responseMimeType: "application/json", thinkingConfig: { thinkingBudget: 0 } },
     }),
   });
 
@@ -523,11 +523,8 @@ const SNAPSHOT_TICKERS: { symbol: string; label: string }[] = [
   { symbol: "^IXIC", label: "나스닥" },
   { symbol: "^KS11", label: "코스피" },
   { symbol: "^TNX", label: "美 10년물 금리" },
-  { symbol: "DX-Y.NYB", label: "달러인덱스(DXY)" },
   { symbol: "KRW=X", label: "원/달러 환율" },
   { symbol: "GC=F", label: "금" },
-  { symbol: "CL=F", label: "WTI 유가" },
-  { symbol: "BTC-USD", label: "비트코인" },
 ];
 
 /** 시장 전반(공포/지수/환율/금리/원자재) 실시간 스냅샷 텍스트. */
@@ -623,7 +620,7 @@ async function yahooSearch(q: string): Promise<TickerMatch[]> {
 
   for (const base of ["https://query1.finance.yahoo.com", "https://query2.finance.yahoo.com"]) {
     try {
-      const res = await fetch(`${base}/v1/finance/search${params}`, { headers, signal: AbortSignal.timeout(4000) });
+      const res = await fetch(`${base}/v1/finance/search${params}`, { headers, signal: AbortSignal.timeout(3000) });
       if (!res.ok) continue;
       const data = (await res.json()) as {
         quotes?: { symbol?: string; longname?: string; shortname?: string; exchange?: string; quoteType?: string }[];
@@ -700,7 +697,7 @@ export async function fetchGroundedMarketBrief(query: string): Promise<GroundedB
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
-      signal: AbortSignal.timeout(20000),
+      signal: AbortSignal.timeout(12000),
     });
     if (!res.ok) return null;
     const data = (await res.json()) as GroundingResponse;
