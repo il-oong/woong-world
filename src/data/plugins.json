@@ -50,5 +50,18 @@
     "embeddable": true,
     "accent": "#f59e0b",
     "tags": ["주식", "AI분석", "포트폴리오"]
+  },
+  {
+    "id": "vault-sync",
+    "name": "옵시디언 동기화",
+    "description": "옵시디언 노트를 GitHub로 동기화하고 백업/복원. (로컬 실행 전용)",
+    "repo": "il-oong/woong-world",
+    "branch": "main",
+    "pr": null,
+    "path": "/apps/vault-sync",
+    "url": null,
+    "embeddable": true,
+    "accent": "#a78bfa",
+    "tags": ["옵시디언", "동기화", "백업"]
   }
 ]
