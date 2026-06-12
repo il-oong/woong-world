@@ -67,6 +67,11 @@ type Commit = {
 type Backup = { tag: string; date: number; subject: string; hash: string };
 type BackupFile = { path: string; bytes: number };
 
+type StartupStatus =
+  | { supported: true; registered: boolean; file?: string }
+  | { supported: false; reason: string }
+  | null;
+
 type Tab = "overview" | "backup" | "history" | "pc" | "logs";
 
 const TABS: { id: Tab; label: string; icon: string }[] = [
@@ -120,6 +125,7 @@ export function VaultSyncDashboard() {
   const [status, setStatus] = useState<Status | null>(null);
   const [commits, setCommits] = useState<Commit[] | null>(null);
   const [backups, setBackups] = useState<Backup[] | null>(null);
+  const [startup, setStartup] = useState<StartupStatus>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [msg, setMsg] = useState<{ kind: "ok" | "err"; text: string } | null>(
     null,
@@ -181,6 +187,34 @@ export function VaultSyncDashboard() {
     [loadStatus],
   );
 
+  const loadStartup = useCallback(async () => {
+    try {
+      const r = await fetch("/api/vault-sync/startup");
+      setStartup((await r.json()) as StartupStatus);
+    } catch {
+      setStartup(null);
+    }
+  }, []);
+
+  const toggleStartup = useCallback(async (register: boolean) => {
+    setBusy("startup");
+    try {
+      const r = await fetch("/api/vault-sync/startup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: register ? "register" : "unregister" }),
+      });
+      const d = (await r.json()) as { ok?: boolean; registered?: boolean; error?: string };
+      if (d.error) setMsg({ kind: "err", text: d.error });
+      else setMsg({ kind: "ok", text: register ? "시작 프로그램에 등록됐습니다. 다음 PC 켤 때부터 자동 실행돼요." : "시작 프로그램에서 해제됐습니다." });
+      await loadStartup();
+    } catch (e) {
+      setMsg({ kind: "err", text: e instanceof Error ? e.message : "startup_failed" });
+    } finally {
+      setBusy(null);
+    }
+  }, [loadStartup]);
+
   // Poll status while available.
   useEffect(() => {
     void loadStatus();
@@ -194,7 +228,8 @@ export function VaultSyncDashboard() {
     if (!available) return;
     if (tab === "history" && commits === null) void loadCommits();
     if (tab === "backup" && backups === null) void loadBackups();
-  }, [tab, available, commits, backups, loadCommits, loadBackups]);
+    if (tab === "pc" && startup === null) void loadStartup();
+  }, [tab, available, commits, backups, startup, loadCommits, loadBackups, loadStartup]);
 
   const runSync = async () => {
     setBusy("sync");
@@ -352,8 +387,11 @@ export function VaultSyncDashboard() {
       {tab === "pc" && (
         <MachinesPanel
           machines={status.machines ?? []}
+          startup={startup}
+          busyStartup={busy === "startup"}
           onRename={(id, label) => manageMachine("rename", id, label)}
           onRemove={(id) => manageMachine("remove", id)}
+          onToggleStartup={toggleStartup}
         />
       )}
       {tab === "logs" && <LogsPanel logs={status.logs} />}
@@ -412,24 +450,100 @@ function SyncTargetBanner({ status }: { status: StatusOk }) {
 
 // ── PC 관리 ──
 
+function StartupCard({
+  startup,
+  busy,
+  onToggle,
+}: {
+  startup: StartupStatus;
+  busy: boolean;
+  onToggle: (register: boolean) => void;
+}) {
+  if (startup === null) return null;
+
+  if (!startup.supported) {
+    if (startup.reason === "deploy") return null;
+    return (
+      <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-3 text-xs text-[var(--muted)]">
+        <span className="mr-1 text-base">💡</span>
+        Windows에서만 시작 프로그램 자동 등록을 지원합니다 (현재:{" "}
+        {startup.reason.replace("platform:", "")}).
+      </div>
+    );
+  }
+
+  const registered = startup.registered;
+  return (
+    <div
+      className={`rounded-xl border p-3 text-xs ${
+        registered
+          ? "border-emerald-500/30 bg-emerald-500/10"
+          : "border-[var(--border)] bg-[var(--card)]"
+      }`}
+    >
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <span className="text-base">{registered ? "✅" : "🖥️"}</span>
+          <div>
+            <p className="font-medium">
+              {registered ? "시작 프로그램 등록됨" : "시작 프로그램 미등록"}
+            </p>
+            <p className="mt-0.5 text-[10px] text-[var(--muted)]">
+              {registered
+                ? "PC 켤 때마다 vault-sync-daemon 이 자동으로 백그라운드에서 실행됩니다."
+                : "등록하면 PC 켤 때마다 터미널 없이 자동으로 옵시디언을 동기화합니다."}
+            </p>
+          </div>
+        </div>
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() => onToggle(!registered)}
+          className={`shrink-0 rounded-lg px-3 py-1.5 text-[11px] font-medium transition disabled:opacity-40 ${
+            registered
+              ? "border border-rose-500/40 text-rose-300 hover:bg-rose-500/10"
+              : "bg-[var(--accent)] text-black hover:opacity-90"
+          }`}
+        >
+          {busy ? "처리 중…" : registered ? "등록 해제" : "시작 프로그램 등록"}
+        </button>
+      </div>
+      {registered && startup.file && (
+        <p className="mt-2 break-all font-mono text-[10px] text-[var(--muted)]">
+          {startup.file}
+        </p>
+      )}
+    </div>
+  );
+}
+
 function MachinesPanel({
   machines,
+  startup,
+  busyStartup,
   onRename,
   onRemove,
+  onToggleStartup,
 }: {
   machines: Machine[];
+  startup: StartupStatus;
+  busyStartup: boolean;
   onRename: (id: string, label: string) => void;
   onRemove: (id: string) => void;
+  onToggleStartup: (register: boolean) => void;
 }) {
   return (
     <div className="flex flex-col gap-3">
+      <StartupCard startup={startup} busy={busyStartup} onToggle={onToggleStartup} />
       <p className="text-xs text-[var(--muted)]">
         같은 git 브랜치로 동기화하는 PC 목록입니다. 각 PC가 로컬에서 동기화하면 자동
         등록돼요. 같은 노트가 PC 간에 서로 오갑니다.
       </p>
       {machines.length === 0 ? (
         <div className="rounded-xl border border-dashed border-[var(--border)] p-6 text-center text-xs text-[var(--muted)]">
-          아직 등록된 PC가 없습니다. PC에서 <code className="rounded bg-black/40 px-1">npm run dev</code>{" "}
+          아직 등록된 PC가 없습니다.{" "}
+          <b className="text-foreground">위에서 시작 프로그램을 등록</b>하거나 PC에서{" "}
+          <code className="rounded bg-black/40 px-1">npm run dev</code>{" "}
           로 띄우고 한 번 동기화하면 여기 나타납니다.
         </div>
       ) : (

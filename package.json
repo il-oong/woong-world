@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "vault-sync": "node vault-sync-daemon.mjs"
   },
   "dependencies": {
     "@upstash/redis": "^1.37.0",
