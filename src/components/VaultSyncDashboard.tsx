@@ -399,50 +399,128 @@ export function VaultSyncDashboard() {
   );
 }
 
-// ── Sync target banner (어느 폴더를 동기화하는지 항상 표시) ──
+// ── Sync target banner (어느 폴더를 동기화하는지 항상 표시 + 경로 직접 입력) ──
 
 function SyncTargetBanner({ status }: { status: StatusOk }) {
   const hasExternal = !!status.externalPath;
+  const [editing, setEditing] = useState(false);
+  const [pathInput, setPathInput] = useState(status.externalPath ?? "");
+  const [saving, setSaving] = useState(false);
+  const [saveMsg, setSaveMsg] = useState<{ ok: boolean; text: string } | null>(null);
+
+  const savePath = async () => {
+    setSaving(true);
+    setSaveMsg(null);
+    try {
+      const r = await fetch("/api/vault-sync/config", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ externalPath: pathInput }),
+      });
+      const d = (await r.json()) as { ok?: boolean; error?: string };
+      if (d.error) {
+        setSaveMsg({ ok: false, text: d.error });
+      } else {
+        setSaveMsg({
+          ok: true,
+          text: "저장됐습니다. 서버를 재시작(npm run dev 재실행)하면 적용됩니다.",
+        });
+        setEditing(false);
+      }
+    } catch (e) {
+      setSaveMsg({ ok: false, text: e instanceof Error ? e.message : "저장 실패" });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const tone = hasExternal
+    ? status.externalExists
+      ? "green"
+      : "red"
+    : "amber";
+  const borderCls =
+    tone === "green"
+      ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-100"
+      : tone === "red"
+        ? "border-rose-500/30 bg-rose-500/10 text-rose-100"
+        : "border-amber-500/30 bg-amber-500/10 text-amber-100";
+
   return (
-    <div
-      className={`rounded-xl border p-3 text-xs leading-relaxed ${
-        hasExternal
-          ? status.externalExists
-            ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-100"
-            : "border-rose-500/30 bg-rose-500/10 text-rose-100"
-          : "border-amber-500/30 bg-amber-500/10 text-amber-100"
-      }`}
-    >
-      <p className="mb-1 font-medium">
-        {hasExternal ? "동기화 중인 옵시디언 보관함" : "현재 동기화 폴더"}
-      </p>
-      {hasExternal ? (
+    <div className={`rounded-xl border p-3 text-xs leading-relaxed ${borderCls}`}>
+      <div className="mb-1.5 flex items-center justify-between gap-2">
+        <p className="font-medium">
+          {hasExternal ? "동기화 중인 옵시디언 보관함" : "옵시디언 보관함 경로 미설정"}
+        </p>
+        {status.mode !== "github" && (
+          <button
+            type="button"
+            onClick={() => { setEditing((v) => !v); setSaveMsg(null); }}
+            className="rounded bg-black/20 px-2 py-0.5 text-[10px] hover:bg-black/40"
+          >
+            {editing ? "취소" : hasExternal ? "경로 변경" : "경로 설정"}
+          </button>
+        )}
+      </div>
+
+      {editing ? (
+        <div className="flex flex-col gap-2">
+          <p className="text-[11px] opacity-80">
+            옵시디언 보관함 폴더의 절대 경로를 입력하세요.
+            <br />
+            예) <code className="rounded bg-black/40 px-1">C:\Users\이름\Documents\ObsidianVault</code>
+          </p>
+          <input
+            type="text"
+            value={pathInput}
+            onChange={(e) => setPathInput(e.target.value)}
+            placeholder="C:\Users\...\ObsidianVault"
+            className="w-full rounded-lg border border-white/20 bg-black/40 px-3 py-2 font-mono text-[11px] text-white placeholder-white/30 outline-none focus:border-[var(--accent)]/60"
+          />
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={savePath}
+              disabled={saving}
+              className="rounded-lg bg-[var(--accent)] px-4 py-1.5 text-[11px] font-medium text-black disabled:opacity-40"
+            >
+              {saving ? "저장 중…" : "저장"}
+            </button>
+            {pathInput && (
+              <button
+                type="button"
+                onClick={() => { setPathInput(""); }}
+                className="rounded-lg border border-white/20 px-3 py-1.5 text-[11px] opacity-60 hover:opacity-100"
+              >
+                경로 지우기
+              </button>
+            )}
+          </div>
+          {saveMsg && (
+            <p className={`text-[11px] ${saveMsg.ok ? "text-emerald-300" : "text-rose-300"}`}>
+              {saveMsg.ok ? "✓ " : "✗ "}{saveMsg.text}
+            </p>
+          )}
+        </div>
+      ) : hasExternal ? (
         <>
           <code className="break-all rounded bg-black/40 px-1 py-0.5">
             {status.externalPath}
           </code>
-          {!status.externalExists && (
-            <p className="mt-1">
-              ⚠ 이 경로를 찾을 수 없습니다. 이 PC에 맞는 경로인지 확인하세요.
-            </p>
+          {!status.externalExists ? (
+            <p className="mt-1">⚠ 이 경로를 찾을 수 없습니다. 위 버튼으로 이 PC에 맞는 경로로 변경하세요.</p>
+          ) : (
+            <p className="mt-1 text-[11px] opacity-80">이 폴더가 백업·동기화 대상입니다.</p>
           )}
-          <p className="mt-1 text-[11px] opacity-80">
-            이 폴더가 백업·동기화 대상입니다. 백업을 누르면 이 보관함의 현재 노트가 그대로 스냅샷됩니다.
-          </p>
         </>
       ) : (
-        <>
-          <code className="break-all rounded bg-black/40 px-1 py-0.5">
-            {"<레포>/"}
-            {status.vaultPath}/
-          </code>
-          <p className="mt-1 text-[11px] opacity-80">
-            지금은 <b>레포 안 {status.vaultPath}/ 폴더</b>만 동기화합니다. 내 실제
-            옵시디언 보관함을 백업하려면 <code className="rounded bg-black/40 px-1">.env.local</code> 에{" "}
-            <code className="rounded bg-black/40 px-1">VAULT_SYNC_EXTERNAL_PATH=보관함_절대경로</code>{" "}
-            를 추가하세요.
-          </p>
-        </>
+        <p className="text-[11px] opacity-80">
+          위 <b>경로 설정</b> 버튼을 눌러 내 옵시디언 보관함 폴더를 지정하면 실제 노트가 백업·동기화됩니다.
+          <br />
+          <span className="opacity-60">
+            (지정 전에는 레포 안 <code className="rounded bg-black/40 px-1">{status.vaultPath}/</code> 폴더만 동기화)
+          </span>
+        </p>
       )}
     </div>
   );
@@ -541,10 +619,13 @@ function MachinesPanel({
       </p>
       {machines.length === 0 ? (
         <div className="rounded-xl border border-dashed border-[var(--border)] p-6 text-center text-xs text-[var(--muted)]">
-          아직 등록된 PC가 없습니다.{" "}
-          <b className="text-foreground">위에서 시작 프로그램을 등록</b>하거나 PC에서{" "}
-          <code className="rounded bg-black/40 px-1">npm run dev</code>{" "}
-          로 띄우고 한 번 동기화하면 여기 나타납니다.
+          아직 등록된 PC가 없습니다.
+          {startup !== null && startup.supported && !startup.registered ? (
+            <span> 위 <b className="text-foreground">시작 프로그램 등록</b> 버튼을 누르거나</span>
+          ) : null}{" "}
+          PC에서 <code className="rounded bg-black/40 px-1">npm run dev</code>{" "}
+          또는 <code className="rounded bg-black/40 px-1">npm run vault-sync</code>{" "}
+          로 한 번 동기화하면 여기 나타납니다.
         </div>
       ) : (
         <ul className="flex flex-col gap-2">
