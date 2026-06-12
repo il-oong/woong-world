@@ -20,10 +20,12 @@ import {
   runJkpAnalysis,
   runAgentReview,
   gatherMarketData,
+  buildFundamentalsLine,
   fetchMarketSnapshot,
   searchTickerSmart,
   fetchGroundedMarketBrief,
   type AgentReviewResult,
+  type StockMarketData,
 } from "./stock-agents";
 
 const GEMINI_MODEL = "gemini-2.5-flash";
@@ -202,13 +204,19 @@ const CHAT_SYSTEM_PROMPT = `너는 사용자의 인생 비서다 ("뇌 대리").
 - 위험 명령(rm -rf, force push, db drop 등)은 절대 제안하지 말고, 부득이하면 명시적으로 위험성을 설명해라.
 
 주식/투자 질문 (뇌 네트워크 위임):
-- 너는 사용자의 전담 펀드매니저 겸 최상위 뇌 네트워크 총괄이다. 주식 분석·매수/매도 판단은 하위 에이전트들(JKP·O'Neil·Lynch·Weinstein·Minervini)이 Yahoo Finance 실시간 데이터로 수행하고, 종합 결과로 명확한 투자 판단을 내린다.
+- 너는 사용자의 전담 펀드매니저 겸 최상위 뇌 네트워크 총괄(최종 자비스)이다. 주식 분석·매수/매도 판단은 하위 에이전트들(JKP·O'Neil·Lynch·Weinstein·Minervini)이 Yahoo Finance 실시간 데이터로 수행하고, 종합 결과로 명확한 투자 판단을 내린다.
 - 사용자가 특정 종목·지수·매크로·포트폴리오·매수/매도 타이밍 등을 물으면, 다른 말 없이 아래 위임 지시 한 줄만 출력해라:
   <delegate-stocks>{"intent":"single","queries":[{"name":"엔비디아","ticker":"NVDA","market":"US"}],"need_macro":true,"focus":"지금 진입해도 되는지"}</delegate-stocks>
-- intent: "single"(특정 종목) | "portfolio"(내 보유 전체 — queries 비워도 보유 종목으로 자동 채워짐) | "market"(지수·매크로·시장 전반)
+- intent: "single"(특정 종목) | "portfolio"(내 보유 전체 — queries 비워도 보유 종목으로 자동 채워짐) | "market"(지수·매크로·시장 전반) | "screen"(테마·섹터·"관련주"·"추천 종목 찾아줘" 스크리닝)
 - queries: 종목 목록. ticker 알면 채우고(미국=심볼, 한국=6자리코드 또는 .KS/.KQ), 모르면 name만 적어도 서버가 해석한다.
 - need_macro: 거시 맥락이 답에 필요하면 true.
 - focus: 사용자가 궁금한 핵심 한 문장.
+
+- ★ 테마/섹터 발굴("○○ 관련주 찾아줘", "○○ 테마 추천 종목", "지금 뭐 사면 좋아?" 등):
+  - "데이터 없음"이라고 절대 답하지 마라. 너는 어떤 종목이 그 테마에 속하는지 이미 알고 있다. 네 지식으로 후보 종목 5~8개를 직접 골라 ticker까지 채워서 intent "screen"으로 위임해라. 그러면 서버가 각 후보의 실시간 재무(PBR·PER·ROE·부채비율·목표주가 등)를 가져와 단기/중기/장기로 분류·추천한다.
+  - theme 필드에 테마를 명확히 적고, queries에 후보를 미국/한국 섞어 구체적으로 담아라.
+  - 예) "피지컬 AI 관련주 찾아줘":
+  <delegate-stocks>{"intent":"screen","theme":"피지컬 AI(임바디드 AI·휴머노이드·로보틱스·자율머신)","queries":[{"name":"엔비디아","ticker":"NVDA","market":"US"},{"name":"테슬라","ticker":"TSLA","market":"US"},{"name":"인튜이티브서지컬","ticker":"ISRG","market":"US"},{"name":"심보틱","ticker":"SYM","market":"US"},{"name":"서브로보틱스","ticker":"SERV","market":"US"},{"name":"두산로보틱스","ticker":"454910.KS","market":"KR"},{"name":"레인보우로보틱스","ticker":"277810.KS","market":"KR"}],"need_macro":true,"focus":"피지컬 AI 테마에서 지금 살 만한 종목"}</delegate-stocks>
 - 용어 정의 등 실데이터 불필요한 단순 질문은 바로 답해라.
 
 규칙:
@@ -517,12 +525,18 @@ export async function chatWithAssistant(input: {
   const delegation = parseDelegation(raw);
   if (delegation) {
     try {
-      const report = await runStockNetwork(delegation, input.context);
-      const synthesized = await synthesizeStockAnswer({
-        userMessage: input.userMessage,
-        report,
-        context: input.context,
-      });
+      const synthesized =
+        delegation.intent === "screen"
+          ? await synthesizeScreenAnswer({
+              userMessage: input.userMessage,
+              report: await runScreen(delegation, input.context),
+              context: input.context,
+            })
+          : await synthesizeStockAnswer({
+              userMessage: input.userMessage,
+              report: await runStockNetwork(delegation, input.context),
+              context: input.context,
+            });
       const finalText = synthesized.trim();
       if (!finalText) {
         return {
@@ -557,10 +571,12 @@ const DEFAULT_INVEST_SETTINGS: InvestSettings = {
 };
 
 type StockDelegation = {
-  intent: "single" | "portfolio" | "market";
+  intent: "single" | "portfolio" | "market" | "screen";
   queries: { name: string; ticker?: string; market?: string }[];
   need_macro?: boolean;
   focus?: string;
+  /** screen 인텐트의 테마/섹터 설명. */
+  theme?: string;
 };
 
 const DELEGATE_REGEX = /<delegate-stocks>([\s\S]*?)<\/delegate-stocks>/;
@@ -577,10 +593,21 @@ function parseDelegation(text: string): StockDelegation | null {
         )
       : [];
     const intent =
-      parsed.intent === "portfolio" || parsed.intent === "market" ? parsed.intent : "single";
-    // single/마켓이 아닌데 대상이 하나도 없으면 위임 무효(일반 답변으로 폴백).
-    if (intent === "single" && queries.length === 0) return null;
-    return { intent, queries, need_macro: parsed.need_macro, focus: parsed.focus };
+      parsed.intent === "portfolio" ||
+      parsed.intent === "market" ||
+      parsed.intent === "screen"
+        ? parsed.intent
+        : "single";
+    // 대상이 필요한 인텐트인데 후보가 하나도 없으면 위임 무효(일반 답변으로 폴백).
+    if ((intent === "single" || intent === "screen") && queries.length === 0)
+      return null;
+    return {
+      intent,
+      queries,
+      need_macro: parsed.need_macro,
+      focus: parsed.focus,
+      theme: typeof parsed.theme === "string" ? parsed.theme : undefined,
+    };
   } catch {
     return null;
   }
@@ -720,6 +747,269 @@ async function runStockNetwork(
   ]);
 
   return { perTicker, macro, grounded };
+}
+
+// =====================================================================
+// 테마/섹터 스크리닝 — 후보 발굴(상위 뇌) → 실데이터 검증 → 단/중/장기 추천
+// =====================================================================
+
+type ScreenCandidate = {
+  name: string;
+  ticker: string;
+  market: string;
+  dataOk: boolean;
+  price: number | null;
+  changePercent: number | null;
+  /** 실데이터 펀더멘털 한 줄 (PBR·PER·ROE·부채비율·목표주가 등). */
+  fundamentals: string;
+  jkp: JkpAnalysisResult | null;
+  holding?: StockHolding;
+  error?: string;
+};
+
+type ScreenReport = {
+  theme: string;
+  focus?: string;
+  candidates: ScreenCandidate[];
+  macro: { text: string; asOf: number } | null;
+  grounded: { text: string; sources: { title: string; uri: string }[] } | null;
+};
+
+/** 후보 1종목: 티커 해석 → 실시간 데이터 → JKP 단일 분석(5인 리뷰는 비용상 생략). */
+async function screenCandidate(
+  t: { name: string; ticker?: string; market?: string },
+  settings: InvestSettings,
+  holdings: StockHolding[],
+): Promise<ScreenCandidate> {
+  let ticker = t.ticker?.trim() ?? "";
+  let name = t.name;
+  let market = t.market ?? "US";
+  try {
+    if (!ticker) {
+      const found = await searchTickerSmart(t.name);
+      if (found) {
+        ticker = found.ticker;
+        name = found.name || t.name;
+        market = found.market === "OTHER" ? market : found.market;
+      }
+    }
+    if (!ticker) {
+      return {
+        name,
+        ticker: "?",
+        market,
+        dataOk: false,
+        price: null,
+        changePercent: null,
+        fundamentals: "(티커 해석 실패)",
+        jkp: null,
+        error: "티커 해석 실패",
+      };
+    }
+    const md: StockMarketData = await gatherMarketData(ticker, name);
+    const fundamentals = buildFundamentalsLine(md.quote).text;
+    const jkp = md.dataOk
+      ? await runJkpAnalysis({
+          ticker: md.ticker,
+          name,
+          market,
+          settings,
+          marketData: md,
+        }).catch(() => null)
+      : null;
+    const holding = holdings.find(
+      (h) => h.ticker.toUpperCase() === md.ticker.toUpperCase(),
+    );
+    return {
+      name,
+      ticker: md.ticker,
+      market,
+      dataOk: md.dataOk,
+      price: md.price,
+      changePercent: md.changePercent,
+      fundamentals,
+      jkp,
+      holding,
+      error: md.dataOk ? undefined : "실데이터 수집 실패",
+    };
+  } catch (e) {
+    return {
+      name,
+      ticker: ticker || "?",
+      market,
+      dataOk: false,
+      price: null,
+      changePercent: null,
+      fundamentals: "(수집 오류)",
+      jkp: null,
+      error: e instanceof Error ? e.message : String(e),
+    };
+  }
+}
+
+function buildScreenGroundingQuery(d: StockDelegation): string {
+  const today = toIso(new Date());
+  const theme = d.theme || d.focus || "관심 테마";
+  const names = d.queries.map((q) => q.name).filter(Boolean).join(", ");
+  return `오늘(${today}) 기준 "${theme}" 테마의 최신 시장 흐름·수급·정책/실적 모멘텀과, 관련 종목(${names})에 영향을 줄 예정 이벤트를 날짜와 함께 정리. 테마 자체의 단기·중기·장기 전망도 한 단락으로.`;
+}
+
+async function runScreen(
+  d: StockDelegation,
+  ctx: AssistantContext,
+): Promise<ScreenReport> {
+  const settings = ctx.stock?.settings ?? DEFAULT_INVEST_SETTINGS;
+  const holdings = ctx.stock?.holdings ?? [];
+  const candidatesIn = d.queries.slice(0, 6); // 비용·지연 상한 (최대 6 후보)
+
+  const [candidates, macro, grounded] = await Promise.all([
+    Promise.all(candidatesIn.map((t) => screenCandidate(t, settings, holdings))),
+    fetchMarketSnapshot()
+      .then((s) => (s.ok ? { text: s.text, asOf: s.asOf } : null))
+      .catch(() => null),
+    fetchGroundedMarketBrief(buildScreenGroundingQuery(d)).catch(() => null),
+  ]);
+
+  return {
+    theme: d.theme || d.focus || "테마 스크리닝",
+    focus: d.focus,
+    candidates,
+    macro,
+    grounded,
+  };
+}
+
+function buildScreenReportText(r: ScreenReport, ctx: AssistantContext): string {
+  const blocks: string[] = [];
+  blocks.push(`### 테마: ${r.theme}${r.focus ? ` (관심: ${r.focus})` : ""}`);
+
+  for (const c of r.candidates) {
+    const lines: string[] = [];
+    const chg =
+      c.changePercent !== null
+        ? ` (${c.changePercent > 0 ? "+" : ""}${c.changePercent.toFixed(2)}%)`
+        : "";
+    lines.push(`#### ${c.name} (${c.ticker}, ${c.market})`);
+    if (c.error) lines.push(`  수집: ${c.error}`);
+    lines.push(
+      `  현재가: ${c.price !== null ? c.price : "데이터 없음"}${chg} — Yahoo Finance, ${fmtKDateTime(Date.now())} 기준`,
+    );
+    lines.push(`  펀더멘털: ${c.fundamentals}`);
+    if (c.holding) {
+      lines.push(`  사용자 보유: ${c.holding.qty}주 @평단 ${c.holding.avgBuyPrice}`);
+    }
+    if (c.jkp) {
+      const j = c.jkp;
+      lines.push(
+        `  [JKP] 결론=${j.final_action} (확신 ${j.confidence}) / 매수구간 ${j.buy_zone?.entry_price} / 목표1 ${j.target_price?.target_1} / 목표2 ${j.target_price?.target_2} / 손절 ${j.stop_loss} / 손익비 ${j.risk_reward_ratio} / 기간 ${j.time_horizon}`,
+      );
+      if (j.key_catalysts?.length) lines.push(`    촉매: ${j.key_catalysts.join("; ")}`);
+      if (j.key_risks?.length) lines.push(`    리스크: ${j.key_risks.join("; ")}`);
+    } else {
+      lines.push("  [JKP] 분석 없음 (실데이터 부족)");
+    }
+    blocks.push(lines.join("\n"));
+  }
+
+  if (r.macro) {
+    blocks.push(
+      `### 거시 지표 스냅샷 (Yahoo Finance, ${fmtKDateTime(r.macro.asOf)} 기준)\n${r.macro.text}`,
+    );
+  }
+  if (r.grounded) {
+    const src = r.grounded.sources.length
+      ? "\n출처:\n" +
+        r.grounded.sources
+          .map((s, i) => `  [${i + 1}] ${s.title || s.uri} — ${s.uri}`)
+          .join("\n")
+      : "";
+    blocks.push(
+      `### 최신 시장/테마 브리핑 (Google 검색 그라운딩)\n${r.grounded.text}${src}`,
+    );
+  }
+
+  const today = toIso(new Date());
+  const upcoming = (ctx.stock?.econEvents ?? [])
+    .filter((ev) => ev.eventDate >= today)
+    .slice(0, 6);
+  if (upcoming.length) {
+    blocks.push(
+      "### 사용자 등록 경제 일정\n" +
+        upcoming
+          .map((ev) => `  - ${ev.eventDate} [${ev.importance}] ${ev.title} (${ev.market})`)
+          .join("\n"),
+    );
+  }
+
+  if (r.candidates.filter((c) => c.dataOk).length === 0) {
+    blocks.push(
+      "(주의: 후보 종목 실데이터를 거의 못 가져왔다. 가져온 펀더멘털·그라운딩 범위 안에서만 신중히 판단하고, 부족하면 그 사실을 밝혀라.)",
+    );
+  }
+  return blocks.join("\n\n");
+}
+
+const STOCK_SCREEN_SYNTH_PROMPT = `너는 사용자의 전담 펀드매니저 겸 최상위 뇌 네트워크 총괄("최종 자비스") "뇌대리"다.
+하위 에이전트가 테마 후보 종목들의 Yahoo Finance 실시간 재무·시세와 JKP 분석을 모아줬다. 이걸 종합해 테마 안에서 "지금 살 만한 종목"을 골라 단기·중기·장기로 나눠 추천한다.
+
+핵심 원칙:
+- "데이터 없음"으로 회피하지 마라. 후보별 펀더멘털(PBR·PER·ROE·부채비율·매출성장률·목표주가)과 JKP 결론이 리포트에 들어있다. 그 수치로 우열을 가려 순위를 매긴다.
+- 모든 추천에는 두 종류의 근거를 반드시 붙여라: (1) 회사 경영상태·밸류에이션 근거 — PBR/PER/ROE/부채비율/성장률 중 실제 수치를 인용, (2) 시장흐름·테마 모멘텀 근거 — 거시 스냅샷·그라운딩 브리핑 기반.
+- 리포트에 있는 수치만 인용한다. 없는 값은 지어내지 말고 그 종목은 순위에서 내리거나 "데이터 부족"으로 표기.
+- 목표가·손절가·진입가는 "(JKP 기준)"처럼 출처를 달아라.
+- "투자 권유가 아닙니다" 류 면피 문구 금지. 명확히 매수/관망/회피로 구분.
+
+출력 형식(한국어, 마크다운):
+
+## [테마] 스크리닝 — 단기·중기·장기 추천
+
+> 테마 한 줄 요약 + 현재 시장흐름 한 줄
+
+### 📌 종합 순위
+| 순위 | 종목(티커) | 스탠스 | 핵심 근거 (경영·밸류 + 시장흐름) |
+|------|-----------|--------|------------------|
+| 1 | … | 매수/관망/회피 | PBR/ROE 등 수치 + 테마 모멘텀 |
+
+### ⚡ 단기 (1~4주)
+- **[종목]:** 진입가 / 목표 / 손절 (JKP 기준) — 근거: [밸류·경영상태] / [시장흐름·수급]
+
+### 📈 중기 (1~6개월)
+- **[종목]:** 목표가 + 펀더멘털 근거 + 테마 성장 근거
+
+### 🏛 장기 (6개월+)
+- **[종목]:** 밸류에이션 근거(PBR/PER vs 성장성) + 구조적 테마 근거
+
+### ⚠ 제외·주의
+- [데이터 부족하거나 밸류 과열인 종목과 이유]
+
+### 예정 이벤트 & 리스크
+- [날짜 있는 이벤트, 테마 공통 리스크]
+
+마지막 줄에 **데이터 기준:** Yahoo Finance 실시간 + Google 검색 그라운딩, [오늘 날짜] 기준 — 그라운딩 출처 URL 있으면 첨부.`;
+
+async function synthesizeScreenAnswer(input: {
+  userMessage: string;
+  report: ScreenReport;
+  context: AssistantContext;
+}): Promise<string> {
+  const reportText = buildScreenReportText(input.report, input.context);
+  const today = toIso(new Date());
+  const systemText = `${STOCK_SCREEN_SYNTH_PROMPT}\n\n[오늘] ${today} (${weekdayLabel(today)})`;
+  const userPrompt = `사용자 질문: "${input.userMessage}"
+
+아래는 네 하위 에이전트들이 "${input.report.theme}" 테마 후보 종목들에 대해 실시간 데이터로 작성한 리포트다.
+========================================
+${reportText}
+========================================
+
+위 리포트의 실제 수치만 근거로, 테마 안에서 단기·중기·장기 추천 종목을 골라 종합하라. 각 추천에는 경영상태/PBR 등 밸류에이션 근거와 시장흐름 근거를 반드시 함께 제시하라. 제공되지 않은 수치는 만들지 마라.`;
+  return callChatGemini(
+    systemText,
+    [{ role: "user", parts: [{ text: userPrompt }] }],
+    0.3,
+    2600,
+    0,
+  );
 }
 
 const STOCK_SYNTH_PROMPT = `너는 사용자의 전담 펀드매니저 "뇌대리"다.

@@ -209,7 +209,7 @@ function buildMarketContext(q: QuoteSummaryModules, news: NewsItem[]): string {
 }
 
 /** 5인 에이전트 분석용 한 줄 펀더멘털 요약 + 데이터 유무. */
-function buildFundamentalsLine(q: QuoteSummaryModules | null): { text: string; ok: boolean } {
+export function buildFundamentalsLine(q: QuoteSummaryModules | null): { text: string; ok: boolean } {
   if (!q) return { text: "(데이터 없음)", ok: false };
   const sd = q.summaryDetail ?? {};
   const fd = q.financialData ?? {};
