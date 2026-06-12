@@ -1,6 +1,9 @@
 import { promises as fs } from "node:fs";
+import os from "node:os";
 import { getConfig, isLocalRuntime } from "./config";
 import {
+  backupContents,
+  commitVault,
   createBackupTag,
   currentBranch,
   effectiveBranch,
@@ -9,10 +12,12 @@ import {
   listBackups,
   recentCommits,
   restoreToTag,
+  type BackupEntry,
   type VaultBackup,
   type VaultCommit,
 } from "./git";
 import {
+  ghBackupContents,
   ghCreateBackup,
   ghListBackups,
   ghRecentCommits,
@@ -20,14 +25,22 @@ import {
   ghSummary,
 } from "./github";
 import { recentLogs } from "./logger";
+import { assertVaultDir, mirrorDir } from "./mirror";
+import {
+  listMachines,
+  registerMachine,
+  touchMachine,
+  type MachineInfo,
+  type VaultMachine,
+} from "./registry";
 import { getState, syncNow, type SyncState } from "./sync";
 import { watcherActive } from "./watcher";
 
 /**
- * Engine facade. Locally we drive the git CLI against the working tree (the
- * only place that can pick up the user's live Obsidian edits). On a deploy we
- * drive the GitHub REST API against the repo, where the notes already live.
- * Routes call these and never branch on the runtime themselves.
+ * Engine facade. Locally we drive the git CLI against the working tree (and,
+ * when VAULT_SYNC_EXTERNAL_PATH is set, mirror the user's real Obsidian vault in
+ * and out). On a deploy we drive the GitHub REST API. Routes call these and
+ * never branch on the runtime themselves.
  */
 
 export type StatusPayload =
@@ -44,6 +57,10 @@ export type StatusPayload =
       pullIntervalMs: number;
       state: SyncState;
       logs: ReturnType<typeof recentLogs>;
+      machines: VaultMachine[];
+      // local mode: 외부 보관함 정보
+      externalPath?: string;
+      externalExists?: boolean;
       // github mode only
       repo?: string;
       canWrite?: boolean;
@@ -61,6 +78,18 @@ async function pathExists(p: string): Promise<boolean> {
   }
 }
 
+function machineInfo(branch: string): MachineInfo {
+  const cfg = getConfig();
+  return {
+    id: os.hostname() || "unknown-pc",
+    label: (process.env.VAULT_SYNC_MACHINE_LABEL || "").trim() || undefined,
+    path: cfg.externalPath || cfg.vaultAbsPath,
+    external: cfg.externalPath.length > 0,
+    branch,
+    platform: process.platform,
+  };
+}
+
 export async function engineStatus(): Promise<StatusPayload> {
   if (isLocalRuntime()) {
     if (!(await isGitRepo())) {
@@ -71,12 +100,17 @@ export async function engineStatus(): Promise<StatusPayload> {
       };
     }
     const cfg = getConfig();
-    const [branch, checkedOut, dirty, vaultExists] = await Promise.all([
-      effectiveBranch(),
-      currentBranch(),
-      hasVaultChanges(),
-      pathExists(cfg.vaultAbsPath),
-    ]);
+    const [branch, checkedOut, dirty, vaultExists, externalExists] =
+      await Promise.all([
+        effectiveBranch(),
+        currentBranch(),
+        hasVaultChanges(),
+        pathExists(cfg.vaultAbsPath),
+        cfg.externalPath ? pathExists(cfg.externalPath) : Promise.resolve(false),
+      ]);
+    // 이 PC를 레지스트리에 등록(폴링이라 60초 스로틀).
+    await touchMachine(machineInfo(branch));
+    const machines = await listMachines();
     return {
       available: true,
       mode: "local",
@@ -90,10 +124,13 @@ export async function engineStatus(): Promise<StatusPayload> {
       pullIntervalMs: cfg.pullIntervalMs,
       state: getState(),
       logs: recentLogs(80),
+      machines,
+      externalPath: cfg.externalPath || undefined,
+      externalExists: cfg.externalPath ? externalExists : undefined,
     };
   }
 
-  const sum = await ghSummary();
+  const [sum, machines] = await Promise.all([ghSummary(), listMachines()]);
   return {
     available: true,
     mode: "github",
@@ -111,6 +148,7 @@ export async function engineStatus(): Promise<StatusPayload> {
     lastNoteCommit: sum.lastNoteCommit,
     state: getState(),
     logs: recentLogs(80),
+    machines,
   };
 }
 
@@ -118,11 +156,25 @@ export async function engineListBackups(): Promise<VaultBackup[]> {
   return isLocalRuntime() ? listBackups() : ghListBackups();
 }
 
+export async function engineBackupContents(tag: string): Promise<BackupEntry[]> {
+  return isLocalRuntime() ? backupContents(tag) : ghBackupContents(tag);
+}
+
 export async function engineCreateBackup(): Promise<{
   tag: string;
   pushed: boolean;
 }> {
-  return isLocalRuntime() ? createBackupTag() : ghCreateBackup();
+  if (!isLocalRuntime()) return ghCreateBackup();
+  // 외부 보관함이 있으면 백업 직전 현재 상태를 레포로 미러링+커밋 → 백업이
+  // "지금 내 보관함 상태"를 정확히 담도록 보장.
+  const cfg = getConfig();
+  if (cfg.externalPath) {
+    await assertVaultDir(cfg.externalPath);
+    const m = await mirrorDir(cfg.externalPath, cfg.vaultAbsPath);
+    if (m.copied || m.deleted) await commitVault("vault: snapshot before backup");
+    await registerMachine(machineInfo(await effectiveBranch()));
+  }
+  return createBackupTag();
 }
 
 export async function engineCommits(limit = 30): Promise<VaultCommit[]> {
@@ -132,7 +184,14 @@ export async function engineCommits(limit = 30): Promise<VaultCommit[]> {
 export async function engineRestore(
   tag: string,
 ): Promise<{ safetyTag: string; committed: boolean }> {
-  return isLocalRuntime() ? restoreToTag(tag) : ghRestoreToTag(tag);
+  if (!isLocalRuntime()) return ghRestoreToTag(tag);
+  const res = await restoreToTag(tag);
+  // 복원된 레포 노트를 외부 보관함에도 반영(레포 → 보관함).
+  const cfg = getConfig();
+  if (cfg.externalPath && (await pathExists(cfg.externalPath))) {
+    await mirrorDir(cfg.vaultAbsPath, cfg.externalPath);
+  }
+  return res;
 }
 
 export async function engineSync(reason: string): Promise<SyncState> {
@@ -145,12 +204,8 @@ export async function engineSync(reason: string): Promise<SyncState> {
     lastError: null,
     ahead: 0,
     behind: 0,
-    branch: getGithubBranch(),
+    branch: getConfig().branchOverride || "main",
     remoteExists: true,
     lastConflicts: [],
   };
-}
-
-function getGithubBranch(): string {
-  return getConfig().branchOverride || "main";
 }

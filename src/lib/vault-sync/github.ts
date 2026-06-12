@@ -192,6 +192,35 @@ export async function ghSummary(): Promise<GithubSummary> {
   };
 }
 
+export type BackupEntry = { path: string; bytes: number };
+
+/** 백업 태그 시점의 vault 폴더 파일 목록(경로+크기). */
+export async function ghBackupContents(tag: string): Promise<BackupEntry[]> {
+  if (!TAG_SAFE.test(tag)) throw new GithubError("invalid_tag", 400);
+  const { vaultPath } = getConfig();
+  const ref = await ghJson<{ object: { sha: string; type: string } }>(
+    `/git/ref/tags/${tag}`,
+  );
+  let commitSha = ref.object.sha;
+  if (ref.object.type === "tag") {
+    const t = await ghJson<{ object: { sha: string } }>(
+      `/git/tags/${ref.object.sha}`,
+    );
+    commitSha = t.object.sha;
+  }
+  const commit = await ghJson<{ tree: { sha: string } }>(
+    `/git/commits/${commitSha}`,
+  );
+  const tree = await ghJson<{
+    tree: { path: string; type: string; size?: number }[];
+    truncated: boolean;
+  }>(`/git/trees/${commit.tree.sha}?recursive=1`);
+  return tree.tree
+    .filter((e) => e.type === "blob" && underVault(e.path, vaultPath))
+    .map((e) => ({ path: e.path, bytes: e.size ?? 0 }))
+    .sort((a, b) => a.path.localeCompare(b.path));
+}
+
 // ── Write operations ──
 
 async function branchHead(): Promise<{ sha: string; treeSha: string }> {

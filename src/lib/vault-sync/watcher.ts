@@ -47,9 +47,12 @@ export function startWatcher(): void {
   let debounce: NodeJS.Timeout | null = null;
   let fsWatcher: fs.FSWatcher | null = null;
 
+  // 외부 보관함이 설정돼 있으면 그 폴더를, 아니면 레포 vault 폴더를 감시한다.
+  const watchTarget = cfg.externalPath || cfg.vaultAbsPath;
+
   try {
     fsWatcher = fs.watch(
-      cfg.vaultAbsPath,
+      watchTarget,
       { recursive: true },
       (_event, filename) => {
         if (filename && shouldIgnore(filename.toString())) return;
@@ -57,7 +60,7 @@ export function startWatcher(): void {
         debounce = setTimeout(() => void syncNow("file-change"), 2500);
       },
     );
-    logInfo(`워처 시작 — ${cfg.vaultPath} 감시, ${cfg.pullIntervalMs}ms 주기 pull`);
+    logInfo(`워처 시작 — ${watchTarget} 감시, ${cfg.pullIntervalMs}ms 주기 pull`);
   } catch (e) {
     logWarn(`워처 시작 실패: ${(e as Error).message}`);
   }

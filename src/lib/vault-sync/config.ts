@@ -21,6 +21,13 @@ export type VaultSyncConfig = {
   pullIntervalMs: number;
   /** Whether the background watcher auto-commits/pushes on change. Opt-in. */
   autoEnabled: boolean;
+  /**
+   * Absolute path to the user's real Obsidian vault, outside the repo. When set,
+   * the engine mirrors this folder <-> the repo's vault path on each sync, so the
+   * actual notes (wherever they live) get backed up. Empty = repo folder is the
+   * source of truth.
+   */
+  externalPath: string;
 };
 
 function envInt(name: string, fallback: number): number {
@@ -51,6 +58,7 @@ export function getConfig(): VaultSyncConfig {
     remote: (process.env.VAULT_SYNC_REMOTE || "origin").trim(),
     pullIntervalMs: envInt("VAULT_SYNC_PULL_INTERVAL_MS", 15000),
     autoEnabled: envBool("VAULT_SYNC_ENABLED"),
+    externalPath: (process.env.VAULT_SYNC_EXTERNAL_PATH || "").trim(),
   };
 }
 

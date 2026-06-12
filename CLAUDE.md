@@ -44,17 +44,22 @@ Windows 전용 스크립트: `dev.bat`, `desktop-dev.bat`
 | `GITHUB_TOKEN` | GitHub API rate limit 우회 + 플러그인 상태등 조회 | GitHub → Settings → Developer settings → Personal access tokens |
 | `ADMIN_EMAIL` | 웅허브 관리자 이메일 (기본값 `kww2962@gmail.com`) | 직접 입력 |
 
-### VaultSync (옵시디언 동기화, 로컬 전용)
+### VaultSync (옵시디언 동기화·백업)
 
-`obsidian/` 노트를 git으로 동기화·백업하는 내부 앱 (`/apps/vault-sync`). **Vercel 배포본에서는 동작하지 않고 로컬(`npm run dev`)에서만 작동**한다. 모두 선택값이며 기본값으로 동작한다.
+`obsidian/` 노트를 동기화·백업하는 내부 앱 (`/apps/vault-sync`). **로컬(`npm run dev`)에서는 git CLI 엔진**(실시간 파일 감시·동기화), **Vercel 배포본에서는 GitHub REST 엔진**(백업·복원·히스토리)으로 동작한다. 엔진은 `lib/vault-sync/engine.ts` 파사드가 런타임에 따라 자동 선택. 모두 선택값이며 기본값으로 동작한다.
 
 | 변수 | 기본값 | 용도 |
 |------|--------|------|
 | `VAULT_SYNC_ENABLED` | `0` | 백그라운드 자동 동기화(파일 감시 + 주기 pull) 켜기. `1`로 설정 시에만 워처 기동 (대시보드 수동 버튼은 항상 사용 가능) |
-| `VAULT_SYNC_PATH` | `obsidian` | 동기화할 폴더 (레포 루트 기준 상대경로) |
-| `VAULT_SYNC_BRANCH` | 체크아웃된 브랜치 | commit/push 대상 브랜치. 비워두면 현재 브랜치 사용 (권장: `vault` 브랜치를 체크아웃해 코드/노트 분리 → Vercel 재배포 회피) |
+| `VAULT_SYNC_PATH` | `obsidian` | 레포 안 동기화 폴더 (레포 루트 기준 상대경로) |
+| `VAULT_SYNC_EXTERNAL_PATH` | (없음) | **로컬 전용.** 레포 밖에 있는 실제 옵시디언 보관함 절대경로. 설정 시 동기화/백업 때 이 폴더 ↔ 레포 `obsidian/` 를 양방향 미러링(`lib/vault-sync/mirror.ts`)하므로 진짜 노트가 백업된다. PC마다 다른 경로 지정 가능 |
+| `VAULT_SYNC_MACHINE_LABEL` | hostname | PC 관리 목록에 표시할 이 PC 이름 |
+| `VAULT_SYNC_BRANCH` | 체크아웃된 브랜치 | commit/push 대상 브랜치. 비워두면 현재 브랜치 사용 |
 | `VAULT_SYNC_REMOTE` | `origin` | git remote 이름 |
 | `VAULT_SYNC_PULL_INTERVAL_MS` | `15000` | 자동 동기화 주기(ms) |
+| `GITHUB_TOKEN` (쓰기 권한) | (없음) | **배포본 백업·복원에 필요.** Contents read/write(Fine-grained) 또는 repo(classic) 스코프. 없으면 배포본에서 히스토리 조회만 가능 |
+
+PC 레지스트리(`lib/vault-sync/registry.ts`)는 Redis(`vault-sync:machines`)에 각 PC의 hostname·보관함 경로를 등록해 대시보드 "PC 관리" 탭에서 보여준다(로컬에서 자동 등록, 배포본에서도 조회). 백업 "내용 보기"는 `git ls-tree`(로컬)/Trees API(배포)로 그 시점 파일 목록을 보여준다.
 
 ## Architecture
 

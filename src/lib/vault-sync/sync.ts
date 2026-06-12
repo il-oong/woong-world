@@ -1,3 +1,4 @@
+import { getConfig } from "./config";
 import {
   aheadBehind,
   commitVault,
@@ -7,6 +8,7 @@ import {
   pushHead,
 } from "./git";
 import { logError, logInfo, logWarn } from "./logger";
+import { assertVaultDir, mirrorDir } from "./mirror";
 
 export type SyncState = {
   /** A sync is currently running. */
@@ -59,9 +61,18 @@ export function getState(): SyncState {
 
 async function runSync(reason: string): Promise<void> {
   const s = state();
+  const cfg = getConfig();
   const branch = await effectiveBranch();
   s.branch = branch;
   if (!branch) throw new Error("브랜치를 확인할 수 없습니다 (HEAD detached?)");
+
+  // 0. 외부 보관함이 설정돼 있으면, 커밋 전 보관함 → 레포로 미러링.
+  if (cfg.externalPath) {
+    await assertVaultDir(cfg.externalPath);
+    const m = await mirrorDir(cfg.externalPath, cfg.vaultAbsPath);
+    if (m.copied || m.deleted)
+      logInfo(`보관함→레포 미러: 복사 ${m.copied}, 삭제 ${m.deleted}`);
+  }
 
   // 1. Commit local note changes (scoped to the vault path).
   const committed = await commitVault(`vault: update notes (${reason})`);
@@ -76,6 +87,13 @@ async function runSync(reason: string): Promise<void> {
     const merged = await mergeRemote(branch);
     conflicts = merged.conflicts;
     if (!merged.merged) throw new Error("원격 변경 병합 실패");
+  }
+
+  // 2.5. 병합으로 들어온 원격 노트를 외부 보관함에도 반영(레포 → 보관함).
+  if (cfg.externalPath) {
+    const m = await mirrorDir(cfg.vaultAbsPath, cfg.externalPath);
+    if (m.copied || m.deleted)
+      logInfo(`레포→보관함 미러: 복사 ${m.copied}, 삭제 ${m.deleted}`);
   }
 
   // 3. Push local commits (creates the branch if it doesn't exist yet).

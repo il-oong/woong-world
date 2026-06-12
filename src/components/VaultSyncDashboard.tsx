@@ -18,6 +18,16 @@ type SyncState = {
 
 type LogEntry = { ts: number; level: "info" | "warn" | "error"; msg: string };
 
+type Machine = {
+  id: string;
+  label: string;
+  path: string;
+  external: boolean;
+  branch: string;
+  platform: string;
+  lastSeen: number;
+};
+
 type StatusOk = {
   available: true;
   mode?: "local" | "github";
@@ -31,6 +41,10 @@ type StatusOk = {
   pullIntervalMs: number;
   state: SyncState;
   logs: LogEntry[];
+  machines?: Machine[];
+  // local mode: 외부 보관함
+  externalPath?: string;
+  externalExists?: boolean;
   // github mode only
   repo?: string;
   canWrite?: boolean;
@@ -51,15 +65,31 @@ type Commit = {
 };
 
 type Backup = { tag: string; date: number; subject: string; hash: string };
+type BackupFile = { path: string; bytes: number };
 
-type Tab = "overview" | "backup" | "history" | "logs";
+type Tab = "overview" | "backup" | "history" | "pc" | "logs";
 
 const TABS: { id: Tab; label: string; icon: string }[] = [
   { id: "overview", label: "개요", icon: "🛰️" },
   { id: "backup", label: "백업·복원", icon: "💾" },
   { id: "history", label: "히스토리", icon: "🕘" },
+  { id: "pc", label: "PC 관리", icon: "💻" },
   { id: "logs", label: "로그", icon: "📜" },
 ];
+
+function fmtBytes(n: number): string {
+  if (!n) return "0";
+  if (n < 1024) return `${n}B`;
+  if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)}KB`;
+  return `${(n / 1024 / 1024).toFixed(1)}MB`;
+}
+
+function platformLabel(p: string): string {
+  if (p === "win32") return "Windows";
+  if (p === "darwin") return "macOS";
+  if (p === "linux") return "Linux";
+  return p || "—";
+}
 
 // ── Helpers ──
 
@@ -127,6 +157,29 @@ export function VaultSyncDashboard() {
       setBackups([]);
     }
   }, []);
+
+  const loadContents = useCallback(async (tag: string): Promise<BackupFile[]> => {
+    const r = await fetch(`/api/vault-sync/backup?tag=${encodeURIComponent(tag)}`);
+    const d = (await r.json()) as { files?: BackupFile[]; error?: string };
+    if (d.error) throw new Error(d.error);
+    return d.files ?? [];
+  }, []);
+
+  const manageMachine = useCallback(
+    async (action: "rename" | "remove", id: string, label?: string) => {
+      try {
+        await fetch("/api/vault-sync/machines", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action, id, label }),
+        });
+        await loadStatus();
+      } catch (e) {
+        setMsg({ kind: "err", text: e instanceof Error ? e.message : "machine_failed" });
+      }
+    },
+    [loadStatus],
+  );
 
   // Poll status while available.
   useEffect(() => {
@@ -292,10 +345,154 @@ export function VaultSyncDashboard() {
           busy={busy}
           onBackup={runBackup}
           onRestore={runRestore}
+          loadContents={loadContents}
         />
       )}
       {tab === "history" && <HistoryPanel commits={commits} />}
+      {tab === "pc" && (
+        <MachinesPanel
+          machines={status.machines ?? []}
+          onRename={(id, label) => manageMachine("rename", id, label)}
+          onRemove={(id) => manageMachine("remove", id)}
+        />
+      )}
       {tab === "logs" && <LogsPanel logs={status.logs} />}
+    </div>
+  );
+}
+
+// ── Sync target banner (어느 폴더를 동기화하는지 항상 표시) ──
+
+function SyncTargetBanner({ status }: { status: StatusOk }) {
+  const hasExternal = !!status.externalPath;
+  return (
+    <div
+      className={`rounded-xl border p-3 text-xs leading-relaxed ${
+        hasExternal
+          ? status.externalExists
+            ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-100"
+            : "border-rose-500/30 bg-rose-500/10 text-rose-100"
+          : "border-amber-500/30 bg-amber-500/10 text-amber-100"
+      }`}
+    >
+      <p className="mb-1 font-medium">
+        {hasExternal ? "동기화 중인 옵시디언 보관함" : "현재 동기화 폴더"}
+      </p>
+      {hasExternal ? (
+        <>
+          <code className="break-all rounded bg-black/40 px-1 py-0.5">
+            {status.externalPath}
+          </code>
+          {!status.externalExists && (
+            <p className="mt-1">
+              ⚠ 이 경로를 찾을 수 없습니다. 이 PC에 맞는 경로인지 확인하세요.
+            </p>
+          )}
+          <p className="mt-1 text-[11px] opacity-80">
+            이 폴더가 백업·동기화 대상입니다. 백업을 누르면 이 보관함의 현재 노트가 그대로 스냅샷됩니다.
+          </p>
+        </>
+      ) : (
+        <>
+          <code className="break-all rounded bg-black/40 px-1 py-0.5">
+            {"<레포>/"}
+            {status.vaultPath}/
+          </code>
+          <p className="mt-1 text-[11px] opacity-80">
+            지금은 <b>레포 안 {status.vaultPath}/ 폴더</b>만 동기화합니다. 내 실제
+            옵시디언 보관함을 백업하려면 <code className="rounded bg-black/40 px-1">.env.local</code> 에{" "}
+            <code className="rounded bg-black/40 px-1">VAULT_SYNC_EXTERNAL_PATH=보관함_절대경로</code>{" "}
+            를 추가하세요.
+          </p>
+        </>
+      )}
+    </div>
+  );
+}
+
+// ── PC 관리 ──
+
+function MachinesPanel({
+  machines,
+  onRename,
+  onRemove,
+}: {
+  machines: Machine[];
+  onRename: (id: string, label: string) => void;
+  onRemove: (id: string) => void;
+}) {
+  return (
+    <div className="flex flex-col gap-3">
+      <p className="text-xs text-[var(--muted)]">
+        같은 git 브랜치로 동기화하는 PC 목록입니다. 각 PC가 로컬에서 동기화하면 자동
+        등록돼요. 같은 노트가 PC 간에 서로 오갑니다.
+      </p>
+      {machines.length === 0 ? (
+        <div className="rounded-xl border border-dashed border-[var(--border)] p-6 text-center text-xs text-[var(--muted)]">
+          아직 등록된 PC가 없습니다. PC에서 <code className="rounded bg-black/40 px-1">npm run dev</code>{" "}
+          로 띄우고 한 번 동기화하면 여기 나타납니다.
+        </div>
+      ) : (
+        <ul className="flex flex-col gap-2">
+          {machines.map((m) => (
+            <li
+              key={m.id}
+              className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-3"
+            >
+              <div className="flex items-start gap-3">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[var(--accent)]/10 text-base">
+                  💻
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="font-medium">{m.label}</span>
+                    <span className="rounded bg-white/5 px-1.5 py-0.5 text-[10px] text-[var(--muted)]">
+                      {platformLabel(m.platform)}
+                    </span>
+                    <span
+                      className={`rounded px-1.5 py-0.5 text-[10px] ${
+                        m.external
+                          ? "bg-emerald-500/15 text-emerald-300"
+                          : "bg-white/5 text-[var(--muted)]"
+                      }`}
+                    >
+                      {m.external ? "외부 보관함" : "레포 폴더"}
+                    </span>
+                  </div>
+                  <p className="mt-1 break-all font-mono text-[11px] text-[var(--muted)]">
+                    {m.path}
+                  </p>
+                  <p className="mt-0.5 text-[10px] text-[var(--muted)]">
+                    {m.id} · 브랜치 {m.branch} · 마지막 동기화 {timeAgo(m.lastSeen)}
+                  </p>
+                </div>
+                <div className="flex shrink-0 flex-col gap-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const label = prompt("이 PC 이름", m.label);
+                      if (label != null) onRename(m.id, label);
+                    }}
+                    className="rounded-md border border-[var(--border)] px-2 py-1 text-[10px] transition hover:border-[var(--accent)]/40"
+                  >
+                    이름변경
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (confirm(`"${m.label}" 을 목록에서 지울까요? (노트는 안 지워짐)`))
+                        onRemove(m.id);
+                    }}
+                    className="rounded-md border border-[var(--border)] px-2 py-1 text-[10px] text-rose-300 transition hover:border-rose-500/40"
+                  >
+                    삭제
+                  </button>
+                </div>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }
@@ -319,6 +516,7 @@ function Overview({
   const s = status.state;
   return (
     <div className="flex flex-col gap-4">
+      <SyncTargetBanner status={status} />
       <div className="grid gap-3 sm:grid-cols-2">
         <Stat label="브랜치" value={status.branch || "—"} sub={`체크아웃: ${status.checkedOutBranch || "—"}`} />
         <Stat
@@ -468,11 +666,13 @@ function BackupPanel({
   busy,
   onBackup,
   onRestore,
+  loadContents,
 }: {
   backups: Backup[] | null;
   busy: string | null;
   onBackup: () => void;
   onRestore: (tag: string) => void;
+  loadContents: (tag: string) => Promise<BackupFile[]>;
 }) {
   return (
     <div className="flex flex-col gap-4">
@@ -494,36 +694,116 @@ function BackupPanel({
       ) : (
         <ul className="flex flex-col gap-2">
           {backups.map((b) => (
-            <li
+            <BackupRow
               key={b.tag}
-              className="flex items-center gap-3 rounded-xl border border-[var(--border)] bg-[var(--card)] p-3"
-            >
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[var(--accent)]/10 text-base">
-                💾
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="truncate font-mono text-xs">{b.tag}</p>
-                <p className="text-[10px] text-[var(--muted)]">
-                  {fmtDate(b.date)} · {b.hash}
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => onRestore(b.tag)}
-                disabled={busy !== null}
-                className="rounded-md border border-[var(--border)] px-3 py-1.5 text-[11px] transition hover:border-[var(--accent)]/40 disabled:opacity-40"
-              >
-                {busy === `restore:${b.tag}` ? "복원 중…" : "복원"}
-              </button>
-            </li>
+              backup={b}
+              busy={busy}
+              onRestore={onRestore}
+              loadContents={loadContents}
+            />
           ))}
         </ul>
       )}
       <p className="text-[10px] text-[var(--muted)]">
         복원은 obsidian/ 폴더만 해당 시점으로 되돌립니다. 복원 직전 상태는 안전
-        스냅샷 태그로 자동 보존돼 언제든 되돌릴 수 있습니다.
+        스냅샷 태그로 자동 보존돼 언제든 되돌릴 수 있습니다. <b>내용 보기</b>로 그
+        백업에 어떤 노트가 담겼는지 확인할 수 있어요.
       </p>
     </div>
+  );
+}
+
+function BackupRow({
+  backup: b,
+  busy,
+  onRestore,
+  loadContents,
+}: {
+  backup: Backup;
+  busy: string | null;
+  onRestore: (tag: string) => void;
+  loadContents: (tag: string) => Promise<BackupFile[]>;
+}) {
+  const [open, setOpen] = useState(false);
+  const [files, setFiles] = useState<BackupFile[] | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  const toggle = async () => {
+    const next = !open;
+    setOpen(next);
+    if (next && files === null && !loading) {
+      setLoading(true);
+      setErr(null);
+      try {
+        setFiles(await loadContents(b.tag));
+      } catch (e) {
+        setErr(e instanceof Error ? e.message : "load_failed");
+      } finally {
+        setLoading(false);
+      }
+    }
+  };
+
+  return (
+    <li className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-3">
+      <div className="flex items-center gap-3">
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[var(--accent)]/10 text-base">
+          💾
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="truncate font-mono text-xs">{b.tag}</p>
+          <p className="text-[10px] text-[var(--muted)]">
+            {fmtDate(b.date)} · {b.hash}
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={toggle}
+          className="rounded-md border border-[var(--border)] px-2.5 py-1.5 text-[11px] transition hover:border-[var(--accent)]/40"
+        >
+          {open ? "내용 닫기" : "내용 보기"}
+        </button>
+        <button
+          type="button"
+          onClick={() => onRestore(b.tag)}
+          disabled={busy !== null}
+          className="rounded-md border border-[var(--border)] px-3 py-1.5 text-[11px] transition hover:border-[var(--accent)]/40 disabled:opacity-40"
+        >
+          {busy === `restore:${b.tag}` ? "복원 중…" : "복원"}
+        </button>
+      </div>
+
+      {open && (
+        <div className="mt-2 rounded-lg border border-[var(--border)] bg-black/20 p-2">
+          {loading ? (
+            <p className="text-[11px] text-[var(--muted)]">불러오는 중...</p>
+          ) : err ? (
+            <p className="text-[11px] text-rose-300">불러오기 실패: {err}</p>
+          ) : files && files.length > 0 ? (
+            <>
+              <p className="mb-1 text-[10px] text-[var(--muted)]">
+                파일 {files.length}개
+              </p>
+              <ul className="flex flex-col gap-0.5 font-mono text-[11px]">
+                {files.map((f) => (
+                  <li key={f.path} className="flex justify-between gap-2">
+                    <span className="truncate">{f.path}</span>
+                    <span className="shrink-0 text-[var(--muted)]">
+                      {fmtBytes(f.bytes)}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </>
+          ) : (
+            <p className="text-[11px] text-[var(--muted)]">
+              이 백업에 노트 파일이 없습니다.
+            </p>
+          )}
+        </div>
+      )}
+    </li>
   );
 }
 

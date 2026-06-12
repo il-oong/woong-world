@@ -348,3 +348,33 @@ export async function restoreToTag(
   logInfo(`복원: ${tag} (안전 스냅샷 ${safetyTag})`);
   return { safetyTag, committed };
 }
+
+export type BackupEntry = { path: string; bytes: number };
+
+/** 백업 태그 시점의 vault 폴더에 들어있는 파일 목록(경로+크기). */
+export async function backupContents(tag: string): Promise<BackupEntry[]> {
+  if (!TAG_SAFE.test(tag)) throw new Error("invalid_tag");
+  const { vaultPath } = getConfig();
+  const r = await gitSafe([
+    "ls-tree",
+    "-r",
+    "--long",
+    "--full-name",
+    tag,
+    "--",
+    vaultPath,
+  ]);
+  if (!r.ok) return [];
+  // `<mode> <type> <sha> <size>\t<path>` 형식 파싱.
+  return r.stdout
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => {
+      const tab = line.indexOf("\t");
+      const meta = line.slice(0, tab).split(/\s+/);
+      const path = line.slice(tab + 1);
+      const bytes = Number.parseInt(meta[3], 10) || 0;
+      return { path, bytes };
+    });
+}
