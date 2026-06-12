@@ -19,6 +19,7 @@ const ADMIN_ITEMS = [
   { href: "/plans", label: "계획", amber: false },
   { href: "/alpha", label: "주식", amber: true },
   { href: "/crypto", label: "코인", amber: true },
+  { href: "/apps/vault-sync", label: "옵시디언", amber: false },
   { href: "/plugins", label: "플러그인", amber: false },
   { href: "/admin/people", label: "관리자", amber: false },
   { href: "/guide", label: "설정 가이드", amber: false },
