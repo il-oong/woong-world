@@ -1,4 +1,4 @@
-import { createBackupTag, listBackups } from "@/lib/vault-sync/git";
+import { engineCreateBackup, engineListBackups } from "@/lib/vault-sync/engine";
 import { guardVaultSync } from "@/lib/vault-sync/guard";
 
 export const dynamic = "force-dynamic";
@@ -8,7 +8,7 @@ export async function GET() {
   const blocked = await guardVaultSync();
   if (blocked) return blocked;
 
-  const backups = await listBackups();
+  const backups = await engineListBackups();
   return Response.json({ backups });
 }
 
@@ -17,7 +17,7 @@ export async function POST() {
   if (blocked) return blocked;
 
   try {
-    const { tag, pushed } = await createBackupTag();
+    const { tag, pushed } = await engineCreateBackup();
     return Response.json({ ok: true, tag, pushed });
   } catch (e) {
     const msg = e instanceof Error ? e.message : "backup_failed";

@@ -1,4 +1,4 @@
-import { recentCommits } from "@/lib/vault-sync/git";
+import { engineCommits } from "@/lib/vault-sync/engine";
 import { guardVaultSync } from "@/lib/vault-sync/guard";
 
 export const dynamic = "force-dynamic";
@@ -8,6 +8,6 @@ export async function GET() {
   const blocked = await guardVaultSync();
   if (blocked) return blocked;
 
-  const commits = await recentCommits(30);
+  const commits = await engineCommits(30);
   return Response.json({ commits });
 }

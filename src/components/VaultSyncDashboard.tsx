@@ -20,6 +20,7 @@ type LogEntry = { ts: number; level: "info" | "warn" | "error"; msg: string };
 
 type StatusOk = {
   available: true;
+  mode?: "local" | "github";
   branch: string;
   checkedOutBranch: string;
   dirty: boolean;
@@ -30,6 +31,11 @@ type StatusOk = {
   pullIntervalMs: number;
   state: SyncState;
   logs: LogEntry[];
+  // github mode only
+  repo?: string;
+  canWrite?: boolean;
+  backupCount?: number;
+  lastNoteCommit?: { subject: string; date: number } | null;
 };
 
 type StatusUnavailable = { available: false; reason: string; message: string };
@@ -307,6 +313,9 @@ function Overview({
   onSync: () => void;
   onBackup: () => void;
 }) {
+  if (status.mode === "github") {
+    return <GithubOverview status={status} busy={busy} onBackup={onBackup} />;
+  }
   const s = status.state;
   return (
     <div className="flex flex-col gap-4">
@@ -379,6 +388,75 @@ function Overview({
           {busy === "backup" ? "백업 중…" : "백업 생성"}
         </button>
       </div>
+    </div>
+  );
+}
+
+// ── Overview (deployed / GitHub mode) ──
+
+function GithubOverview({
+  status,
+  busy,
+  onBackup,
+}: {
+  status: StatusOk;
+  busy: string | null;
+  onBackup: () => void;
+}) {
+  const canWrite = status.canWrite ?? false;
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Stat
+          label="저장소"
+          value={status.repo ?? "—"}
+          sub={`브랜치: ${status.branch || "main"}`}
+        />
+        <Stat
+          label="노트 폴더"
+          value={status.vaultExists ? `${status.vaultPath}/` : "폴더 없음"}
+          tone={status.vaultExists ? "ok" : "err"}
+          sub="GitHub 저장소 기준"
+        />
+        <Stat
+          label="백업"
+          value={`${status.backupCount ?? 0}개`}
+          sub="복원 가능한 스냅샷"
+        />
+        <Stat
+          label="최근 노트 변경"
+          value={timeAgo(
+            status.lastNoteCommit ? status.lastNoteCommit.date * 1000 : null,
+          )}
+          sub={status.lastNoteCommit?.subject ?? "—"}
+        />
+      </div>
+
+      <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-3 text-xs leading-relaxed text-[var(--muted)]">
+        <span className="text-emerald-300">원격(GitHub) 모드</span> — 이 페이지는
+        배포본에서 GitHub API로 직접 동작합니다. <b className="text-foreground">백업 생성</b>·
+        <b className="text-foreground">복원</b>·<b className="text-foreground">히스토리</b>가
+        바로 작동합니다. 내 PC의 옵시디언 편집을 올리는 <b>실시간 동기화</b>는 로컬
+        (<code className="rounded bg-black/40 px-1">npm run dev</code>)에서만 가능합니다.
+      </div>
+
+      {!canWrite && (
+        <Notice tone="warn" title="백업·복원에는 쓰기 토큰이 필요합니다">
+          Vercel 환경변수에 쓰기 권한이 있는{" "}
+          <code className="rounded bg-black/40 px-1">GITHUB_TOKEN</code> 을 추가하세요
+          (Fine-grained: Contents read/write, classic: repo). 토큰이 없으면 히스토리
+          조회만 가능합니다.
+        </Notice>
+      )}
+
+      <button
+        type="button"
+        onClick={onBackup}
+        disabled={busy !== null || !canWrite}
+        className="rounded-lg bg-[var(--accent)] px-4 py-2.5 text-sm font-medium text-black disabled:opacity-40"
+      >
+        {busy === "backup" ? "백업 중…" : "백업 생성 (복원 지점 만들기)"}
+      </button>
     </div>
   );
 }

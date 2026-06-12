@@ -54,7 +54,7 @@
   {
     "id": "vault-sync",
     "name": "옵시디언 동기화",
-    "description": "옵시디언 노트를 GitHub로 동기화하고 백업/복원. (로컬 실행 전용)",
+    "description": "옵시디언 노트를 GitHub로 백업·복원. 배포본에서도 작동(실시간 동기화만 로컬).",
     "repo": "il-oong/woong-world",
     "branch": "main",
     "pr": null,

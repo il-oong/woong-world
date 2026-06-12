@@ -17,7 +17,8 @@ export default async function VaultSyncPage() {
           옵시디언 동기화
         </h1>
         <p className="mt-1 text-xs text-[var(--muted)]">
-          obsidian/ 노트를 GitHub로 동기화하고 백업·복원합니다. (로컬 실행 전용)
+          obsidian/ 노트를 GitHub로 백업·복원합니다. 배포본에서도 작동하며, 실시간
+          파일 동기화만 로컬 전용입니다.
         </p>
       </header>
       <VaultSyncDashboard />

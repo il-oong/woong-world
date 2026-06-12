@@ -1,5 +1,5 @@
 import { type NextRequest } from "next/server";
-import { restoreToTag } from "@/lib/vault-sync/git";
+import { engineRestore } from "@/lib/vault-sync/engine";
 import { guardVaultSync } from "@/lib/vault-sync/guard";
 
 export const dynamic = "force-dynamic";
@@ -19,7 +19,7 @@ export async function POST(req: NextRequest) {
   if (!tag) return Response.json({ error: "missing_tag" }, { status: 400 });
 
   try {
-    const { safetyTag, committed } = await restoreToTag(tag);
+    const { safetyTag, committed } = await engineRestore(tag);
     return Response.json({ ok: true, safetyTag, committed });
   } catch (e) {
     const msg = e instanceof Error ? e.message : "restore_failed";

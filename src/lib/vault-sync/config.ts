@@ -55,10 +55,55 @@ export function getConfig(): VaultSyncConfig {
 }
 
 /**
- * VaultSync needs a local filesystem, the git CLI, and a persistent process —
- * none of which exist on Vercel's serverless runtime. On Vercel we disable the
- * engine and the dashboard shows a "run locally" notice instead.
+ * VaultSync's local engine needs a filesystem, the git CLI, and a persistent
+ * process — none of which exist on Vercel's serverless runtime. Locally we use
+ * the git-CLI engine; on a deploy we fall back to the GitHub REST engine.
  */
 export function isLocalRuntime(): boolean {
   return process.env.VERCEL !== "1";
+}
+
+export type GithubTarget = {
+  owner: string;
+  repo: string;
+  /** Branch the notes live on (and the deploy was built from). */
+  branch: string;
+  /** Auth token, or empty when none is configured. */
+  token: string;
+};
+
+/**
+ * Resolve the GitHub repo/branch the deploy-time engine operates on. Vercel
+ * injects the source repo via `VERCEL_GIT_*`; we fall back to this project's
+ * own slug so it works even outside Vercel's build env. Explicit
+ * `VAULT_SYNC_GH_*` overrides win.
+ */
+export function getGithubTarget(): GithubTarget {
+  const owner = (
+    process.env.VAULT_SYNC_GH_OWNER ||
+    process.env.VERCEL_GIT_REPO_OWNER ||
+    "il-oong"
+  ).trim();
+  const repo = (
+    process.env.VAULT_SYNC_GH_REPO ||
+    process.env.VERCEL_GIT_REPO_SLUG ||
+    "woong-world"
+  ).trim();
+  const branch = (
+    process.env.VAULT_SYNC_GH_BRANCH ||
+    process.env.VAULT_SYNC_BRANCH ||
+    process.env.VERCEL_GIT_COMMIT_REF ||
+    "main"
+  ).trim();
+  const token = (
+    process.env.GITHUB_TOKEN ||
+    process.env.GH_TOKEN ||
+    ""
+  ).trim();
+  return { owner, repo, branch, token };
+}
+
+/** True when a token is available to perform writes (backup/restore) via the API. */
+export function hasGithubWriteToken(): boolean {
+  return getGithubTarget().token.length > 0;
 }
