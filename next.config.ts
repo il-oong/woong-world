@@ -23,7 +23,7 @@ const securityHeaders = [
       "font-src 'self' https://fonts.gstatic.com data:",
       "img-src 'self' data: blob:",
       "media-src 'self' blob: https://*.public.blob.vercel-storage.com",
-      "connect-src 'self' https://*.public.blob.vercel-storage.com",
+      "connect-src 'self' https://*.public.blob.vercel-storage.com https://query1.finance.yahoo.com",
     ].join("; "),
   },
 ];
