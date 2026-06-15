@@ -30,6 +30,7 @@ import {
 
 const GEMINI_MODEL = "gemini-2.5-flash";
 const ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
+const STREAM_ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:streamGenerateContent`;
 
 export function isGeminiConfigured(): boolean {
   return Boolean(process.env.GEMINI_API_KEY);
@@ -468,6 +469,62 @@ function parseActions(text: string): {
   return { cleanText: cleanText.trim(), actions };
 }
 
+export type StreamEvent =
+  | { type: "token"; text: string }
+  | { type: "reset" }
+  | { type: "status"; message: string };
+
+async function* streamGemini(
+  systemText: string,
+  contents: GeminiContent[],
+  temperature: number,
+): AsyncGenerator<string> {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) throw new Error("GEMINI_API_KEY not set");
+
+  const res = await fetch(`${STREAM_ENDPOINT}?alt=sse&key=${apiKey}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      systemInstruction: { parts: [{ text: systemText }] },
+      contents,
+      generationConfig: { temperature, thinkingConfig: { thinkingBudget: 0 } },
+    }),
+  });
+
+  if (!res.ok) {
+    const t = await res.text();
+    throw new Error(`Gemini ${res.status}: ${t.slice(0, 300)}`);
+  }
+  if (!res.body) throw new Error("No response body");
+
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buf = "";
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buf += decoder.decode(value, { stream: true });
+    const lines = buf.split("\n");
+    buf = lines.pop() ?? "";
+    for (const line of lines) {
+      if (!line.startsWith("data: ")) continue;
+      const json = line.slice(6).trim();
+      if (!json || json === "[DONE]") continue;
+      try {
+        const d = JSON.parse(json) as {
+          candidates?: { content?: { parts?: { text?: string }[] } }[];
+        };
+        const text = d.candidates?.[0]?.content?.parts?.find((p) => p.text)?.text;
+        if (text) yield text;
+      } catch {
+        // ignore malformed chunk
+      }
+    }
+  }
+}
+
 async function callChatGemini(
   systemText: string,
   contents: GeminiContent[],
@@ -506,6 +563,7 @@ export async function chatWithAssistant(input: {
   userMessage: string;
   attachments: UploadedFile[];
   context: AssistantContext;
+  onToken?: (event: StreamEvent) => void;
 }): Promise<{ text: string; proposedActions: ProposedAction[] }> {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) throw new Error("GEMINI_API_KEY not set");
@@ -517,13 +575,48 @@ export async function chatWithAssistant(input: {
     input.attachments,
   );
 
-  // Pass 1 — 라우터/플래너. 평소처럼 답하거나, 주식 질문이면 위임 지시를 낸다.
-  const raw = await callChatGemini(systemText, contents, 0.7);
+  // Pass 1 — 라우터/플래너. 스트리밍 모드: 위임 신호가 없으면 즉시 토큰을 전달한다.
+  let raw = "";
+  const { onToken } = input;
+
+  if (onToken) {
+    let streaming = false;
+    let delegateDetected = false;
+    const DELEGATE_START = "<delegate-stocks>";
+    // 처음 80자를 버퍼링하다가 위임 신호가 없으면 스트리밍 시작
+    const BUFFER_THRESHOLD = 80;
+
+    for await (const chunk of streamGemini(systemText, contents, 0.7)) {
+      raw += chunk;
+      if (delegateDetected) continue;
+
+      if (raw.includes(DELEGATE_START)) {
+        delegateDetected = true;
+        if (streaming) onToken({ type: "reset" });
+        continue;
+      }
+
+      if (!streaming && raw.length >= BUFFER_THRESHOLD) {
+        streaming = true;
+        onToken({ type: "token", text: raw });
+      } else if (streaming) {
+        onToken({ type: "token", text: chunk });
+      }
+    }
+    // 짧은 응답: 버퍼가 임계값 미만인 채로 끝난 경우 플러시
+    if (!streaming && raw && !raw.includes(DELEGATE_START)) {
+      onToken({ type: "token", text: raw });
+    }
+  } else {
+    raw = await callChatGemini(systemText, contents, 0.7, undefined, 0);
+  }
+
   if (!raw) return { text: "(빈 응답)", proposedActions: [] };
 
   // 주식 위임 지시가 있으면 에이전트 네트워크를 돌리고 실데이터로 종합한다.
   const delegation = parseDelegation(raw);
   if (delegation) {
+    onToken?.({ type: "status", message: "📊 시장 데이터 수집 중..." });
     try {
       const synthesized =
         delegation.intent === "screen"

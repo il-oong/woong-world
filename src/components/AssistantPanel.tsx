@@ -98,6 +98,17 @@ export function AssistantPanel({
     setSending(true);
     setError(null);
     setText("");
+
+    const tempUserId = `temp-u-${Date.now()}`;
+    const tempAiId = `temp-a-${Date.now()}`;
+
+    // 낙관적 업데이트: 사용자 메시지 + 빈 AI 말풍선 즉시 표시
+    setMessages((prev) => [
+      ...prev,
+      { id: tempUserId, role: "user", text: trimmed, ts: Date.now() } as ChatMessage,
+      { id: tempAiId, role: "assistant", text: "", ts: Date.now() } as ChatMessage,
+    ]);
+
     try {
       const res = await fetch("/api/assistant/chat", {
         method: "POST",
@@ -107,15 +118,66 @@ export function AssistantPanel({
           attachmentFileIds: Array.from(selectedFileIds),
         }),
       });
-      const data = (await res.json()) as
-        | { messages: ChatMessage[] }
-        | { error: string };
-      if (!res.ok || !("messages" in data)) {
-        throw new Error(("error" in data && data.error) || "chat_failed");
+
+      if (!res.ok || !res.body) {
+        const data = (await res.json().catch(() => ({}))) as { error?: string };
+        throw new Error(data.error ?? "chat_failed");
       }
-      setMessages(data.messages);
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buf = "";
+      let streamText = "";
+
+      const updateAi = (t: string) =>
+        setMessages((prev) =>
+          prev.map((m) => (m.id === tempAiId ? { ...m, text: t } : m)),
+        );
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buf += decoder.decode(value, { stream: true });
+
+        const parts = buf.split("\n\n");
+        buf = parts.pop() ?? "";
+
+        for (const part of parts) {
+          const lines = part.split("\n");
+          const eventLine = lines.find((l) => l.startsWith("event: "));
+          const dataLine = lines.find((l) => l.startsWith("data: "));
+          if (!dataLine) continue;
+
+          const eventType = eventLine ? eventLine.slice(7).trim() : "token";
+          let data: Record<string, unknown>;
+          try {
+            data = JSON.parse(dataLine.slice(6)) as Record<string, unknown>;
+          } catch {
+            continue;
+          }
+
+          if (eventType === "token") {
+            streamText += data.text as string;
+            updateAi(streamText);
+          } else if (eventType === "reset") {
+            streamText = "";
+            updateAi("");
+          } else if (eventType === "status") {
+            updateAi(data.message as string);
+          } else if (eventType === "done") {
+            const final = data as { messages: ChatMessage[] };
+            setMessages(final.messages);
+          } else if (eventType === "error") {
+            throw new Error((data.error as string) ?? "chat_failed");
+          }
+        }
+      }
+
       setSelectedFileIds(new Set());
     } catch (e) {
+      setMessages((prev) =>
+        prev.filter((m) => m.id !== tempUserId && m.id !== tempAiId),
+      );
       setError(e instanceof Error ? e.message : "chat_failed");
     } finally {
       setSending(false);
@@ -250,8 +312,8 @@ export function AssistantPanel({
             onAction={handleAction}
           />
         ))}
-        {sending && (
-          <div className="my-3 flex items-center gap-2 text-xs text-[var(--muted)]">
+        {sending && messages[messages.length - 1]?.text === "" && (
+          <div className="my-1 flex items-center gap-2 text-xs text-[var(--muted)]">
             <span className="h-2 w-2 animate-pulse rounded-full bg-[var(--accent)]" />
             생각하는 중...
           </div>
