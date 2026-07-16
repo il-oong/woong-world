@@ -15,11 +15,28 @@
 // api/alpha/analysis, api/alpha/agent-review 라우트가 이 모듈을 그대로 사용한다.
 // =============================================================================
 
+import { Redis } from "@upstash/redis";
 import type { InvestSettings, JkpAnalysisResult } from "./alpha";
 
 const GEMINI_MODEL = "gemini-2.5-flash";
 const ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
 const YF_HEADERS = { "User-Agent": "Mozilla/5.0" };
+
+// ── 원시 시장데이터 단기 캐시 (Redis, 베스트에포트) ───────────────────────────
+// 같은 종목을 짧은 시간에 여러 번 조회(예: 알파 UI의 JKP분석·5인리뷰 버튼, 채팅
+// 재질문)할 때 Yahoo 왕복을 아낀다. 90초 staleness는 무시할 수준(야후 데이터
+// 자체가 지연됨). Redis 미설정/오류면 조용히 캐시 없이 동작한다.
+const MD_CACHE_TTL = 90; // seconds
+
+let _redis: Redis | null | undefined;
+function mdRedis(): Redis | null {
+  if (_redis !== undefined) return _redis;
+  const url = process.env.UPSTASH_REDIS_REST_URL ?? process.env.KV_REST_API_URL;
+  const token = process.env.UPSTASH_REDIS_REST_TOKEN ?? process.env.KV_REST_API_TOKEN;
+  _redis = url && token ? new Redis({ url, token }) : null;
+  return _redis;
+}
+const mdCacheKey = (input: string) => `alpha:md:${input.trim().toUpperCase()}`;
 
 // ── Agent review 결과 타입 (구 api/alpha/agent-review/route.ts에서 이전) ──────────
 
@@ -301,6 +318,28 @@ function tickerCandidates(ticker: string): string[] {
  * 모두 실패하면 dataOk=false로 입력 티커를 그대로 돌려준다.
  */
 export async function gatherMarketData(input: string, name: string): Promise<StockMarketData> {
+  const db = mdRedis();
+  if (db) {
+    try {
+      const cached = await db.get<StockMarketData>(mdCacheKey(input));
+      if (cached && cached.dataOk) return cached;
+    } catch {
+      /* 캐시 오류 무시 — 항상 실데이터 수집으로 폴백 */
+    }
+  }
+
+  const fresh = await gatherMarketDataUncached(input, name);
+  if (db && fresh.dataOk) {
+    try {
+      await db.set(mdCacheKey(input), fresh, { ex: MD_CACHE_TTL });
+    } catch {
+      /* 캐시 저장 실패 무시 */
+    }
+  }
+  return fresh;
+}
+
+async function gatherMarketDataUncached(input: string, name: string): Promise<StockMarketData> {
   const candidates = tickerCandidates(input);
 
   // 모든 후보의 시세/펀더멘털을 동시에 조회한다(순차 대기 제거). 완전 일치(chart+quote)

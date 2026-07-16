@@ -742,6 +742,9 @@ async function runStockNetwork(
   const wantMacro = d.need_macro || d.intent === "market";
 
   // 종목 분석 + 거시 스냅샷 + 검색 그라운딩을 모두 병렬로 (60초 상한 내 여유 확보).
+  // 그라운딩(검색)은 최종 종합을 붙잡는 최장 지연이라, 거시 맥락이 필요할 때만
+  // 호출한다. 단순 단일종목 질문은 이미 Yahoo 종목 뉴스·펀더멘털을 갖고 있어
+  // 그라운딩 없이도 답할 수 있다(need_macro=true면 그대로 호출).
   const [perTicker, macro, grounded] = await Promise.all([
     Promise.all(targets.map((t) => analyzeTicker(t, holdings, settings))),
     wantMacro
@@ -749,7 +752,9 @@ async function runStockNetwork(
           .then((s) => (s.ok ? { text: s.text, asOf: s.asOf } : null))
           .catch(() => null)
       : Promise.resolve(null),
-    fetchGroundedMarketBrief(buildGroundingQuery(d, targets)).catch(() => null),
+    wantMacro
+      ? fetchGroundedMarketBrief(buildGroundingQuery(d, targets)).catch(() => null)
+      : Promise.resolve(null),
   ]);
 
   return { perTicker, macro, grounded };
