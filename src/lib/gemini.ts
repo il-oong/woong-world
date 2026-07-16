@@ -18,7 +18,7 @@ import type {
 } from "./alpha";
 import {
   runJkpAnalysis,
-  runAgentReview,
+  runCombinedAnalysis,
   gatherMarketData,
   buildFundamentalsLine,
   fetchMarketSnapshot,
@@ -518,7 +518,9 @@ export async function chatWithAssistant(input: {
   );
 
   // Pass 1 — 라우터/플래너. 평소처럼 답하거나, 주식 질문이면 위임 지시를 낸다.
-  const raw = await callChatGemini(systemText, contents, 0.7);
+  // 이 호출은 모든 채팅 메시지마다 실행되므로 thinking을 끄고(0) 지연을 최소화한다.
+  // (주식 위임 시 실제 심층 분석은 하위 에이전트가, 최종 종합은 synthesize가 담당한다.)
+  const raw = await callChatGemini(systemText, contents, 0.7, undefined, 0);
   if (!raw) return { text: "(빈 응답)", proposedActions: [] };
 
   // 주식 위임 지시가 있으면 에이전트 네트워크를 돌리고 실데이터로 종합한다.
@@ -678,14 +680,18 @@ async function analyzeTicker(
         error: "티커 해석 실패",
       };
     }
-    // 실시간 데이터 1회 수집 → JKP + 5인 에이전트가 같은 데이터로 병렬 분석.
+    // 실시간 데이터 1회 수집 → JKP + 4인 에이전트를 한 번의 호출로 결합 분석.
+    // (종목당 Gemini 호출 2→1, 동시호출·비용 절반. 실패 시 내부에서 병렬 폴백.)
     const md = await gatherMarketData(ticker, name);
-    const [jkp, review] = await Promise.all([
-      runJkpAnalysis({ ticker: md.ticker, name, market, settings, marketData: md }).catch(
-        () => null,
-      ),
-      runAgentReview({ ticker: md.ticker, name, market, marketData: md }).catch(() => null),
-    ]);
+    const combined = await runCombinedAnalysis({
+      ticker: md.ticker,
+      name,
+      market,
+      settings,
+      marketData: md,
+    }).catch(() => null);
+    const jkp = combined?.jkp ?? null;
+    const review = combined?.review ?? null;
     const holding = holdings.find(
       (h) =>
         h.ticker.toUpperCase() === md.ticker.toUpperCase() ||

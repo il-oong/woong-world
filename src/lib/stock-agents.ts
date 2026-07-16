@@ -302,19 +302,20 @@ function tickerCandidates(ticker: string): string[] {
  */
 export async function gatherMarketData(input: string, name: string): Promise<StockMarketData> {
   const candidates = tickerCandidates(input);
-  let best: { ticker: string; price: number | null; changePercent: number | null; quote: QuoteSummaryModules | null } | null =
-    null;
 
-  for (const c of candidates) {
-    const [chart, quote] = await Promise.all([fetchChartQuote(c), fetchQuoteSummary(c)]);
-    if (chart.ok && quote) {
-      best = { ticker: c, price: chart.price, changePercent: chart.changePercent, quote };
-      break;
-    }
-    if ((chart.ok || quote) && !best) {
-      best = { ticker: c, price: chart.price, changePercent: chart.changePercent, quote };
-    }
-  }
+  // 모든 후보의 시세/펀더멘털을 동시에 조회한다(순차 대기 제거). 완전 일치(chart+quote)
+  // 후보를 최우선으로, 없으면 부분 성공 후보를 폴백으로 고른다.
+  const resolved = await Promise.all(
+    candidates.map(async (c) => {
+      const [chart, quote] = await Promise.all([fetchChartQuote(c), fetchQuoteSummary(c)]);
+      return { ticker: c, price: chart.price, changePercent: chart.changePercent, quote, chartOk: chart.ok };
+    }),
+  );
+
+  const best =
+    resolved.find((r) => r.chartOk && r.quote) ??
+    resolved.find((r) => r.chartOk || r.quote) ??
+    null;
 
   if (!best) {
     return { ticker: input, price: null, changePercent: null, quote: null, news: [], dataOk: false, asOf: Date.now() };
@@ -515,6 +516,110 @@ export async function runAgentReview(input: {
   };
 }
 
+// ── 결합 분석: JKP 단일분석 + 4인 합의를 한 번의 호출로 ────────────────────────
+// 채팅(뇌대리) 네트워크 경로 전용. 종목당 Gemini 호출을 2회→1회로 줄여 동시호출
+// 수(레이트리밋 압박)와 비용을 절반으로 낮춘다. 결합 호출이 실패하면 기존의
+// 두 함수를 병렬로 돌리는 폴백으로 무손실 복구한다.
+
+export type CombinedAnalysis = { jkp: JkpAnalysisResult; review: AgentReviewResult };
+
+export async function runCombinedAnalysis(input: {
+  ticker: string;
+  name: string;
+  market: string;
+  settings: InvestSettings;
+  marketData?: StockMarketData;
+}): Promise<CombinedAnalysis> {
+  const md = input.marketData ?? (await gatherMarketData(input.ticker, input.name));
+  const { livermore, oneil, weinstein, minervini, lynch } = input.settings.traderWeights;
+
+  const marketContext = md.quote
+    ? buildMarketContext(md.quote, md.news)
+    : md.news.length > 0
+      ? `=== 최근 뉴스 ===\n${md.news.map((n, i) => `${i + 1}. ${n.title}`).join("\n")}`
+      : "(시장 데이터 수집 실패 — 보유 지식으로 판단)";
+
+  const systemPrompt = `너는 전 Bridgewater 시니어 펀드매니저 JKP(James K. Park)이자, O'Neil·Lynch·Weinstein·Minervini 4인의 관점을 모두 구사하는 멀티에이전트 분석 총괄이다.
+투자 원칙: 매크로 우선 / 수급 중시 / 규율 / 단순함 / 리스크 퍼스트
+트레이더 가중치: Livermore ${livermore}% / O'Neil ${oneil}% / Weinstein ${weinstein}% / Minervini ${minervini}% / Lynch ${lynch}%
+
+제공된 실시간 시장 데이터를 최우선으로 활용하라. "알 수 없다"는 답변은 없다. 데이터가 비어 있어도 종목·섹터 지식으로 각 관점의 의견을 분명히 내되 "데이터 한계"는 짧게만 언급한다.
+JKP 단일 판단과 4인 합의가 서로 모순되지 않도록 하나의 일관된 뷰로 정렬하라.
+반드시 JSON으로만 답하라 (설명/코드펜스 금지).`;
+
+  const userPrompt = `${input.ticker}(${input.name}, ${input.market}) 종목 분석.
+
+${marketContext}
+
+위 데이터를 근거로 지금 당장 판단을 내려라. 구체적 수치로 매수구간/목표가/손절가를 제시하라.
+
+다음 JSON 스키마로만 답하라:
+{
+  "jkp": {
+    "final_action": "매수" | "관망" | "매도",
+    "confidence": number,
+    "buy_zone": { "entry_price": string, "entry_condition": string, "additional_buy": string },
+    "target_price": { "target_1": string, "target_1_reason": string, "target_2": string, "target_2_reason": string },
+    "sell_plan": { "partial_exit": string, "full_exit": string, "trailing_stop": string },
+    "stop_loss": string,
+    "stop_loss_reason": string,
+    "risk_reward_ratio": string,
+    "time_horizon": string,
+    "key_catalysts": string[],
+    "key_risks": string[],
+    "jkp_comment": string
+  },
+  "agents": [
+    { "agent": "O'Neil", "style": "CANSLIM · 성장/수급", "verdict": "강력매수"|"매수"|"관망"|"매도"|"강력매도", "score": 0, "key_point": string, "reason": string },
+    { "agent": "Lynch", "style": "PEG · 성장+가치", "verdict": "...", "score": 0, "key_point": string, "reason": string },
+    { "agent": "Weinstein", "style": "스테이지 분석 · 추세", "verdict": "...", "score": 0, "key_point": string, "reason": string },
+    { "agent": "Minervini", "style": "VCP · 저변동 돌파", "verdict": "...", "score": 0, "key_point": string, "reason": string }
+  ],
+  "valuation": { "view": "심각저평가"|"저평가"|"적정"|"고평가"|"심각고평가", "pe_comment": string, "pb_comment": string, "growth_comment": string, "intrinsic_value_hint": string },
+  "buyTiming": { "current_stage": string, "ideal_entry": string, "entry_trigger": string, "stop_loss": string, "target_short": string, "target_long": string, "partial_exit": string, "full_exit": string },
+  "consensus": "강력매수"|"매수"|"관망"|"매도"|"강력매도",
+  "consensusScore": 0,
+  "jkp_final": string
+}`;
+
+  type CombinedRaw = {
+    jkp: JkpAnalysisResult;
+    agents: AgentReview[];
+    valuation: ValuationDetail;
+    buyTiming: BuyTiming;
+    consensus: AgentVerdict;
+    consensusScore: number;
+    jkp_final: string;
+  };
+
+  try {
+    const r = await callGeminiJson<CombinedRaw>(systemPrompt, userPrompt);
+    if (!r.jkp || !Array.isArray(r.agents)) throw new Error("combined schema incomplete");
+    return {
+      jkp: r.jkp,
+      review: {
+        ticker: md.ticker,
+        name: input.name,
+        currentPrice: md.price,
+        changePercent: md.changePercent,
+        agents: r.agents,
+        valuation: r.valuation,
+        buyTiming: r.buyTiming,
+        consensus: r.consensus,
+        consensusScore: r.consensusScore,
+        jkp_final: r.jkp_final,
+      },
+    };
+  } catch {
+    // 폴백: 기존 두 호출을 병렬로 (무손실 — 하나 실패해도 다른 하나는 유지).
+    const [jkp, review] = await Promise.all([
+      runJkpAnalysis({ ticker: md.ticker, name: input.name, market: input.market, settings: input.settings, marketData: md }),
+      runAgentReview({ ticker: md.ticker, name: input.name, market: input.market, marketData: md }),
+    ]);
+    return { jkp, review };
+  }
+}
+
 // ── 거시 지표 스냅샷 ──────────────────────────────────────────────────────────
 
 const SNAPSHOT_TICKERS: { symbol: string; label: string }[] = [
@@ -697,7 +802,7 @@ export async function fetchGroundedMarketBrief(query: string): Promise<GroundedB
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
-      signal: AbortSignal.timeout(12000),
+      signal: AbortSignal.timeout(8000),
     });
     if (!res.ok) return null;
     const data = (await res.json()) as GroundingResponse;
