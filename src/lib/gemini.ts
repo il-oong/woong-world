@@ -1,5 +1,6 @@
 import { CATEGORIES, getCategory } from "./categories";
-import type { Plan } from "./plans";
+import type { CategoryId } from "./categories";
+import type { Plan, PlanPeriod, UpdatePlanInput } from "./plans";
 import type {
   ChatMessage,
   ProposedAction,
@@ -391,7 +392,9 @@ function weekdayLabel(iso: string): string {
 
 type GeminiPart =
   | { text: string }
-  | { inlineData: { mimeType: string; data: string } };
+  | { inlineData: { mimeType: string; data: string } }
+  | { functionCall: { name: string; args?: Record<string, unknown> } }
+  | { functionResponse: { name: string; response: Record<string, unknown> } };
 
 type GeminiContent = { role: "user" | "model"; parts: GeminiPart[] };
 
@@ -501,7 +504,37 @@ async function callChatGemini(
   return data.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
 }
 
-export async function chatWithAssistant(input: {
+/** 도구 선언을 붙여 Gemini를 호출하고, 모델이 낸 파트 배열을 그대로 돌려준다. */
+async function callGeminiWithTools(
+  systemText: string,
+  contents: GeminiContent[],
+  tools: unknown,
+  temperature: number,
+): Promise<GeminiPart[]> {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) throw new Error("GEMINI_API_KEY not set");
+
+  const res = await fetch(`${ENDPOINT}?key=${apiKey}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      systemInstruction: { parts: [{ text: systemText }] },
+      contents,
+      tools,
+      generationConfig: { temperature, thinkingConfig: { thinkingBudget: 0 } },
+    }),
+  });
+  if (!res.ok) {
+    const t = await res.text();
+    throw new Error(`Gemini ${res.status}: ${t.slice(0, 300)}`);
+  }
+  const data = (await res.json()) as {
+    candidates?: { content?: { parts?: GeminiPart[] } }[];
+  };
+  return data.candidates?.[0]?.content?.parts ?? [];
+}
+
+async function chatWithAssistantLegacy(input: {
   history: ChatMessage[];
   userMessage: string;
   attachments: UploadedFile[];
@@ -560,6 +593,382 @@ export async function chatWithAssistant(input: {
 
   const { cleanText, actions } = parseActions(raw);
   return { text: cleanText || raw, proposedActions: actions };
+}
+
+// =====================================================================
+// 뇌대리 — Function Calling 에이전트 루프 (자비스)
+// 정규식 태그 대신 Gemini 도구 호출로 캘린더·플랜·투두·주식을 한 대화에서
+// 자율 연쇄 실행한다. 읽기 도구는 즉시 실행해 결과를 모델에 되먹이고,
+// 쓰기 도구는 실행하지 않고 승인 대기 제안(ProposedAction)으로 큐잉한다.
+// 어떤 이유로든 실패하면 기존 태그 방식(chatWithAssistantLegacy)으로 폴백한다.
+// =====================================================================
+
+/** 라우트가 세션 권한으로 제공하는 실시간 조회 도구 실행기(선택). */
+export type AssistantToolExecutors = {
+  /** 지정 범위의 캘린더 일정 (컨텍스트 주입 범위 밖 조회용). */
+  getSchedule?: (fromIso: string, toIso: string) => Promise<CalendarEvent[]>;
+};
+
+const CATEGORY_ENUM = ["life", "company", "vfx", "appdev", "jazz"];
+
+function buildAssistantTools(isAdmin: boolean): unknown {
+  const decls: Record<string, unknown>[] = [
+    {
+      name: "analyze_stocks",
+      description:
+        "주식/투자 질문(특정 종목·지수·매크로·포트폴리오·매수/매도 타이밍·테마 관련주 스크리닝)에 답하기 위해 하위 에이전트(JKP·O'Neil·Lynch·Weinstein·Minervini)가 Yahoo Finance 실시간 데이터로 작성한 분석 리포트를 가져온다. 반환된 리포트의 실제 수치만 근거로 최종 답을 작성하라 — 수치를 지어내지 마라.",
+      parameters: {
+        type: "object",
+        properties: {
+          intent: {
+            type: "string",
+            enum: ["single", "portfolio", "market", "screen"],
+            description:
+              "single=특정 종목, portfolio=내 보유 전체(queries 비워도 됨), market=지수·매크로, screen=테마/섹터 관련주 발굴",
+          },
+          queries: {
+            type: "array",
+            description:
+              "분석 대상 종목들. ticker 알면 채우고(미국=심볼, 한국=6자리코드 또는 .KS/.KQ) 모르면 name만. screen이면 네 지식으로 후보 5~8개를 직접 채워라.",
+            items: {
+              type: "object",
+              properties: {
+                name: { type: "string" },
+                ticker: { type: "string" },
+                market: { type: "string" },
+              },
+              required: ["name"],
+            },
+          },
+          need_macro: { type: "boolean", description: "거시 맥락이 답에 필요하면 true" },
+          focus: { type: "string", description: "사용자가 궁금한 핵심 한 문장" },
+          theme: { type: "string", description: "screen 인텐트의 테마/섹터 설명" },
+        },
+        required: ["intent"],
+      },
+    },
+    {
+      name: "get_schedule",
+      description:
+        "지정한 날짜 범위의 캘린더 일정을 가져온다. 이미 컨텍스트에 주입된 범위(오늘~약 2주) 밖의 일정을 확인해야 할 때만 사용.",
+      parameters: {
+        type: "object",
+        properties: {
+          from_iso: { type: "string", description: "시작일 YYYY-MM-DD" },
+          to_iso: { type: "string", description: "종료일 YYYY-MM-DD" },
+        },
+        required: ["from_iso", "to_iso"],
+      },
+    },
+    {
+      name: "propose_event",
+      description: "캘린더 일정 추가를 제안한다. 서버는 사용자가 [승인]을 눌러야만 실행한다.",
+      parameters: {
+        type: "object",
+        properties: {
+          summary: { type: "string" },
+          description: { type: "string" },
+          kind: { type: "string", enum: ["timed", "allday", "project"] },
+          start: { type: "string", description: "timed면 YYYY-MM-DDTHH:mm, allday/project면 YYYY-MM-DD (Asia/Seoul)" },
+          end: { type: "string", description: "timed면 YYYY-MM-DDTHH:mm, allday/project면 YYYY-MM-DD" },
+          categoryId: { type: "string", enum: CATEGORY_ENUM },
+          reminderMinutes: { type: "number" },
+        },
+        required: ["summary", "kind", "start", "end"],
+      },
+    },
+    {
+      name: "propose_plan",
+      description: "새 계획(플랜) 생성을 제안한다. 승인 후 실행.",
+      parameters: {
+        type: "object",
+        properties: {
+          period: { type: "string", enum: ["weekly", "monthly", "yearly"] },
+          periodKey: { type: "string", description: "예: 주간 2026-W18, 월간 2026-04, 연간 2026" },
+          title: { type: "string" },
+          items: { type: "array", items: { type: "object", properties: { text: { type: "string" } }, required: ["text"] } },
+          categoryId: { type: "string", enum: CATEGORY_ENUM },
+          notes: { type: "string" },
+        },
+        required: ["period", "periodKey", "title"],
+      },
+    },
+    {
+      name: "propose_update_plan",
+      description: "기존 계획 수정을 제안한다. 승인 후 실행. planId는 컨텍스트의 플랜 목록에서 확인.",
+      parameters: {
+        type: "object",
+        properties: {
+          planId: { type: "string" },
+          patch: {
+            type: "object",
+            properties: {
+              title: { type: "string" },
+              notes: { type: "string" },
+              categoryId: { type: "string", enum: CATEGORY_ENUM },
+            },
+          },
+        },
+        required: ["planId", "patch"],
+      },
+    },
+    {
+      name: "propose_routine",
+      description: "반복 루틴 생성을 제안한다. 승인 후 실행.",
+      parameters: {
+        type: "object",
+        properties: {
+          name: { type: "string" },
+          weekdays: {
+            type: "array",
+            description: "0=일,1=월,...,6=토. 빈 배열이면 매일.",
+            items: { type: "number" },
+          },
+        },
+        required: ["name"],
+      },
+    },
+  ];
+
+  if (isAdmin) {
+    decls.push({
+      name: "propose_command",
+      description: "사용자가 로컬에서 실행할 셸 명령어를 제안한다(서버 미실행, 복사용). 위험 명령 금지.",
+      parameters: {
+        type: "object",
+        properties: {
+          cmd: { type: "string" },
+          cwd: { type: "string" },
+          explanation: { type: "string" },
+          pluginId: { type: "string" },
+        },
+        required: ["cmd", "explanation"],
+      },
+    });
+  }
+
+  return [{ functionDeclarations: decls }];
+}
+
+const CHAT_FC_SYSTEM_PROMPT = `너는 사용자의 인생 비서 "뇌대리" — 영화 속 자비스처럼 캘린더·계획·투두·투자를 한자리에서 관장하는 최상위 비서 두뇌다.
+
+성격:
+- 친근하지만 만만치 않은 멘토. 무의미한 칭찬·과한 서론/맺음말 금지. 답은 짧고 단단하게.
+- 모호한 질문("뭐 해야 해?", "이번 주 어때?")엔 주입된 캘린더/계획/투두 컨텍스트를 근거로 구체적으로 답한다.
+- 빠진 영역(예: '인생' 카테고리에 아무 일정/계획 없음)이 보이면 짚어준다.
+
+도구 사용 원칙:
+- 필요한 일을 직접 도구로 처리한다. 여러 단계를 한 번에 처리해야 하면 도구를 연달아 호출해 스스로 연쇄 실행하라(예: 일정 조회 → 계획 생성 → 루틴 등록).
+- 읽기 도구(analyze_stocks, get_schedule)는 실제 데이터를 돌려준다. 그 데이터만 근거로 답하고, 수치·시세·재무는 절대 지어내지 마라.
+- 쓰기 도구(propose_*)는 "제안"이며, 사용자가 [승인]을 눌러야만 실행된다. 자유롭게 제안하되 의도가 불분명하면 먼저 물어라. 시간은 Asia/Seoul 기준.
+- 컨텍스트에 이미 있는 정보는 다시 조회하지 말고 바로 활용하라. get_schedule은 주입 범위(오늘~2주) 밖을 볼 때만.
+
+주식/투자:
+- 종목·지수·매크로·포트폴리오·매수/매도 타이밍·"○○ 관련주/추천 종목"은 analyze_stocks 도구로 실데이터 리포트를 받아 종합한다. "데이터 없음"으로 회피하지 마라 — 테마 스크리닝은 네 지식으로 후보 종목(ticker 포함)을 직접 채워 intent="screen"으로 호출하면 서버가 각 후보 실시간 재무를 가져온다.
+- 리포트를 받으면 아래 형식으로 명확히 매수/관망/매도를 구분해 답하라(면피 문구 금지):
+  ## [종목/테마] 판단: [매수/관망/매도]
+  ### 단기(1~4주) / 중기(1~6개월) / 장기(6개월+) — 각 스탠스·진입가·목표·손절(JKP 기준 출처 표기)
+  ### 에이전트 의견 / 리스크·예정 이벤트
+  마지막에 데이터 기준(Yahoo Finance 실시간, 오늘 날짜)과 그라운딩 출처 URL이 있으면 첨부.
+
+규칙:
+- 한국어로 답한다. 최종 답변 본문은 일반 텍스트(마크다운 약간 OK).
+- 모르면 모른다고 한다. 특히 투자 수치는 analyze_stocks 실데이터로만.`;
+
+async function executeAssistantTool(
+  name: string,
+  args: Record<string, unknown>,
+  ctx: AssistantContext,
+  executors: AssistantToolExecutors | undefined,
+  sink: ProposedAction[],
+): Promise<Record<string, unknown>> {
+  try {
+    switch (name) {
+      case "analyze_stocks": {
+        const intent =
+          args.intent === "portfolio" || args.intent === "market" || args.intent === "screen"
+            ? args.intent
+            : "single";
+        const rawQueries = Array.isArray(args.queries) ? args.queries : [];
+        const queries = rawQueries
+          .map((q) => q as { name?: unknown; ticker?: unknown; market?: unknown })
+          .filter((q): q is { name: string; ticker?: string; market?: string } => typeof q?.name === "string" && q.name.trim().length > 0)
+          .map((q) => ({ name: q.name, ticker: typeof q.ticker === "string" ? q.ticker : undefined, market: typeof q.market === "string" ? q.market : undefined }));
+        const delegation: StockDelegation = {
+          intent,
+          queries,
+          need_macro: typeof args.need_macro === "boolean" ? args.need_macro : intent === "market",
+          focus: typeof args.focus === "string" ? args.focus : undefined,
+          theme: typeof args.theme === "string" ? args.theme : undefined,
+        };
+        if ((intent === "single" || intent === "screen") && queries.length === 0) {
+          return { error: "분석할 종목이 지정되지 않았다. queries에 종목을 채워 다시 호출하라." };
+        }
+        const report =
+          intent === "screen"
+            ? buildScreenReportText(await runScreen(delegation, ctx), ctx)
+            : buildReportText(await runStockNetwork(delegation, ctx), ctx);
+        return { report };
+      }
+      case "get_schedule": {
+        if (!executors?.getSchedule) return { error: "일정 조회 도구를 사용할 수 없다." };
+        const from = typeof args.from_iso === "string" ? args.from_iso : ctx.today;
+        const to = typeof args.to_iso === "string" ? args.to_iso : ctx.today;
+        const events = await executors.getSchedule(from, to);
+        return { events: summarizeEvents(events, ctx.today) };
+      }
+      case "propose_event": {
+        sink.push({
+          id: newId("act"),
+          type: "add_event",
+          status: "pending",
+          params: {
+            summary: String(args.summary ?? ""),
+            description: typeof args.description === "string" ? args.description : undefined,
+            kind: (args.kind === "allday" || args.kind === "project" ? args.kind : "timed") as "timed" | "allday" | "project",
+            start: String(args.start ?? ""),
+            end: String(args.end ?? ""),
+            categoryId: typeof args.categoryId === "string" ? (args.categoryId as CategoryId) : undefined,
+            reminderMinutes: typeof args.reminderMinutes === "number" ? args.reminderMinutes : undefined,
+          },
+        });
+        return { status: "제안됨 — 사용자 승인 대기" };
+      }
+      case "propose_plan": {
+        sink.push({
+          id: newId("act"),
+          type: "create_plan",
+          status: "pending",
+          params: {
+            period: (args.period === "monthly" || args.period === "yearly" ? args.period : "weekly") as PlanPeriod,
+            periodKey: String(args.periodKey ?? ""),
+            title: String(args.title ?? ""),
+            items: Array.isArray(args.items)
+              ? (args.items as { text?: unknown }[]).filter((i) => typeof i?.text === "string").map((i) => ({ text: i.text as string }))
+              : undefined,
+            categoryId: typeof args.categoryId === "string" ? (args.categoryId as CategoryId) : undefined,
+            notes: typeof args.notes === "string" ? args.notes : undefined,
+          },
+        });
+        return { status: "제안됨 — 사용자 승인 대기" };
+      }
+      case "propose_update_plan": {
+        sink.push({
+          id: newId("act"),
+          type: "update_plan",
+          status: "pending",
+          params: {
+            planId: String(args.planId ?? ""),
+            patch: (typeof args.patch === "object" && args.patch !== null ? args.patch : {}) as UpdatePlanInput,
+          },
+        });
+        return { status: "제안됨 — 사용자 승인 대기" };
+      }
+      case "propose_routine": {
+        sink.push({
+          id: newId("act"),
+          type: "create_routine",
+          status: "pending",
+          params: {
+            name: String(args.name ?? ""),
+            weekdays: Array.isArray(args.weekdays) ? (args.weekdays.filter((w) => typeof w === "number") as number[]) : undefined,
+          },
+        });
+        return { status: "제안됨 — 사용자 승인 대기" };
+      }
+      case "propose_command": {
+        if (!ctx.isAdmin) return { error: "권한 없음" };
+        sink.push({
+          id: newId("act"),
+          type: "suggest_command",
+          status: "pending",
+          params: {
+            cmd: String(args.cmd ?? ""),
+            cwd: typeof args.cwd === "string" ? args.cwd : undefined,
+            explanation: String(args.explanation ?? ""),
+            pluginId: typeof args.pluginId === "string" ? args.pluginId : undefined,
+          },
+        });
+        return { status: "제안됨 — 사용자 승인 대기" };
+      }
+      default:
+        return { error: `알 수 없는 도구: ${name}` };
+    }
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : String(e) };
+  }
+}
+
+const MAX_TOOL_ROUNDS = 5;
+
+export async function chatWithAssistant(input: {
+  history: ChatMessage[];
+  userMessage: string;
+  attachments: UploadedFile[];
+  context: AssistantContext;
+  toolExecutors?: AssistantToolExecutors;
+}): Promise<{ text: string; proposedActions: ProposedAction[] }> {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) throw new Error("GEMINI_API_KEY not set");
+
+  try {
+    const systemText = `${CHAT_FC_SYSTEM_PROMPT}\n\n${buildContextBlock(input.context)}`;
+    const tools = buildAssistantTools(!!input.context.isAdmin);
+    const contents = await buildContents(input.history, input.userMessage, input.attachments);
+    const proposedActions: ProposedAction[] = [];
+    let finalText = "";
+
+    for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
+      const parts = await callGeminiWithTools(systemText, contents, tools, 0.6);
+      const calls = parts.filter(
+        (p): p is { functionCall: { name: string; args?: Record<string, unknown> } } => "functionCall" in p,
+      );
+      const text = parts
+        .filter((p): p is { text: string } => "text" in p)
+        .map((p) => p.text)
+        .join("")
+        .trim();
+
+      if (calls.length === 0) {
+        finalText = text;
+        break;
+      }
+
+      // 모델 턴(도구 호출) 그대로 반영 → 각 호출 실행 → functionResponse 되먹임.
+      contents.push({ role: "model", parts });
+      const responseParts: GeminiPart[] = [];
+      for (const c of calls) {
+        const response = await executeAssistantTool(
+          c.functionCall.name,
+          c.functionCall.args ?? {},
+          input.context,
+          input.toolExecutors,
+          proposedActions,
+        );
+        responseParts.push({ functionResponse: { name: c.functionCall.name, response } });
+      }
+      contents.push({ role: "user", parts: responseParts });
+
+      // 마지막 라운드인데도 계속 호출만 하면, 지금까지 텍스트로 마무리.
+      if (round === MAX_TOOL_ROUNDS - 1 && text) finalText = text;
+    }
+
+    // FC 모델이 혹시 태그를 냈으면 함께 파싱(방어적).
+    const { cleanText, actions } = parseActions(finalText);
+    const merged = [...proposedActions, ...actions];
+    const outText = (cleanText || finalText).trim();
+    if (!outText && merged.length === 0) {
+      // 아무 산출도 없으면 레거시 경로로 폴백.
+      return chatWithAssistantLegacy(input);
+    }
+    return {
+      text: outText || "제안을 준비했어. 아래에서 확인하고 승인해줘.",
+      proposedActions: merged,
+    };
+  } catch {
+    // Function calling 실패 시 기존 태그 방식으로 무손실 폴백.
+    return chatWithAssistantLegacy(input);
+  }
 }
 
 // =====================================================================

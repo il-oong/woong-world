@@ -145,6 +145,15 @@ export async function POST(req: NextRequest) {
         plugins: pluginContext,
         stock,
       },
+      // 자비스(function calling)가 주입 범위 밖 일정을 실시간 조회할 수 있게
+      // 세션 권한으로 캘린더 조회 도구를 제공한다 (best-effort).
+      toolExecutors: {
+        getSchedule: async (fromIso: string, toIso: string) => {
+          const from = new Date(`${fromIso}T00:00:00`);
+          const to = new Date(`${toIso}T23:59:59`);
+          return listEvents(session, from.toISOString(), to.toISOString());
+        },
+      },
     });
     result = { text: r.text, proposedActions: r.proposedActions };
   } catch (e) {
