@@ -132,6 +132,55 @@ export type StockMarketData = {
   asOf: number;
 };
 
+export type MarketSnapshot = {
+  text: string;
+  asOf: number;
+  ok: boolean;
+  readings: Record<string, { price: number | null; changePercent: number | null }>;
+};
+
+export type AgentReadiness = "ready" | "caution" | "unavailable";
+
+export type MacroRiskAgentResult = {
+  role: "macro_risk";
+  readiness: AgentReadiness;
+  score: number;
+  signals: string[];
+};
+
+export type FundamentalValueAgentResult = {
+  role: "fundamental_value";
+  readiness: AgentReadiness;
+  score: number;
+  signals: string[];
+  masterPatterns: string[];
+};
+
+export type TrendEntryAgentResult = {
+  role: "trend_entry";
+  readiness: AgentReadiness;
+  score: number;
+  signals: string[];
+  entryRule: string;
+  invalidationRule: string;
+};
+
+export type ThreeAgentAnalysis = {
+  ticker: string;
+  name: string;
+  asOf: number;
+  dataStatus: "ready" | "insufficient";
+  macroRisk: MacroRiskAgentResult;
+  fundamentalValue: FundamentalValueAgentResult;
+  trendEntry: TrendEntryAgentResult;
+  riskGate: {
+    decision: "buy_candidate" | "watch" | "no_trade";
+    score: number | null;
+    reasons: string[];
+    requiresManualConfirmation: true;
+  };
+};
+
 // ── 포매터 ────────────────────────────────────────────────────────────────────
 
 function pct(v: number | undefined): string {
@@ -280,6 +329,28 @@ async function fetchChartQuote(
   }
 }
 
+async function fetchChartHistory(ticker: string): Promise<number[]> {
+  try {
+    const res = await fetch(
+      `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?interval=1d&range=1y`,
+      { headers: YF_HEADERS, signal: AbortSignal.timeout(5_000) },
+    );
+    if (!res.ok) return [];
+    const data = (await res.json()) as {
+      chart?: {
+        result?: {
+          indicators?: { quote?: { close?: Array<number | null> }[] };
+        }[];
+      };
+    };
+    return (data.chart?.result?.[0]?.indicators?.quote?.[0]?.close ?? []).filter(
+      (value): value is number => typeof value === "number" && Number.isFinite(value),
+    );
+  } catch {
+    return [];
+  }
+}
+
 // 추천/사용자 입력 티커가 거래소 접미사를 잘못 줄 수 있다(코스닥인데 .KS 등).
 // 받은 ticker 그대로 → 접미사 제거 → 반대 거래소 → .KS/.KQ 순으로 시도한다.
 function tickerCandidates(ticker: string): string[] {
@@ -334,6 +405,247 @@ export async function gatherMarketData(input: string, name: string): Promise<Sto
 
 // ── Gemini 호출 헬퍼 ─────────────────────────────────────────────────────────
 
+function clampScore(score: number): number {
+  return Math.max(0, Math.min(100, Math.round(score)));
+}
+
+function average(values: number[]): number | null {
+  return values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : null;
+}
+
+function readableNumber(value: number): string {
+  return value.toLocaleString("en-US", { maximumFractionDigits: 2 });
+}
+
+function runMacroRiskAgent(snapshot: MarketSnapshot): MacroRiskAgentResult {
+  if (!snapshot.ok) {
+    return {
+      role: "macro_risk",
+      readiness: "unavailable",
+      score: 0,
+      signals: ["Market-regime data could not be verified."],
+    };
+  }
+  let score = 60;
+  const signals: string[] = [];
+  const vix = snapshot.readings["^VIX"]?.price;
+  const spxMove = snapshot.readings["^GSPC"]?.changePercent;
+  if (typeof vix === "number") {
+    if (vix >= 30) {
+      score -= 30;
+      signals.push(`VIX ${readableNumber(vix)}: high-volatility regime.`);
+    } else if (vix >= 20) {
+      score -= 15;
+      signals.push(`VIX ${readableNumber(vix)}: elevated volatility.`);
+    } else {
+      score += 8;
+      signals.push(`VIX ${readableNumber(vix)}: volatility is contained.`);
+    }
+  } else {
+    signals.push("VIX is unavailable.");
+  }
+  if (typeof spxMove === "number") {
+    if (spxMove <= -1.5) {
+      score -= 15;
+      signals.push(`S&P 500 daily move ${spxMove.toFixed(2)}%: risk-off session.`);
+    } else if (spxMove >= 1) {
+      score += 8;
+      signals.push(`S&P 500 daily move +${spxMove.toFixed(2)}%: risk appetite improved.`);
+    }
+  } else {
+    signals.push("S&P 500 daily move is unavailable.");
+  }
+  const finalScore = clampScore(score);
+  return {
+    role: "macro_risk",
+    readiness: finalScore >= 50 ? "ready" : "caution",
+    score: finalScore,
+    signals,
+  };
+}
+
+function runFundamentalValueAgent(md: StockMarketData): FundamentalValueAgentResult {
+  const quote = md.quote;
+  if (!quote) {
+    return {
+      role: "fundamental_value",
+      readiness: "unavailable",
+      score: 0,
+      signals: ["Fundamental data could not be verified."],
+      masterPatterns: [],
+    };
+  }
+  const detail = quote.summaryDetail ?? {};
+  const financial = quote.financialData ?? {};
+  const statistics = quote.defaultKeyStatistics ?? {};
+  const revenueGrowth = financial.revenueGrowth?.raw;
+  const earningsGrowth = financial.earningsGrowth?.raw;
+  const roe = financial.returnOnEquity?.raw;
+  const debtToEquity = financial.debtToEquity?.raw;
+  const trailingPe = detail.trailingPE?.raw;
+  const peg = statistics.pegRatio?.raw;
+  const signals: string[] = [];
+  const masterPatterns: string[] = [];
+  let score = 50;
+  let verifiedFields = 0;
+
+  if (typeof revenueGrowth === "number") {
+    verifiedFields += 1;
+    score += revenueGrowth > 0.1 ? 12 : revenueGrowth < 0 ? -12 : 0;
+    signals.push(`Revenue growth: ${(revenueGrowth * 100).toFixed(1)}%.`);
+    if (revenueGrowth > 0.1) masterPatterns.push("O'Neil growth screen: revenue growth is positive.");
+  }
+  if (typeof earningsGrowth === "number") {
+    verifiedFields += 1;
+    score += earningsGrowth > 0.1 ? 12 : earningsGrowth < 0 ? -12 : 0;
+    signals.push(`Earnings growth: ${(earningsGrowth * 100).toFixed(1)}%.`);
+  }
+  if (typeof roe === "number") {
+    verifiedFields += 1;
+    score += roe >= 0.15 ? 10 : roe < 0.08 ? -10 : 0;
+    signals.push(`ROE: ${(roe * 100).toFixed(1)}%.`);
+  }
+  if (typeof debtToEquity === "number") {
+    verifiedFields += 1;
+    score += debtToEquity <= 100 ? 6 : debtToEquity >= 200 ? -10 : 0;
+    signals.push(`Debt-to-equity: ${debtToEquity.toFixed(1)}.`);
+  }
+  if (typeof peg === "number") {
+    verifiedFields += 1;
+    score += peg > 0 && peg <= 1.5 ? 8 : peg > 3 ? -8 : 0;
+    masterPatterns.push(`Lynch PEG check: ${peg.toFixed(2)}.`);
+  }
+  if (typeof trailingPe === "number") {
+    verifiedFields += 1;
+    signals.push(`Trailing P/E: ${trailingPe.toFixed(1)}.`);
+  }
+  if (!masterPatterns.length) masterPatterns.push("Classic-investor pattern checks need more verified fields.");
+  if (verifiedFields < 3) {
+    return {
+      role: "fundamental_value",
+      readiness: "unavailable",
+      score: 0,
+      signals: [...signals, "Fewer than three verified fundamental fields are available."],
+      masterPatterns,
+    };
+  }
+  return {
+    role: "fundamental_value",
+    readiness: score >= 45 ? "ready" : "caution",
+    score: clampScore(score),
+    signals,
+    masterPatterns,
+  };
+}
+
+async function runTrendEntryAgent(ticker: string): Promise<TrendEntryAgentResult> {
+  const closes = await fetchChartHistory(ticker);
+  if (closes.length < 50) {
+    return {
+      role: "trend_entry",
+      readiness: "unavailable",
+      score: 0,
+      signals: ["At least 50 verified daily closes are required for trend analysis."],
+      entryRule: "No entry rule until historical price data is available.",
+      invalidationRule: "No trade while trend data is unavailable.",
+    };
+  }
+  const price = closes.at(-1)!;
+  const sma50 = average(closes.slice(-50))!;
+  const sma200 = closes.length >= 200 ? average(closes.slice(-200)) : null;
+  const high = Math.max(...closes);
+  const signals: string[] = [];
+  let score = 50;
+  if (price > sma50) {
+    score += 15;
+    signals.push(`Price ${readableNumber(price)} is above the 50-day average ${readableNumber(sma50)}.`);
+  } else {
+    score -= 15;
+    signals.push(`Price ${readableNumber(price)} is below the 50-day average ${readableNumber(sma50)}.`);
+  }
+  if (sma200 !== null) {
+    if (price > sma200) score += 15;
+    else score -= 15;
+    if (sma50 > sma200) score += 10;
+    else score -= 10;
+    signals.push(`200-day average: ${readableNumber(sma200)}; 50/200 trend relationship checked.`);
+  } else {
+    signals.push("200-day average is unavailable because the listing history is short.");
+  }
+  const distanceFromHigh = ((price / high) - 1) * 100;
+  if (distanceFromHigh >= -15) score += 5;
+  else score -= 5;
+  signals.push(`Distance from 1-year high: ${distanceFromHigh.toFixed(1)}%.`);
+  return {
+    role: "trend_entry",
+    readiness: sma200 === null ? "caution" : score >= 45 ? "ready" : "caution",
+    score: clampScore(score),
+    signals,
+    entryRule: `Require a close above the 50-day average (${readableNumber(sma50)}) and a new higher high before considering entry.`,
+    invalidationRule: `Reassess if the price closes below the 50-day average (${readableNumber(sma50)}).`,
+  };
+}
+
+export async function runThreeAgentAnalysis(input: {
+  ticker: string;
+  name: string;
+  marketData?: StockMarketData;
+  macroSnapshot?: MarketSnapshot;
+}): Promise<ThreeAgentAnalysis> {
+  const md = input.marketData ?? (await gatherMarketData(input.ticker, input.name));
+  const [snapshot, trendEntry] = await Promise.all([
+    input.macroSnapshot ? Promise.resolve(input.macroSnapshot) : fetchMarketSnapshot(),
+    runTrendEntryAgent(md.ticker),
+  ]);
+  const macroRisk = runMacroRiskAgent(snapshot);
+  const fundamentalValue = runFundamentalValueAgent(md);
+  const unavailable = [macroRisk, fundamentalValue, trendEntry].filter(
+    (agent) => agent.readiness === "unavailable",
+  );
+  const reasons = unavailable.flatMap((agent) => agent.signals.slice(0, 1));
+  if (!md.dataOk || unavailable.length > 0) {
+    return {
+      ticker: md.ticker,
+      name: input.name,
+      asOf: md.asOf,
+      dataStatus: "insufficient",
+      macroRisk,
+      fundamentalValue,
+      trendEntry,
+      riskGate: {
+        decision: "no_trade",
+        score: null,
+        reasons: reasons.length ? reasons : ["Verified market data is unavailable."],
+        requiresManualConfirmation: true,
+      },
+    };
+  }
+  const score = clampScore(
+    macroRisk.score * 0.3 + fundamentalValue.score * 0.4 + trendEntry.score * 0.3,
+  );
+  const decision = score >= 70 && macroRisk.readiness === "ready" && trendEntry.readiness === "ready"
+    ? "buy_candidate"
+    : "watch";
+  return {
+    ticker: md.ticker,
+    name: input.name,
+    asOf: md.asOf,
+    dataStatus: "ready",
+    macroRisk,
+    fundamentalValue,
+    trendEntry,
+    riskGate: {
+      decision,
+      score,
+      reasons:
+        decision === "buy_candidate"
+          ? ["All three independent checks passed; manual confirmation remains required."]
+          : ["The combined signal does not meet the candidate threshold."],
+      requiresManualConfirmation: true,
+    },
+  };
+}
+
 async function callGeminiJson<T>(systemPrompt: string, userPrompt: string, temperature = 0.2): Promise<T> {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) throw new Error("GEMINI_API_KEY not set");
@@ -367,6 +679,9 @@ export async function runJkpAnalysis(input: {
   marketData?: StockMarketData;
 }): Promise<JkpAnalysisResult> {
   const md = input.marketData ?? (await gatherMarketData(input.ticker, input.name));
+  if (!md.dataOk) {
+    throw new Error("Verified market data is unavailable; no trade analysis was produced.");
+  }
   const { livermore, oneil, weinstein, minervini, lynch } = input.settings.traderWeights;
 
   const marketContext = md.quote
@@ -423,6 +738,9 @@ export async function runAgentReview(input: {
   marketData?: StockMarketData;
 }): Promise<AgentReviewResult> {
   const md = input.marketData ?? (await gatherMarketData(input.ticker, input.name));
+  if (!md.dataOk) {
+    throw new Error("Verified market data is unavailable; no investor-persona review was produced.");
+  }
   const fundamentals = buildFundamentalsLine(md.quote);
 
   const systemPrompt = `너는 4명의 전설적 투자자들의 관점을 모두 이해하는 멀티에이전트 분석 시스템이다.
@@ -528,12 +846,14 @@ const SNAPSHOT_TICKERS: { symbol: string; label: string }[] = [
 ];
 
 /** 시장 전반(공포/지수/환율/금리/원자재) 실시간 스냅샷 텍스트. */
-export async function fetchMarketSnapshot(): Promise<{ text: string; asOf: number; ok: boolean }> {
+export async function fetchMarketSnapshot(): Promise<MarketSnapshot> {
   const quotes = await Promise.all(SNAPSHOT_TICKERS.map((t) => fetchChartQuote(t.symbol)));
   const lines: string[] = [];
+  const readings: MarketSnapshot["readings"] = {};
   let ok = false;
   SNAPSHOT_TICKERS.forEach((t, i) => {
     const q = quotes[i];
+    readings[t.symbol] = { price: q.price, changePercent: q.changePercent };
     if (q.price === null) {
       lines.push(`${t.label}: 데이터 없음`);
       return;
@@ -543,7 +863,7 @@ export async function fetchMarketSnapshot(): Promise<{ text: string; asOf: numbe
       q.changePercent !== null ? ` (${q.changePercent > 0 ? "+" : ""}${q.changePercent.toFixed(2)}%)` : "";
     lines.push(`${t.label}: ${q.price.toLocaleString("en-US", { maximumFractionDigits: 2 })}${chg}`);
   });
-  return { text: lines.join("\n"), asOf: Date.now(), ok };
+  return { text: lines.join("\n"), asOf: Date.now(), ok, readings };
 }
 
 // ── 종목명/코드 → 티커 해석 ───────────────────────────────────────────────────

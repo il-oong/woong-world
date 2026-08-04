@@ -5,7 +5,7 @@ import type {
   ProposedAction,
   UploadedFile,
 } from "./assistant";
-import { newId } from "./assistant";
+import { parseProposedAction } from "./assistant";
 import type { CalendarEvent } from "./google";
 import { eventOnDay, formatTimeRange, toIso } from "./calendar-util";
 import type { Plugin, PluginStatus } from "./plugins";
@@ -18,14 +18,16 @@ import type {
 } from "./alpha";
 import {
   runJkpAnalysis,
-  runAgentReview,
+  runThreeAgentAnalysis,
   gatherMarketData,
   buildFundamentalsLine,
   fetchMarketSnapshot,
   searchTickerSmart,
   fetchGroundedMarketBrief,
   type AgentReviewResult,
+  type MarketSnapshot,
   type StockMarketData,
+  type ThreeAgentAnalysis,
 } from "./stock-agents";
 
 const GEMINI_MODEL = "gemini-2.5-flash";
@@ -454,12 +456,8 @@ function parseActions(text: string): {
   const actions: ProposedAction[] = [];
   const cleanText = text.replace(ACTION_REGEX, (_, json: string) => {
     try {
-      const parsed = JSON.parse(json) as Omit<ProposedAction, "id" | "status">;
-      actions.push({
-        id: newId("act"),
-        status: "pending",
-        ...parsed,
-      } as ProposedAction);
+      const action = parseProposedAction(JSON.parse(json) as unknown);
+      if (action) actions.push(action);
     } catch {
       // skip malformed
     }
@@ -624,6 +622,7 @@ type TickerReport = {
   holding?: StockHolding;
   jkp: JkpAnalysisResult | null;
   review: AgentReviewResult | null;
+  threeAgent?: ThreeAgentAnalysis;
   error?: string;
 };
 
@@ -650,6 +649,7 @@ async function analyzeTicker(
   t: { name: string; ticker?: string; market?: string },
   holdings: StockHolding[],
   settings: InvestSettings,
+  macroSnapshot: MarketSnapshot,
 ): Promise<TickerReport> {
   let ticker = t.ticker?.trim() ?? "";
   let name = t.name;
@@ -678,14 +678,14 @@ async function analyzeTicker(
         error: "티커 해석 실패",
       };
     }
-    // 실시간 데이터 1회 수집 → JKP + 5인 에이전트가 같은 데이터로 병렬 분석.
+    // Collect the market data once, then pass the same immutable snapshot to all three roles.
     const md = await gatherMarketData(ticker, name);
-    const [jkp, review] = await Promise.all([
-      runJkpAnalysis({ ticker: md.ticker, name, market, settings, marketData: md }).catch(
-        () => null,
-      ),
-      runAgentReview({ ticker: md.ticker, name, market, marketData: md }).catch(() => null),
-    ]);
+    const threeAgent = await runThreeAgentAnalysis({
+      ticker: md.ticker,
+      name,
+      marketData: md,
+      macroSnapshot,
+    });
     const holding = holdings.find(
       (h) =>
         h.ticker.toUpperCase() === md.ticker.toUpperCase() ||
@@ -700,8 +700,9 @@ async function analyzeTicker(
       price: md.price,
       changePercent: md.changePercent,
       holding,
-      jkp,
-      review,
+      jkp: null,
+      review: null,
+      threeAgent,
     };
   } catch (e) {
     return {
@@ -733,20 +734,26 @@ async function runStockNetwork(
   }
   targets = targets.slice(0, 3); // 지연/비용 상한 (최대 3종목)
 
-  const wantMacro = d.need_macro || d.intent === "market";
-
-  // 종목 분석 + 거시 스냅샷 + 검색 그라운딩을 모두 병렬로 (60초 상한 내 여유 확보).
-  const [perTicker, macro, grounded] = await Promise.all([
-    Promise.all(targets.map((t) => analyzeTicker(t, holdings, settings))),
-    wantMacro
-      ? fetchMarketSnapshot()
-          .then((s) => (s.ok ? { text: s.text, asOf: s.asOf } : null))
-          .catch(() => null)
-      : Promise.resolve(null),
+  // Every decision is gated by the same market-regime snapshot, even when the
+  // user did not explicitly ask for a macro briefing.
+  const [macroSnapshot, grounded] = await Promise.all([
+    fetchMarketSnapshot().catch(() => ({
+      text: "Market-regime data unavailable.",
+      asOf: Date.now(),
+      ok: false,
+      readings: {},
+    })),
     fetchGroundedMarketBrief(buildGroundingQuery(d, targets)).catch(() => null),
   ]);
+  const perTicker = await Promise.all(
+    targets.map((t) => analyzeTicker(t, holdings, settings, macroSnapshot)),
+  );
 
-  return { perTicker, macro, grounded };
+  return {
+    perTicker,
+    macro: macroSnapshot.ok ? { text: macroSnapshot.text, asOf: macroSnapshot.asOf } : null,
+    grounded,
+  };
 }
 
 // =====================================================================
@@ -1101,6 +1108,23 @@ function buildReportText(r: StockAgentReport, ctx: AssistantContext): string {
       }
     }
 
+    if (t.threeAgent) {
+      const a = t.threeAgent;
+      lines.push(
+        `[3-agent risk gate] decision=${a.riskGate.decision} / score=${a.riskGate.score ?? "N/A"} / manualConfirmation=${a.riskGate.requiresManualConfirmation}`,
+      );
+      lines.push(
+        `  [Macro/Risk ${a.macroRisk.readiness}] ${a.macroRisk.score}/100 — ${a.macroRisk.signals.join(" ")}`,
+      );
+      lines.push(
+        `  [Fundamental/Value ${a.fundamentalValue.readiness}] ${a.fundamentalValue.score}/100 — ${a.fundamentalValue.signals.join(" ")}`,
+      );
+      lines.push(
+        `  [Trend/Entry ${a.trendEntry.readiness}] ${a.trendEntry.score}/100 — ${a.trendEntry.entryRule} ${a.trendEntry.invalidationRule}`,
+      );
+      lines.push(`  Gate rationale: ${a.riskGate.reasons.join(" ")}`);
+    }
+
     if (t.jkp) {
       const j = t.jkp;
       lines.push(
@@ -1167,6 +1191,14 @@ function buildReportText(r: StockAgentReport, ctx: AssistantContext): string {
   return blocks.join("\n\n");
 }
 
+const THREE_AGENT_SYNTHESIS_GUARD = `
+Non-negotiable safety rules:
+- The [3-agent risk gate] is authoritative. Never override no_trade or watch with a buy/sell instruction.
+- For no_trade, explain the missing verification and state that no new position should be opened from this report.
+- For watch, give only observable conditions to monitor. Do not invent entry, target, stop, price, or dates.
+- buy_candidate is a research candidate only. State that it still requires the user's manual confirmation; never imply an order was placed or can be placed.
+- Quote only values present in the report and identify the source snapshot time.`;
+
 async function synthesizeStockAnswer(input: {
   userMessage: string;
   report: StockAgentReport;
@@ -1183,7 +1215,7 @@ ${reportText}
 ========================================
 
 위 에이전트 리포트와 원본 데이터만 근거로, 사용자 질문에 종합 답변하라. 제공되지 않은 수치는 절대 만들지 마라.`;
-  return callChatGemini(systemText, [{ role: "user", parts: [{ text: userPrompt }] }], 0.2, 2000, 0);
+  return callChatGemini(`${systemText}\n${THREE_AGENT_SYNTHESIS_GUARD}`, [{ role: "user", parts: [{ text: userPrompt }] }], 0.2, 2000, 0);
 }
 
 // =====================================================================

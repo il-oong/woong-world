@@ -3,6 +3,7 @@ import { getValidSession, listEvents } from "@/lib/google";
 import { listPlans } from "@/lib/plans";
 import {
   appendChat,
+  consumeUserRateLimit,
   type ChatAttachment,
   type ChatMessage,
   isAssistantStorageConfigured,
@@ -36,8 +37,7 @@ export async function POST(req: NextRequest) {
   if (!session?.email) {
     return Response.json({ error: "not_connected" }, { status: 401 });
   }
-
-  let body: { text?: string; attachmentFileIds?: string[] };
+  let body: { text?: unknown; attachmentFileIds?: unknown };
   try {
     body = (await req.json()) as {
       text?: string;
@@ -46,8 +46,12 @@ export async function POST(req: NextRequest) {
   } catch {
     return Response.json({ error: "invalid_json" }, { status: 400 });
   }
-  const text = body.text?.trim();
+  const text = typeof body.text === "string" ? body.text.trim() : "";
   if (!text) return Response.json({ error: "empty" }, { status: 400 });
+  if (text.length > 12_000) return Response.json({ error: "message_too_long" }, { status: 400 });
+  if (!(await consumeUserRateLimit(session.email, "assistant-chat", 15))) {
+    return Response.json({ error: "rate_limited" }, { status: 429 });
+  }
 
   // Gather context
   const [history, allFiles, plans] = await Promise.all([
@@ -71,7 +75,9 @@ export async function POST(req: NextRequest) {
     // Calendar fetch is best-effort; chat still works without it.
   }
 
-  const attachmentIds = body.attachmentFileIds ?? [];
+  const attachmentIds = Array.isArray(body.attachmentFileIds)
+    ? body.attachmentFileIds.filter((id): id is string => typeof id === "string").slice(0, 10)
+    : [];
   const attachedFiles = allFiles.filter((f) => attachmentIds.includes(f.id));
   const attachmentRefs: ChatAttachment[] = attachedFiles.map((f) => ({
     fileId: f.id,

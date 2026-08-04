@@ -716,6 +716,7 @@ function StatusBadge({ status }: { status: ProposedAction["status"] }) {
     pending: { label: "대기", color: "var(--muted)" },
     approved: { label: "승인됨", color: "#46d6db" },
     rejected: { label: "거절됨", color: "#9aa0a6" },
+    failed: { label: "Failed", color: "#f59e0b" },
   } as const;
   const s = map[status];
   return (

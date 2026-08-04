@@ -1,15 +1,24 @@
 import { jwtDecrypt, EncryptJWT } from "jose";
+import { createHash } from "node:crypto";
 import { cookies } from "next/headers";
 
 const COOKIE = "wh-google";
 const STATE_COOKIE = "wh-google-state";
 
 function getKey(): Uint8Array {
-  const secret = process.env.SESSION_SECRET;
+  const secret = process.env.SESSION_SECRET?.trim();
   if (!secret) throw new Error("SESSION_SECRET is not set");
-  const buf = new Uint8Array(32);
-  buf.set(new TextEncoder().encode(secret).slice(0, 32));
-  return buf;
+
+  // `openssl rand -hex 32` is the documented form. Hashing the full secret
+  // avoids silently discarding entropy after byte 32, which the old zero-pad
+  // approach did for short values.
+  const source = /^[0-9a-f]{64}$/i.test(secret)
+    ? Buffer.from(secret, "hex")
+    : Buffer.from(secret, "utf8");
+  if (source.byteLength < 32) {
+    throw new Error("SESSION_SECRET must contain at least 32 random bytes");
+  }
+  return new Uint8Array(createHash("sha256").update(source).digest());
 }
 
 export type GoogleSession = {
