@@ -2,6 +2,11 @@ import { type NextRequest } from "next/server";
 import { createEvent, getValidSession } from "@/lib/google";
 import { createPlan, updatePlan } from "@/lib/plans";
 import { addRoutine } from "@/lib/routines";
+import { addTodo, removeTodo, updateTodo } from "@/lib/todos";
+import { addSubscription, removeSubscription } from "@/lib/subscriptions";
+import { addWatchItem, deleteWatchItem } from "@/lib/alpha";
+import { isAdminSession } from "@/lib/admin";
+import { engineCreateBackup, engineSync } from "@/lib/vault-sync/engine";
 import {
   appendAssistantActionAudit,
   claimAssistantAction,
@@ -146,6 +151,52 @@ export async function POST(req: NextRequest) {
           action.params.weekdays,
         ),
       };
+    } else if (action.type === "manage_workspace") {
+      const operation = action.params;
+      if (operation.operation === "add_todo") {
+        result = { todo: await addTodo(session.email, operation.text, operation.scope) };
+      } else if (operation.operation === "update_todo") {
+        const todo = await updateTodo(session.email, operation.id, operation.patch);
+        if (!todo) throw new Error("todo_not_found");
+        result = { todo };
+      } else if (operation.operation === "remove_todo") {
+        if (!(await removeTodo(session.email, operation.id))) throw new Error("todo_not_found");
+        result = { removed: operation.id };
+      } else if (operation.operation === "add_subscription") {
+        result = {
+          subscription: await addSubscription(session.email, {
+            name: operation.name,
+            amount: operation.amount,
+            paymentDay: operation.paymentDay,
+            cycle: operation.cycle,
+            monthOfYear: operation.monthOfYear,
+          }),
+        };
+      } else if (operation.operation === "remove_subscription") {
+        const subscription = await removeSubscription(session.email, operation.id);
+        if (!subscription) throw new Error("subscription_not_found");
+        result = { removed: subscription };
+      } else if (operation.operation === "add_watch_item") {
+        result = {
+          watchItem: await addWatchItem(session.email, {
+            ticker: operation.ticker,
+            name: operation.name,
+            market: operation.market,
+            memo: operation.memo ?? "",
+          }),
+        };
+      } else if (operation.operation === "remove_watch_item") {
+        if (!(await deleteWatchItem(session.email, operation.id))) {
+          throw new Error("watch_item_not_found");
+        }
+        result = { removed: operation.id };
+      } else {
+        if (!(await isAdminSession())) throw new Error("admin_required");
+        result =
+          operation.operation === "sync_vault"
+            ? { state: await engineSync("assistant-approved") }
+            : await engineCreateBackup();
+      }
     }
     // suggest_command is intentionally only acknowledged. It never reaches a shell.
 

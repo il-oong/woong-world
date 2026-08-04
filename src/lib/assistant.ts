@@ -19,6 +19,18 @@ export type ActionStatus =
   | "rejected"
   | "failed";
 
+/** Safe, approval-only controls for the user's connected workspace apps. */
+export type WorkspaceOperation =
+  | { operation: "add_todo"; text: string; scope: "day" | "week" | "month" }
+  | { operation: "update_todo"; id: string; patch: { text?: string; done?: boolean; scope?: "day" | "week" | "month" } }
+  | { operation: "remove_todo"; id: string }
+  | { operation: "add_subscription"; name: string; amount: number; paymentDay: number; cycle: "monthly" | "yearly"; monthOfYear?: number }
+  | { operation: "remove_subscription"; id: string }
+  | { operation: "add_watch_item"; ticker: string; name: string; market: "KR" | "US"; memo?: string }
+  | { operation: "remove_watch_item"; id: string }
+  | { operation: "sync_vault" }
+  | { operation: "create_vault_backup" };
+
 export type ProposedAction =
   | {
       id: string;
@@ -78,6 +90,12 @@ export type ProposedAction =
         /** Optional plugin id this command relates to (for traceability). */
         pluginId?: string;
       };
+    }
+  | {
+      id: string;
+      type: "manage_workspace";
+      status: ActionStatus;
+      params: WorkspaceOperation;
     };
 
 export type ChatAttachment = {
@@ -261,6 +279,72 @@ function isSafeCommandSuggestion(command: string): boolean {
   );
 }
 
+function parseWorkspaceOperation(value: Record<string, unknown>): WorkspaceOperation | null {
+  const operation = value.operation;
+  if (operation === "add_todo") {
+    const todoText = text(value.text, 500);
+    const scope = value.scope;
+    if (!todoText || (scope !== "day" && scope !== "week" && scope !== "month")) return null;
+    return { operation, text: todoText, scope };
+  }
+  if (operation === "update_todo") {
+    if (!isId(value.id, "td_") || !isRecord(value.patch)) return null;
+    const patch: { text?: string; done?: boolean; scope?: "day" | "week" | "month" } = {};
+    if (value.patch.text !== undefined) {
+      const todoText = text(value.patch.text, 500);
+      if (!todoText) return null;
+      patch.text = todoText;
+    }
+    if (value.patch.done !== undefined) {
+      if (typeof value.patch.done !== "boolean") return null;
+      patch.done = value.patch.done;
+    }
+    if (value.patch.scope !== undefined) {
+      if (!["day", "week", "month"].includes(String(value.patch.scope))) return null;
+      patch.scope = value.patch.scope as "day" | "week" | "month";
+    }
+    return Object.keys(patch).length ? { operation, id: value.id, patch } : null;
+  }
+  if (operation === "remove_todo") {
+    return isId(value.id, "td_") ? { operation, id: value.id } : null;
+  }
+  if (operation === "add_subscription") {
+    const name = text(value.name, 200);
+    const amount = value.amount;
+    const paymentDay = value.paymentDay;
+    const cycle = value.cycle;
+    const monthOfYear = value.monthOfYear;
+    if (
+      !name ||
+      typeof amount !== "number" || !Number.isFinite(amount) || amount < 0 || amount > 100_000_000 ||
+      typeof paymentDay !== "number" || !Number.isInteger(paymentDay) || paymentDay < 1 || paymentDay > 31 ||
+      (cycle !== "monthly" && cycle !== "yearly") ||
+      (monthOfYear !== undefined && (typeof monthOfYear !== "number" || !Number.isInteger(monthOfYear) || monthOfYear < 1 || monthOfYear > 12)) ||
+      (cycle === "yearly" && monthOfYear === undefined)
+    ) {
+      return null;
+    }
+    return { operation, name, amount, paymentDay, cycle, monthOfYear: monthOfYear as number | undefined };
+  }
+  if (operation === "remove_subscription") {
+    return isId(value.id, "sub_") ? { operation, id: value.id } : null;
+  }
+  if (operation === "add_watch_item") {
+    const ticker = text(value.ticker, 40);
+    const name = text(value.name, 200);
+    const memo = optionalText(value.memo, 1_000);
+    if (!ticker || !name || memo === null || (value.market !== "KR" && value.market !== "US")) return null;
+    return { operation, ticker: ticker.toUpperCase(), name, market: value.market, memo: memo ?? undefined };
+  }
+  if (operation === "remove_watch_item") {
+    return isId(value.id, "a_") ? { operation, id: value.id } : null;
+  }
+  if (operation === "sync_vault" || operation === "create_vault_backup") {
+    return Object.keys(value).length === 1 ? { operation } : null;
+  }
+  return null;
+}
+
 /**
  * Treat model output and browser overrides as untrusted input. A proposed
  * action may only cross the approval boundary after this exact shape check.
@@ -364,6 +448,10 @@ export function validateActionParams(
     return { name, weekdays: weekdays as number[] | undefined };
   }
 
+  if (type === "manage_workspace") {
+    return parseWorkspaceOperation(value);
+  }
+
   const cmd = text(value.cmd, 1_000);
   const explanation = text(value.explanation, 2_000);
   const cwd = optionalText(value.cwd, 300);
@@ -382,6 +470,7 @@ export function parseProposedAction(value: unknown): ProposedAction | null {
     type !== "create_plan" &&
     type !== "update_plan" &&
     type !== "create_routine" &&
+    type !== "manage_workspace" &&
     type !== "suggest_command"
   ) {
     return null;

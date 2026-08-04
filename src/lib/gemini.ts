@@ -7,6 +7,8 @@ import type {
 } from "./assistant";
 import { parseProposedAction } from "./assistant";
 import type { CalendarEvent } from "./google";
+import type { Todo } from "./todos";
+import type { Subscription } from "./subscriptions";
 import { eventOnDay, formatTimeRange, toIso } from "./calendar-util";
 import type { Plugin, PluginStatus } from "./plugins";
 import type {
@@ -234,6 +236,11 @@ export type StockContext = {
   settings: InvestSettings;
 };
 
+export type WorkspaceContext = {
+  todos: Todo[];
+  subscriptions: Subscription[];
+};
+
 export type AssistantContext = {
   email: string;
   today: string; // ISO date YYYY-MM-DD
@@ -245,6 +252,7 @@ export type AssistantContext = {
   isAdmin?: boolean;
   /** 투자/주식 컨텍스트 (있으면 주식 질문 위임·종합에 사용). */
   stock?: StockContext;
+  workspace?: WorkspaceContext;
 };
 
 function summarizeEvents(events: CalendarEvent[], today: string): string {
@@ -353,6 +361,22 @@ function summarizeStock(s: StockContext): string {
   return lines.join("\n");
 }
 
+function summarizeWorkspace(workspace: WorkspaceContext): string {
+  const lines: string[] = [];
+  const openTodos = workspace.todos.filter((todo) => !todo.done).slice(0, 30);
+  lines.push(
+    openTodos.length
+      ? `Open tasks: ${openTodos.map((todo) => `${todo.id}=${todo.text} (${todo.scope ?? "day"})`).join(" | ")}`
+      : "Open tasks: none",
+  );
+  lines.push(
+    workspace.subscriptions.length
+      ? `Subscriptions: ${workspace.subscriptions.slice(0, 30).map((sub) => `${sub.id}=${sub.name} ${sub.amount}KRW/${sub.cycle}`).join(" | ")}`
+      : "Subscriptions: none",
+  );
+  return lines.join("\n");
+}
+
 function buildContextBlock(ctx: AssistantContext): string {
   const cats = CATEGORIES.map((c) => `${c.id}=${c.label}`).join(", ");
   const blocks = [
@@ -371,6 +395,9 @@ function buildContextBlock(ctx: AssistantContext): string {
   ];
   if (ctx.stock) {
     blocks.push("", "[투자/주식 컨텍스트]", summarizeStock(ctx.stock));
+  }
+  if (ctx.workspace) {
+    blocks.push("", "[Workspace controls]", summarizeWorkspace(ctx.workspace));
   }
   if (ctx.isAdmin && ctx.plugins?.length) {
     blocks.push(
@@ -499,6 +526,21 @@ async function callChatGemini(
   return data.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
 }
 
+const JARVIS_WORKSPACE_INSTRUCTIONS = `
+Jarvis workspace controls:
+- When the user clearly asks to create, update, complete, or remove a task, manage a subscription, edit the stock watchlist, run VaultSync, or make an Obsidian backup, propose exactly one or more typed actions below. Never claim that a change happened until the user approves it.
+- Use IDs provided in [Workspace controls] for updates or removals. If no unambiguous ID is available, ask a short follow-up question instead of guessing.
+- Actions are always subject to the approval button. VaultSync actions additionally require the signed-in administrator.
+<action>{"type":"manage_workspace","params":{"operation":"add_todo","text":"Prepare PR review","scope":"day"}}</action>
+<action>{"type":"manage_workspace","params":{"operation":"update_todo","id":"td_...","patch":{"done":true}}}</action>
+<action>{"type":"manage_workspace","params":{"operation":"remove_todo","id":"td_..."}}</action>
+<action>{"type":"manage_workspace","params":{"operation":"add_subscription","name":"Netflix","amount":17000,"paymentDay":15,"cycle":"monthly"}}</action>
+<action>{"type":"manage_workspace","params":{"operation":"remove_subscription","id":"sub_..."}}</action>
+<action>{"type":"manage_workspace","params":{"operation":"add_watch_item","ticker":"NVDA","name":"NVIDIA","market":"US","memo":"AI watchlist"}}</action>
+<action>{"type":"manage_workspace","params":{"operation":"remove_watch_item","id":"a_..."}}</action>
+<action>{"type":"manage_workspace","params":{"operation":"sync_vault"}}</action>
+<action>{"type":"manage_workspace","params":{"operation":"create_vault_backup"}}</action>`;
+
 export async function chatWithAssistant(input: {
   history: ChatMessage[];
   userMessage: string;
@@ -508,7 +550,7 @@ export async function chatWithAssistant(input: {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) throw new Error("GEMINI_API_KEY not set");
 
-  const systemText = `${CHAT_SYSTEM_PROMPT}\n\n${buildContextBlock(input.context)}`;
+  const systemText = `${CHAT_SYSTEM_PROMPT}\n${JARVIS_WORKSPACE_INSTRUCTIONS}\n\n${buildContextBlock(input.context)}`;
   const contents = await buildContents(
     input.history,
     input.userMessage,

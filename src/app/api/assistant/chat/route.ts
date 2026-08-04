@@ -21,6 +21,8 @@ import {
   listEvents as listEconEvents,
   getSettings as getInvestSettings,
 } from "@/lib/alpha";
+import { listTodos } from "@/lib/todos";
+import { listSubscriptions } from "@/lib/subscriptions";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -54,10 +56,12 @@ export async function POST(req: NextRequest) {
   }
 
   // Gather context
-  const [history, allFiles, plans] = await Promise.all([
+  const [history, allFiles, plans, todos, subscriptions] = await Promise.all([
     loadChat(session.email),
     listFiles(session.email),
     listPlans(session.email),
+    listTodos(session.email),
+    listSubscriptions(session.email),
   ]);
   const today = new Date();
   const fromDate = new Date(today);
@@ -150,6 +154,7 @@ export async function POST(req: NextRequest) {
         isAdmin,
         plugins: pluginContext,
         stock,
+        workspace: { todos, subscriptions },
       },
     });
     result = { text: r.text, proposedActions: r.proposedActions };
