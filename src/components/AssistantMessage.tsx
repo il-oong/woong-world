@@ -130,6 +130,9 @@ function ActionCard({
             {action.type === "create_routine" && (
               <CreateRoutineBody params={action.params} />
             )}
+            {action.type === "manage_workspace" && (
+              <WorkspaceActionBody params={action.params} />
+            )}
           </div>
 
           {action.status === "pending" && action.type === "suggest_command" && (
@@ -151,14 +154,16 @@ function ActionCard({
               >
                 거절
               </button>
-              <button
-                type="button"
-                onClick={() => setEditing(true)}
-                disabled={busy}
-                className="rounded-md border border-[var(--border)] px-3 py-1 text-xs text-[var(--muted)] hover:bg-white/5 hover:text-foreground disabled:opacity-40"
-              >
-                수정
-              </button>
+              {action.type !== "manage_workspace" && (
+                <button
+                  type="button"
+                  onClick={() => setEditing(true)}
+                  disabled={busy}
+                  className="rounded-md border border-[var(--border)] px-3 py-1 text-xs text-[var(--muted)] hover:bg-white/5 hover:text-foreground disabled:opacity-40"
+                >
+                  수정
+                </button>
+              )}
               <button
                 type="button"
                 onClick={() => void decide("approve")}
@@ -678,6 +683,41 @@ function UpdatePlanEdit({
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
+function WorkspaceActionBody({
+  params,
+}: {
+  params: Extract<ProposedAction, { type: "manage_workspace" }> ["params"];
+}) {
+  const summary = (() => {
+    switch (params.operation) {
+      case "add_todo":
+        return `Add task: ${params.text}`;
+      case "update_todo":
+        return `Update task ${params.id}`;
+      case "remove_todo":
+        return `Remove task ${params.id}`;
+      case "add_subscription":
+        return `Add subscription: ${params.name} (${params.amount.toLocaleString()} KRW)`;
+      case "remove_subscription":
+        return `Remove subscription ${params.id}`;
+      case "add_watch_item":
+        return `Add watch item: ${params.name} (${params.ticker})`;
+      case "remove_watch_item":
+        return `Remove watch item ${params.id}`;
+      case "sync_vault":
+        return "Run Obsidian VaultSync now";
+      case "create_vault_backup":
+        return "Create an Obsidian vault backup";
+    }
+  })();
+  return (
+    <div className="space-y-1">
+      <p className="font-medium text-foreground">{summary}</p>
+      <p className="text-[10px] text-[var(--muted)]">Approval is required before this is applied.</p>
+    </div>
+  );
+}
+
 function labelForType(type: ProposedAction["type"]): string {
   switch (type) {
     case "add_event":
@@ -690,6 +730,8 @@ function labelForType(type: ProposedAction["type"]): string {
       return "⌘ 명령어 제안";
     case "create_routine":
       return "+ 루틴 추가";
+    case "manage_workspace":
+      return "JARVIS workspace control";
   }
 }
 
@@ -716,6 +758,7 @@ function StatusBadge({ status }: { status: ProposedAction["status"] }) {
     pending: { label: "대기", color: "var(--muted)" },
     approved: { label: "승인됨", color: "#46d6db" },
     rejected: { label: "거절됨", color: "#9aa0a6" },
+    failed: { label: "Failed", color: "#f59e0b" },
   } as const;
   const s = map[status];
   return (

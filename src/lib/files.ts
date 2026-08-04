@@ -1,9 +1,15 @@
 import { put, del } from "@vercel/blob";
+import { lookup } from "node:dns/promises";
+import { request as httpRequest } from "node:http";
+import { request as httpsRequest } from "node:https";
+import { isIP } from "node:net";
 import type { FileKind, UploadedFile } from "./assistant";
 import { newId } from "./assistant";
 
-const MAX_INLINE_TEXT = 1_000_000; // 1 MB of text stored inline in Redis
-const MAX_BLOB_BYTES = 25_000_000; // 25 MB upload cap
+const MAX_INLINE_TEXT = 1_000_000;
+const MAX_BLOB_BYTES = 25_000_000;
+const MAX_REMOTE_BYTES = 2_000_000;
+const MAX_REMOTE_REDIRECTS = 3;
 
 export function isBlobConfigured(): boolean {
   return Boolean(process.env.BLOB_READ_WRITE_TOKEN);
@@ -18,8 +24,7 @@ export function detectKind(name: string, mime?: string): FileKind {
   if (lower.endsWith(".pdf") || m === "application/pdf") return "pdf";
   if (
     lower.endsWith(".docx") ||
-    m ===
-      "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    m === "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
   ) {
     return "docx";
   }
@@ -29,8 +34,6 @@ export function detectKind(name: string, mime?: string): FileKind {
 }
 
 async function extractPdf(buf: Uint8Array): Promise<string> {
-  // Dynamic import keeps the heavy package out of cold-start unless needed.
-  // pdfjs-dist legacy build runs in Node without a worker.
   const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
   pdfjs.GlobalWorkerOptions.workerSrc = "";
   const loadingTask = pdfjs.getDocument({
@@ -40,13 +43,10 @@ async function extractPdf(buf: Uint8Array): Promise<string> {
   });
   const doc = await loadingTask.promise;
   const out: string[] = [];
-  for (let p = 1; p <= doc.numPages; p++) {
-    const page = await doc.getPage(p);
+  for (let pageNumber = 1; pageNumber <= doc.numPages; pageNumber += 1) {
+    const page = await doc.getPage(pageNumber);
     const content = await page.getTextContent();
-    const pageText = content.items
-      .map((it) => ("str" in it ? it.str : ""))
-      .join(" ");
-    out.push(pageText);
+    out.push(content.items.map((item) => ("str" in item ? item.str : "")).join(" "));
   }
   return out.join("\n\n").trim();
 }
@@ -76,13 +76,12 @@ export async function processUploadedFile(
   file: File,
 ): Promise<UploadedFile> {
   if (file.size > MAX_BLOB_BYTES) {
-    throw new Error(`파일이 너무 큽니다 (최대 ${MAX_BLOB_BYTES / 1_000_000} MB)`);
+    throw new Error(`File is too large (maximum ${MAX_BLOB_BYTES / 1_000_000} MB)`);
   }
   const kind = detectKind(file.name, file.type);
   const id = newId("f");
   const now = Date.now();
   const buf = new Uint8Array(await file.arrayBuffer());
-
   const out: UploadedFile = {
     id,
     name: file.name,
@@ -92,7 +91,6 @@ export async function processUploadedFile(
     createdAt: now,
   };
 
-  // Always upload the original to Blob (lets us re-process later, or send images to Gemini).
   if (isBlobConfigured()) {
     const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
     const path = `assistant/${email.toLowerCase()}/${id}-${safeName}`;
@@ -104,66 +102,179 @@ export async function processUploadedFile(
     out.blobUrl = result.url;
   }
 
-  // Extract text by kind.
   if (kind === "text" || kind === "markdown" || kind === "json") {
-    const text = new TextDecoder("utf-8", { fatal: false }).decode(buf);
-    out.textContent = text.slice(0, MAX_INLINE_TEXT);
+    out.textContent = new TextDecoder("utf-8", { fatal: false })
+      .decode(buf)
+      .slice(0, MAX_INLINE_TEXT);
   } else if (kind === "pdf") {
     try {
       out.textContent = (await extractPdf(buf)).slice(0, MAX_INLINE_TEXT);
     } catch {
-      out.textContent = "(PDF 텍스트 추출 실패)";
+      out.textContent = "(PDF text extraction failed)";
     }
   } else if (kind === "docx") {
     try {
-      out.textContent = (await extractDocx(Buffer.from(buf))).slice(
-        0,
-        MAX_INLINE_TEXT,
-      );
+      out.textContent = (await extractDocx(Buffer.from(buf))).slice(0, MAX_INLINE_TEXT);
     } catch {
-      out.textContent = "(DOCX 텍스트 추출 실패)";
+      out.textContent = "(DOCX text extraction failed)";
     }
   }
-  // images: no text extraction, sent inline at chat time
-
   return out;
+}
+
+function isPrivateAddress(address: string): boolean {
+  const family = isIP(address);
+  if (family === 4) {
+    const [a, b] = address.split(".").map(Number);
+    return (
+      a === 0 ||
+      a === 10 ||
+      a === 127 ||
+      (a === 100 && b >= 64 && b <= 127) ||
+      (a === 169 && b === 254) ||
+      (a === 172 && b >= 16 && b <= 31) ||
+      (a === 192 && (b === 0 || b === 168)) ||
+      (a === 198 && (b === 18 || b === 19 || b === 51)) ||
+      (a === 203 && b === 0) ||
+      a >= 224
+    );
+  }
+  if (family === 6) {
+    const normalized = address.toLowerCase();
+    if (normalized.startsWith("::ffff:")) return isPrivateAddress(normalized.slice(7));
+    return (
+      normalized === "::" ||
+      normalized === "::1" ||
+      normalized.startsWith("fc") ||
+      normalized.startsWith("fd") ||
+      normalized.startsWith("fe80:") ||
+      normalized.startsWith("2001:db8:")
+    );
+  }
+  return true;
+}
+
+function hostnameOf(url: URL): string {
+  return url.hostname.replace(/^\[|\]$/g, "");
+}
+
+async function resolvePublicAddress(url: URL): Promise<{ address: string; family: 4 | 6 }> {
+  if (url.username || url.password) throw new Error("URL user info is not allowed");
+  if (url.port && url.port !== "80" && url.port !== "443") {
+    throw new Error("Only standard web ports are allowed");
+  }
+  const hostname = hostnameOf(url);
+  const directFamily = isIP(hostname);
+  if (directFamily === 4 || directFamily === 6) {
+    if (isPrivateAddress(hostname)) throw new Error("Private network URLs are not allowed");
+    return { address: hostname, family: directFamily };
+  }
+  const addresses = await lookup(hostname, { all: true, verbatim: true });
+  const selected = addresses.find((entry) => !isPrivateAddress(entry.address));
+  if (!selected) throw new Error("URL resolves to a private network address");
+  return { address: selected.address, family: selected.family as 4 | 6 };
+}
+
+async function requestRemoteText(
+  url: URL,
+  destination: { address: string; family: 4 | 6 },
+): Promise<{ status: number; location?: string; contentType: string; body: Buffer }> {
+  const request = url.protocol === "https:" ? httpsRequest : httpRequest;
+  return new Promise((resolve, reject) => {
+    const client = request(
+      url,
+      {
+        headers: {
+          "User-Agent": "Mozilla/5.0 (compatible; BiseoAssistant/1.0)",
+          Accept: "text/html,application/xhtml+xml,text/plain;q=0.9",
+          "Accept-Encoding": "identity",
+        },
+        lookup: (_hostname, _options, callback) =>
+          callback(null, destination.address, destination.family),
+      },
+      (response) => {
+        const status = response.statusCode ?? 0;
+        const contentLength = Number(response.headers["content-length"] ?? 0);
+        if (Number.isFinite(contentLength) && contentLength > MAX_REMOTE_BYTES) {
+          response.resume();
+          reject(new Error("URL content is too large"));
+          return;
+        }
+        const chunks: Buffer[] = [];
+        let received = 0;
+        response.on("data", (chunk: Buffer) => {
+          received += chunk.length;
+          if (received > MAX_REMOTE_BYTES) {
+            client.destroy(new Error("URL content is too large"));
+            return;
+          }
+          chunks.push(chunk);
+        });
+        response.on("error", reject);
+        response.on("end", () => {
+          resolve({
+            status,
+            location: typeof response.headers.location === "string" ? response.headers.location : undefined,
+            contentType: String(response.headers["content-type"] ?? "").toLowerCase(),
+            body: Buffer.concat(chunks),
+          });
+        });
+      },
+    );
+    client.setTimeout(8_000, () => client.destroy(new Error("URL request timed out")));
+    client.on("error", reject);
+    client.end();
+  });
+}
+
+async function fetchSafeRemoteText(rawUrl: string): Promise<{ url: URL; html: string }> {
+  let url: URL;
+  try {
+    url = new URL(rawUrl);
+  } catch {
+    throw new Error("Invalid URL");
+  }
+  for (let redirects = 0; redirects <= MAX_REMOTE_REDIRECTS; redirects += 1) {
+    if (url.protocol !== "http:" && url.protocol !== "https:") {
+      throw new Error("Only http(s) URLs are allowed");
+    }
+    const response = await requestRemoteText(url, await resolvePublicAddress(url));
+    if (response.status >= 300 && response.status < 400 && response.location) {
+      if (redirects === MAX_REMOTE_REDIRECTS) throw new Error("Too many URL redirects");
+      url = new URL(response.location, url);
+      continue;
+    }
+    if (response.status < 200 || response.status >= 300) {
+      throw new Error(`URL fetch failed: ${response.status}`);
+    }
+    if (
+      response.contentType &&
+      !response.contentType.startsWith("text/") &&
+      !response.contentType.includes("application/xhtml+xml")
+    ) {
+      throw new Error("Only text and HTML URLs can be imported");
+    }
+    return { url, html: response.body.toString("utf8") };
+  }
+  throw new Error("Too many URL redirects");
 }
 
 export async function fetchUrlAsFile(
   email: string,
   rawUrl: string,
 ): Promise<UploadedFile> {
-  let url: URL;
-  try {
-    url = new URL(rawUrl);
-  } catch {
-    throw new Error("유효하지 않은 URL");
-  }
-  if (!/^https?:$/.test(url.protocol)) {
-    throw new Error("http(s) URL만 지원");
-  }
-
-  const res = await fetch(url, {
-    headers: {
-      "User-Agent":
-        "Mozilla/5.0 (compatible; BiseoAssistant/1.0)",
-      Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-    },
-  });
-  if (!res.ok) throw new Error(`URL fetch failed: ${res.status}`);
-  const html = await res.text();
+  void email;
+  const { url, html } = await fetchSafeRemoteText(rawUrl);
   const titleMatch = html.match(/<title>([^<]*)<\/title>/i);
-  const title = titleMatch ? titleMatch[1].trim() : url.hostname;
+  const title = titleMatch ? stripHtml(titleMatch[1]).slice(0, 200) : url.hostname;
   const text = stripHtml(html).slice(0, MAX_INLINE_TEXT);
-
-  const id = newId("f");
   return {
-    id,
+    id: newId("f"),
     name: title || url.toString(),
     kind: "url",
     url: url.toString(),
     textContent: text,
-    bytes: text.length,
+    bytes: Buffer.byteLength(text, "utf8"),
     mimeType: "text/html",
     createdAt: Date.now(),
   };
@@ -174,6 +285,6 @@ export async function deleteBlob(blobUrl: string | undefined): Promise<void> {
   try {
     await del(blobUrl);
   } catch {
-    // best effort
+    // Blob cleanup is best effort.
   }
 }

@@ -5,8 +5,10 @@ import type {
   ProposedAction,
   UploadedFile,
 } from "./assistant";
-import { newId } from "./assistant";
+import { parseProposedAction } from "./assistant";
 import type { CalendarEvent } from "./google";
+import type { Todo } from "./todos";
+import type { Subscription } from "./subscriptions";
 import { eventOnDay, formatTimeRange, toIso } from "./calendar-util";
 import type { Plugin, PluginStatus } from "./plugins";
 import type {
@@ -18,14 +20,16 @@ import type {
 } from "./alpha";
 import {
   runJkpAnalysis,
-  runAgentReview,
+  runThreeAgentAnalysis,
   gatherMarketData,
   buildFundamentalsLine,
   fetchMarketSnapshot,
   searchTickerSmart,
   fetchGroundedMarketBrief,
   type AgentReviewResult,
+  type MarketSnapshot,
   type StockMarketData,
+  type ThreeAgentAnalysis,
 } from "./stock-agents";
 
 const GEMINI_MODEL = "gemini-2.5-flash";
@@ -232,6 +236,11 @@ export type StockContext = {
   settings: InvestSettings;
 };
 
+export type WorkspaceContext = {
+  todos: Todo[];
+  subscriptions: Subscription[];
+};
+
 export type AssistantContext = {
   email: string;
   today: string; // ISO date YYYY-MM-DD
@@ -243,6 +252,7 @@ export type AssistantContext = {
   isAdmin?: boolean;
   /** 투자/주식 컨텍스트 (있으면 주식 질문 위임·종합에 사용). */
   stock?: StockContext;
+  workspace?: WorkspaceContext;
 };
 
 function summarizeEvents(events: CalendarEvent[], today: string): string {
@@ -351,6 +361,22 @@ function summarizeStock(s: StockContext): string {
   return lines.join("\n");
 }
 
+function summarizeWorkspace(workspace: WorkspaceContext): string {
+  const lines: string[] = [];
+  const openTodos = workspace.todos.filter((todo) => !todo.done).slice(0, 30);
+  lines.push(
+    openTodos.length
+      ? `Open tasks: ${openTodos.map((todo) => `${todo.id}=${todo.text} (${todo.scope ?? "day"})`).join(" | ")}`
+      : "Open tasks: none",
+  );
+  lines.push(
+    workspace.subscriptions.length
+      ? `Subscriptions: ${workspace.subscriptions.slice(0, 30).map((sub) => `${sub.id}=${sub.name} ${sub.amount}KRW/${sub.cycle}`).join(" | ")}`
+      : "Subscriptions: none",
+  );
+  return lines.join("\n");
+}
+
 function buildContextBlock(ctx: AssistantContext): string {
   const cats = CATEGORIES.map((c) => `${c.id}=${c.label}`).join(", ");
   const blocks = [
@@ -369,6 +395,9 @@ function buildContextBlock(ctx: AssistantContext): string {
   ];
   if (ctx.stock) {
     blocks.push("", "[투자/주식 컨텍스트]", summarizeStock(ctx.stock));
+  }
+  if (ctx.workspace) {
+    blocks.push("", "[Workspace controls]", summarizeWorkspace(ctx.workspace));
   }
   if (ctx.isAdmin && ctx.plugins?.length) {
     blocks.push(
@@ -454,12 +483,8 @@ function parseActions(text: string): {
   const actions: ProposedAction[] = [];
   const cleanText = text.replace(ACTION_REGEX, (_, json: string) => {
     try {
-      const parsed = JSON.parse(json) as Omit<ProposedAction, "id" | "status">;
-      actions.push({
-        id: newId("act"),
-        status: "pending",
-        ...parsed,
-      } as ProposedAction);
+      const action = parseProposedAction(JSON.parse(json) as unknown);
+      if (action) actions.push(action);
     } catch {
       // skip malformed
     }
@@ -501,6 +526,21 @@ async function callChatGemini(
   return data.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
 }
 
+const JARVIS_WORKSPACE_INSTRUCTIONS = `
+Jarvis workspace controls:
+- When the user clearly asks to create, update, complete, or remove a task, manage a subscription, edit the stock watchlist, run VaultSync, or make an Obsidian backup, propose exactly one or more typed actions below. Never claim that a change happened until the user approves it.
+- Use IDs provided in [Workspace controls] for updates or removals. If no unambiguous ID is available, ask a short follow-up question instead of guessing.
+- Actions are always subject to the approval button. VaultSync actions additionally require the signed-in administrator.
+<action>{"type":"manage_workspace","params":{"operation":"add_todo","text":"Prepare PR review","scope":"day"}}</action>
+<action>{"type":"manage_workspace","params":{"operation":"update_todo","id":"td_...","patch":{"done":true}}}</action>
+<action>{"type":"manage_workspace","params":{"operation":"remove_todo","id":"td_..."}}</action>
+<action>{"type":"manage_workspace","params":{"operation":"add_subscription","name":"Netflix","amount":17000,"paymentDay":15,"cycle":"monthly"}}</action>
+<action>{"type":"manage_workspace","params":{"operation":"remove_subscription","id":"sub_..."}}</action>
+<action>{"type":"manage_workspace","params":{"operation":"add_watch_item","ticker":"NVDA","name":"NVIDIA","market":"US","memo":"AI watchlist"}}</action>
+<action>{"type":"manage_workspace","params":{"operation":"remove_watch_item","id":"a_..."}}</action>
+<action>{"type":"manage_workspace","params":{"operation":"sync_vault"}}</action>
+<action>{"type":"manage_workspace","params":{"operation":"create_vault_backup"}}</action>`;
+
 export async function chatWithAssistant(input: {
   history: ChatMessage[];
   userMessage: string;
@@ -510,7 +550,7 @@ export async function chatWithAssistant(input: {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) throw new Error("GEMINI_API_KEY not set");
 
-  const systemText = `${CHAT_SYSTEM_PROMPT}\n\n${buildContextBlock(input.context)}`;
+  const systemText = `${CHAT_SYSTEM_PROMPT}\n${JARVIS_WORKSPACE_INSTRUCTIONS}\n\n${buildContextBlock(input.context)}`;
   const contents = await buildContents(
     input.history,
     input.userMessage,
@@ -624,6 +664,7 @@ type TickerReport = {
   holding?: StockHolding;
   jkp: JkpAnalysisResult | null;
   review: AgentReviewResult | null;
+  threeAgent?: ThreeAgentAnalysis;
   error?: string;
 };
 
@@ -650,6 +691,7 @@ async function analyzeTicker(
   t: { name: string; ticker?: string; market?: string },
   holdings: StockHolding[],
   settings: InvestSettings,
+  macroSnapshot: MarketSnapshot,
 ): Promise<TickerReport> {
   let ticker = t.ticker?.trim() ?? "";
   let name = t.name;
@@ -678,14 +720,14 @@ async function analyzeTicker(
         error: "티커 해석 실패",
       };
     }
-    // 실시간 데이터 1회 수집 → JKP + 5인 에이전트가 같은 데이터로 병렬 분석.
+    // Collect the market data once, then pass the same immutable snapshot to all three roles.
     const md = await gatherMarketData(ticker, name);
-    const [jkp, review] = await Promise.all([
-      runJkpAnalysis({ ticker: md.ticker, name, market, settings, marketData: md }).catch(
-        () => null,
-      ),
-      runAgentReview({ ticker: md.ticker, name, market, marketData: md }).catch(() => null),
-    ]);
+    const threeAgent = await runThreeAgentAnalysis({
+      ticker: md.ticker,
+      name,
+      marketData: md,
+      macroSnapshot,
+    });
     const holding = holdings.find(
       (h) =>
         h.ticker.toUpperCase() === md.ticker.toUpperCase() ||
@@ -700,8 +742,9 @@ async function analyzeTicker(
       price: md.price,
       changePercent: md.changePercent,
       holding,
-      jkp,
-      review,
+      jkp: null,
+      review: null,
+      threeAgent,
     };
   } catch (e) {
     return {
@@ -733,20 +776,26 @@ async function runStockNetwork(
   }
   targets = targets.slice(0, 3); // 지연/비용 상한 (최대 3종목)
 
-  const wantMacro = d.need_macro || d.intent === "market";
-
-  // 종목 분석 + 거시 스냅샷 + 검색 그라운딩을 모두 병렬로 (60초 상한 내 여유 확보).
-  const [perTicker, macro, grounded] = await Promise.all([
-    Promise.all(targets.map((t) => analyzeTicker(t, holdings, settings))),
-    wantMacro
-      ? fetchMarketSnapshot()
-          .then((s) => (s.ok ? { text: s.text, asOf: s.asOf } : null))
-          .catch(() => null)
-      : Promise.resolve(null),
+  // Every decision is gated by the same market-regime snapshot, even when the
+  // user did not explicitly ask for a macro briefing.
+  const [macroSnapshot, grounded] = await Promise.all([
+    fetchMarketSnapshot().catch(() => ({
+      text: "Market-regime data unavailable.",
+      asOf: Date.now(),
+      ok: false,
+      readings: {},
+    })),
     fetchGroundedMarketBrief(buildGroundingQuery(d, targets)).catch(() => null),
   ]);
+  const perTicker = await Promise.all(
+    targets.map((t) => analyzeTicker(t, holdings, settings, macroSnapshot)),
+  );
 
-  return { perTicker, macro, grounded };
+  return {
+    perTicker,
+    macro: macroSnapshot.ok ? { text: macroSnapshot.text, asOf: macroSnapshot.asOf } : null,
+    grounded,
+  };
 }
 
 // =====================================================================
@@ -1101,6 +1150,23 @@ function buildReportText(r: StockAgentReport, ctx: AssistantContext): string {
       }
     }
 
+    if (t.threeAgent) {
+      const a = t.threeAgent;
+      lines.push(
+        `[3-agent risk gate] decision=${a.riskGate.decision} / score=${a.riskGate.score ?? "N/A"} / manualConfirmation=${a.riskGate.requiresManualConfirmation}`,
+      );
+      lines.push(
+        `  [Macro/Risk ${a.macroRisk.readiness}] ${a.macroRisk.score}/100 — ${a.macroRisk.signals.join(" ")}`,
+      );
+      lines.push(
+        `  [Fundamental/Value ${a.fundamentalValue.readiness}] ${a.fundamentalValue.score}/100 — ${a.fundamentalValue.signals.join(" ")}`,
+      );
+      lines.push(
+        `  [Trend/Entry ${a.trendEntry.readiness}] ${a.trendEntry.score}/100 — ${a.trendEntry.entryRule} ${a.trendEntry.invalidationRule}`,
+      );
+      lines.push(`  Gate rationale: ${a.riskGate.reasons.join(" ")}`);
+    }
+
     if (t.jkp) {
       const j = t.jkp;
       lines.push(
@@ -1167,6 +1233,14 @@ function buildReportText(r: StockAgentReport, ctx: AssistantContext): string {
   return blocks.join("\n\n");
 }
 
+const THREE_AGENT_SYNTHESIS_GUARD = `
+Non-negotiable safety rules:
+- The [3-agent risk gate] is authoritative. Never override no_trade or watch with a buy/sell instruction.
+- For no_trade, explain the missing verification and state that no new position should be opened from this report.
+- For watch, give only observable conditions to monitor. Do not invent entry, target, stop, price, or dates.
+- buy_candidate is a research candidate only. State that it still requires the user's manual confirmation; never imply an order was placed or can be placed.
+- Quote only values present in the report and identify the source snapshot time.`;
+
 async function synthesizeStockAnswer(input: {
   userMessage: string;
   report: StockAgentReport;
@@ -1183,7 +1257,7 @@ ${reportText}
 ========================================
 
 위 에이전트 리포트와 원본 데이터만 근거로, 사용자 질문에 종합 답변하라. 제공되지 않은 수치는 절대 만들지 마라.`;
-  return callChatGemini(systemText, [{ role: "user", parts: [{ text: userPrompt }] }], 0.2, 2000, 0);
+  return callChatGemini(`${systemText}\n${THREE_AGENT_SYNTHESIS_GUARD}`, [{ role: "user", parts: [{ text: userPrompt }] }], 0.2, 2000, 0);
 }
 
 // =====================================================================

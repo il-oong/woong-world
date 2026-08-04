@@ -29,6 +29,8 @@ import { promisify } from "node:util";
 
 const exec = promisify(execFile);
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
+const inheritedEnv = new Map(Object.entries(process.env));
+const fileEnv = new Map();
 
 // ── 로그 ─────────────────────────────────────────────────────────────────────
 
@@ -63,6 +65,7 @@ async function loadEnvLocal() {
   try {
     const text = await fs.readFile(path.join(ROOT, ".env.local"), "utf8");
     let loaded = 0;
+    fileEnv.clear();
     for (const raw of text.split("\n")) {
       const line = raw.trim();
       if (!line || line.startsWith("#")) continue;
@@ -74,7 +77,8 @@ async function loadEnvLocal() {
         (val.startsWith('"') && val.endsWith('"')) ||
         (val.startsWith("'") && val.endsWith("'"))
       ) val = val.slice(1, -1);
-      if (!(key in process.env)) { process.env[key] = val; loaded++; }
+      fileEnv.set(key, val);
+      if (!inheritedEnv.has(key)) loaded++;
     }
     info(`.env.local 로드 (${loaded}개 변수)`);
   } catch {
@@ -82,20 +86,24 @@ async function loadEnvLocal() {
   }
 }
 
+function envValue(name) {
+  return inheritedEnv.get(name) ?? fileEnv.get(name) ?? process.env[name];
+}
+
 // ── 설정 ─────────────────────────────────────────────────────────────────────
 
 function getConfig() {
-  const vaultPath = (process.env.VAULT_SYNC_PATH || "obsidian")
+  const vaultPath = (envValue("VAULT_SYNC_PATH") || "obsidian")
     .replace(/\\/g, "/")
     .replace(/\/+$/, "");
-  const raw = parseInt(process.env.VAULT_SYNC_PULL_INTERVAL_MS || "15000", 10);
+  const raw = parseInt(envValue("VAULT_SYNC_PULL_INTERVAL_MS") || "15000", 10);
   return {
     vaultPath,
     vaultAbsPath: path.join(ROOT, vaultPath),
-    branchOverride: (process.env.VAULT_SYNC_BRANCH || "").trim(),
-    remote: (process.env.VAULT_SYNC_REMOTE || "origin").trim(),
+    branchOverride: (envValue("VAULT_SYNC_BRANCH") || "").trim(),
+    remote: (envValue("VAULT_SYNC_REMOTE") || "origin").trim(),
     pullIntervalMs: Number.isFinite(raw) && raw > 0 ? raw : 15000,
-    externalPath: (process.env.VAULT_SYNC_EXTERNAL_PATH || "").trim(),
+    externalPath: (envValue("VAULT_SYNC_EXTERNAL_PATH") || "").trim(),
   };
 }
 
@@ -327,6 +335,41 @@ function shouldIgnore(filename) {
   );
 }
 
+let vaultWatcher = null;
+let vaultDebounce = null;
+
+function restartVaultWatch(watchTarget) {
+  let nextWatcher;
+  try {
+    nextWatcher = fsWatch(watchTarget, { recursive: true }, (_evt, filename) => {
+      if (filename && shouldIgnore(filename.toString())) return;
+      if (vaultDebounce) clearTimeout(vaultDebounce);
+      vaultDebounce = setTimeout(() => syncNow("file-change"), 2500);
+    });
+  } catch (e) {
+    warn(`file watcher failed: ${e.message} (interval sync will continue)`);
+    return false;
+  }
+
+  vaultWatcher?.close();
+  vaultWatcher = nextWatcher;
+  info(`file watcher started: ${watchTarget}`);
+  return true;
+}
+
+async function reloadConfigAndWatch() {
+  await loadEnvLocal();
+  const cfg = getConfig();
+  const watchTarget = cfg.externalPath || cfg.vaultAbsPath;
+  try {
+    await fs.access(watchTarget);
+  } catch {
+    warn(`updated vault path was not found: ${watchTarget}`);
+    return;
+  }
+  if (restartVaultWatch(watchTarget)) await syncNow("config-change");
+}
+
 // ── 메인 ─────────────────────────────────────────────────────────────────────
 
 async function main() {
@@ -362,16 +405,20 @@ async function main() {
   }
 
   // 파일 변경 감시
-  let debounce = null;
+  restartVaultWatch(watchTarget);
+
+  // The dashboard edits .env.local after this separate daemon has already
+  // started. Watch the config file so a changed vault path takes effect here
+  // too, rather than continuing to mirror the stale directory until reboot.
+  let configReloadTimer = null;
   try {
-    fsWatch(watchTarget, { recursive: true }, (_evt, filename) => {
-      if (filename && shouldIgnore(filename.toString())) return;
-      if (debounce) clearTimeout(debounce);
-      debounce = setTimeout(() => syncNow("file-change"), 2500);
+    fsWatch(ROOT, (_evt, filename) => {
+      if (filename?.toString() !== ".env.local") return;
+      if (configReloadTimer) clearTimeout(configReloadTimer);
+      configReloadTimer = setTimeout(() => void reloadConfigAndWatch(), 300);
     });
-    info(`파일 감시 시작: ${watchTarget}`);
   } catch (e) {
-    warn(`파일 감시 실패: ${e.message} (주기 동기화만 작동)`);
+    warn(`config watcher failed: ${e.message}`);
   }
 
   // 주기적 pull

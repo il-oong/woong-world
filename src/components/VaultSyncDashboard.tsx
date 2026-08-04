@@ -423,7 +423,7 @@ function SyncTargetBanner({ status }: { status: StatusOk }) {
       } else {
         setSaveMsg({
           ok: true,
-          text: "저장됐습니다. 서버를 재시작(npm run dev 재실행)하면 적용됩니다.",
+          text: "저장했습니다. 새 보관함 경로 감시와 자동 동기화를 지금 시작했습니다.",
         });
         setEditing(false);
       }
