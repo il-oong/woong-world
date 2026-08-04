@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import { CATEGORIES, getCategory } from "@/lib/categories";
 import type {
   CategoryId,
@@ -42,7 +42,7 @@ export function AssistantMessage({
             : "bg-white/[0.04] text-foreground"
         }`}
       >
-        {message.text}
+        <LinkifiedText text={message.text} />
       </div>
 
       {message.attachments && message.attachments.length > 0 && (
@@ -715,6 +715,33 @@ function WorkspaceActionBody({
       <p className="font-medium text-foreground">{summary}</p>
       <p className="text-[10px] text-[var(--muted)]">Approval is required before this is applied.</p>
     </div>
+  );
+}
+
+const URL_PARTS = /(https?:\/\/[^\s<>"]+)/g;
+
+function LinkifiedText({ text }: { text: string }) {
+  return (
+    <>
+      {text.split(URL_PARTS).map((part, index) => {
+        if (!/^https?:\/\//i.test(part)) return <Fragment key={index}>{part}</Fragment>;
+        const url = part.replace(/[),.;!?]+$/, "");
+        const trailing = part.slice(url.length);
+        return (
+          <Fragment key={index}>
+            <a
+              href={url}
+              target="_blank"
+              rel="noreferrer"
+              className="break-all text-[var(--accent)] underline underline-offset-2 hover:opacity-80"
+            >
+              {url}
+            </a>
+            {trailing}
+          </Fragment>
+        );
+      })}
+    </>
   );
 }
 

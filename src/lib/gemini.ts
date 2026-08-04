@@ -31,6 +31,7 @@ import {
   type StockMarketData,
   type ThreeAgentAnalysis,
 } from "./stock-agents";
+import { searchWeb } from "./web-search";
 
 const GEMINI_MODEL = "gemini-2.5-flash";
 const ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
@@ -541,6 +542,40 @@ Jarvis workspace controls:
 <action>{"type":"manage_workspace","params":{"operation":"sync_vault"}}</action>
 <action>{"type":"manage_workspace","params":{"operation":"create_vault_backup"}}</action>`;
 
+const WEB_SEARCH_INSTRUCTIONS = `
+Real-time web research:
+- For current or externally verifiable information that benefits from a live lookup (for example news, current public announcements, prices, schedules, laws, product availability, people in office, or a user explicitly asking to search the web), return ONLY this marker with a focused search query: <search-web>{"query":"..."}</search-web>
+- Do not use the web-search marker for the user's own calendar, plans, tasks, files, or workspace controls; those are already provided in context.
+- Do not use it for investment analysis. Use the existing <delegate-stocks> workflow for that instead.
+- Do not answer a live-information question from memory when you should use this marker.`;
+
+const WEB_SEARCH_REGEX = /<search-web>([\s\S]*?)<\/search-web>/;
+
+function parseWebSearch(text: string): string | null {
+  const match = text.match(WEB_SEARCH_REGEX);
+  if (!match) return null;
+  try {
+    const parsed = JSON.parse(match[1].trim()) as { query?: unknown };
+    const query = typeof parsed.query === "string" ? parsed.query.trim() : "";
+    return query ? query.slice(0, 1_000) : null;
+  } catch {
+    return null;
+  }
+}
+
+function explicitlyRequestsWebSearch(message: string): boolean {
+  return /(?:웹\s*검색|웹에서\s*(?:찾|검색)|인터넷에서\s*(?:찾|검색)|검색해\s*줘|검색해봐|실시간\s*(?:으로|정보|뉴스|검색)|latest\s+(?:news|information)|search\s+the\s+web)/i.test(
+    message,
+  );
+}
+
+function formatWebSearchResult(result: { text: string; sources: { title: string; uri: string }[] }): string {
+  const sources = result.sources
+    .map((source) => `- ${source.title}: ${source.uri}`)
+    .join("\n");
+  return `${result.text}\n\n출처 (실시간 웹 검색)\n${sources}`;
+}
+
 export async function chatWithAssistant(input: {
   history: ChatMessage[];
   userMessage: string;
@@ -550,7 +585,7 @@ export async function chatWithAssistant(input: {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) throw new Error("GEMINI_API_KEY not set");
 
-  const systemText = `${CHAT_SYSTEM_PROMPT}\n${JARVIS_WORKSPACE_INSTRUCTIONS}\n\n${buildContextBlock(input.context)}`;
+  const systemText = `${CHAT_SYSTEM_PROMPT}\n${JARVIS_WORKSPACE_INSTRUCTIONS}\n${WEB_SEARCH_INSTRUCTIONS}\n\n${buildContextBlock(input.context)}`;
   const contents = await buildContents(
     input.history,
     input.userMessage,
@@ -591,6 +626,29 @@ export async function chatWithAssistant(input: {
       const msg = e instanceof Error ? e.message : String(e);
       return {
         text: `주식 에이전트 분석을 완료하지 못했어. (사유: ${msg})\n실시간 데이터를 못 가져오면 추측으로 답하지 않는다는 원칙이라, 잠시 후 다시 물어봐줘.`,
+        proposedActions: [],
+      };
+    }
+  }
+
+  // A model-selected marker handles live questions automatically. The explicit
+  // fallback means a direct user request for web search cannot be missed when
+  // the routing pass returns an ordinary answer.
+  const webQuery = parseWebSearch(raw) ??
+    (explicitlyRequestsWebSearch(input.userMessage) ? input.userMessage : null);
+  if (webQuery) {
+    try {
+      const result = await searchWeb(webQuery);
+      if (result) {
+        return { text: formatWebSearchResult(result), proposedActions: [] };
+      }
+      return {
+        text: "실시간 웹 검색 결과를 확인하지 못했습니다. 확인되지 않은 내용으로 답하지 않도록 잠시 후 다시 검색해 주세요.",
+        proposedActions: [],
+      };
+    } catch {
+      return {
+        text: "실시간 웹 검색 연결에 실패했습니다. 확인되지 않은 내용으로 답하지 않도록 잠시 후 다시 검색해 주세요.",
         proposedActions: [],
       };
     }
