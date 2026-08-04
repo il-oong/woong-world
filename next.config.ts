@@ -29,6 +29,11 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  // The parent Windows user directory also contains a package-lock.json.
+  // Pin Turbopack to this app so it does not watch or trace that broader tree.
+  turbopack: {
+    root: process.cwd(),
+  },
   poweredByHeader: false,
   async headers() {
     return [

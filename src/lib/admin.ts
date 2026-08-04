@@ -2,7 +2,6 @@ import { Redis } from "@upstash/redis";
 import { getValidSession } from "./google";
 import { type GoogleSession } from "./session";
 
-const DEFAULT_ADMIN_EMAIL = "kww2962@gmail.com";
 const ADMINS_KEY = "admins:list";
 
 let _redis: Redis | null = null;
@@ -18,7 +17,7 @@ function redis(): Redis | null {
 
 /** Super admin set by ADMIN_EMAIL env var; always admin, can't be removed. */
 export function getSuperAdminEmail(): string {
-  return (process.env.ADMIN_EMAIL || DEFAULT_ADMIN_EMAIL).toLowerCase();
+  return (process.env.ADMIN_EMAIL ?? "").trim().toLowerCase();
 }
 
 /** Back-compat alias. */
@@ -47,7 +46,8 @@ export async function listAdmins(): Promise<{ super: string; extras: string[] }>
 export async function isAdminEmail(email?: string | null): Promise<boolean> {
   if (!email) return false;
   const e = email.toLowerCase();
-  if (e === getSuperAdminEmail()) return true;
+  const superE = getSuperAdminEmail();
+  if (superE && e === superE) return true;
   const extras = await readExtras();
   return extras.includes(e);
 }

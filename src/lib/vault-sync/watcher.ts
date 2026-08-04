@@ -85,3 +85,13 @@ export function startWatcher(): void {
 export function stopWatcher(): void {
   g.vaultSyncWatcher?.close();
 }
+
+/**
+ * Recreate the watcher after its configuration changes. `fs.watch` keeps the
+ * directory it was created with, so changing process.env alone would leave it
+ * watching the previous vault until the Next.js server was restarted.
+ */
+export function restartWatcher(): void {
+  stopWatcher();
+  startWatcher();
+}

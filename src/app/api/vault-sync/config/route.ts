@@ -29,6 +29,42 @@ function setEnvKey(content: string, key: string, value: string): string {
   return lines.join("\n");
 }
 
+function normalizedPath(p: string): string {
+  const normalized = path.normalize(p);
+  return process.platform === "win32" ? normalized.toLowerCase() : normalized;
+}
+
+function isSameOrChildPath(candidate: string, parent: string): boolean {
+  const relative = path.relative(parent, candidate);
+  return relative === "" || (!relative.startsWith(`..${path.sep}`) && relative !== "..");
+}
+
+async function validateExternalPath(input: string): Promise<string> {
+  if (!input) return "";
+  if (input.includes("\n") || input.includes("\r")) {
+    throw new Error("invalid_path");
+  }
+  if (!path.isAbsolute(input)) {
+    throw new Error("absolute_path_required");
+  }
+
+  const resolved = path.resolve(input);
+  const stat = await fs.stat(resolved).catch(() => null);
+  if (!stat?.isDirectory()) {
+    throw new Error("vault_folder_not_found");
+  }
+
+  const cfg = getConfig();
+  const [external, repoRoot] = await Promise.all([
+    fs.realpath(resolved),
+    fs.realpath(cfg.repoRoot),
+  ]);
+  if (isSameOrChildPath(normalizedPath(external), normalizedPath(repoRoot))) {
+    throw new Error("vault_must_be_outside_project");
+  }
+  return external;
+}
+
 export async function GET() {
   const blocked = await guardVaultSync();
   if (blocked) return blocked;
@@ -50,15 +86,33 @@ export async function POST(req: NextRequest) {
     return Response.json({ error: "invalid_json" }, { status: 400 });
   }
 
-  const externalPath = (body.externalPath ?? "").trim();
+  let externalPath: string;
+  try {
+    externalPath = await validateExternalPath((body.externalPath ?? "").trim());
+  } catch (e) {
+    return Response.json(
+      { error: e instanceof Error ? e.message : "invalid_path" },
+      { status: 400 },
+    );
+  }
 
   try {
     let content = await readEnvLocal();
     content = setEnvKey(content, "VAULT_SYNC_EXTERNAL_PATH", externalPath);
+    content = setEnvKey(content, "VAULT_SYNC_ENABLED", "1");
     // 마지막 줄에 개행 보장
     if (!content.endsWith("\n")) content += "\n";
     await fs.writeFile(ENV_FILE, content, "utf8");
-    return Response.json({ ok: true, externalPath });
+
+    // Next.js does not reload .env.local for an already-running dev server.
+    // Apply the new target immediately and replace the watcher bound to the old
+    // directory, then preserve the same configuration for the next launch.
+    process.env.VAULT_SYNC_EXTERNAL_PATH = externalPath;
+    process.env.VAULT_SYNC_ENABLED = "1";
+    const { restartWatcher } = await import("@/lib/vault-sync/watcher");
+    restartWatcher();
+
+    return Response.json({ ok: true, externalPath, watcherRestarted: true });
   } catch (e) {
     return Response.json(
       { error: e instanceof Error ? e.message : "write_failed" },

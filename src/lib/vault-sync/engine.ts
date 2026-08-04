@@ -96,7 +96,8 @@ export async function engineStatus(): Promise<StatusPayload> {
       return {
         available: false,
         reason: "no_git",
-        message: "git 저장소가 아닙니다.",
+        message:
+          "이 폴더는 Git 저장소가 아니어서 노트를 커밋하거나 GitHub로 보낼 수 없습니다. GitHub 저장소를 clone한 폴더에서 실행한 뒤 다시 시도하세요.",
       };
     }
     const cfg = getConfig();
