@@ -64,6 +64,18 @@ export type UserCalendar = {
   accessRole: string;
 };
 
+// Google Calendar API requires a full RFC3339 dateTime (seconds mandatory),
+// but the assistant is instructed to emit "YYYY-MM-DDTHH:mm" without them —
+// pad it here so events.insert/update don't 400 on a technically-invalid dateTime.
+function toRfc3339DateTime(value: string): string {
+  const match = value.match(
+    /^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2})(:\d{2}(?:\.\d+)?)?(Z|[+-]\d{2}:\d{2})?$/,
+  );
+  if (!match) return value;
+  const [, base, seconds, offset] = match;
+  return `${base}${seconds ?? ":00"}${offset ?? ""}`;
+}
+
 function required(name: string): string {
   const v = process.env[name];
   if (!v) throw new Error(`${name} environment variable is required`);
@@ -264,8 +276,8 @@ export async function createEvent(
   };
 
   if (input.kind === "timed") {
-    body.start = { dateTime: input.start, timeZone: TZ };
-    body.end = { dateTime: input.end, timeZone: TZ };
+    body.start = { dateTime: toRfc3339DateTime(input.start), timeZone: TZ };
+    body.end = { dateTime: toRfc3339DateTime(input.end), timeZone: TZ };
   } else {
     // allday or project — Google's end.date is exclusive
     body.start = { date: input.start };
@@ -316,8 +328,8 @@ export async function updateEvent(
   };
 
   if (input.kind === "timed") {
-    body.start = { dateTime: input.start, timeZone: TZ };
-    body.end = { dateTime: input.end, timeZone: TZ };
+    body.start = { dateTime: toRfc3339DateTime(input.start), timeZone: TZ };
+    body.end = { dateTime: toRfc3339DateTime(input.end), timeZone: TZ };
   } else {
     body.start = { date: input.start };
     body.end = { date: addOneDay(input.end) };
