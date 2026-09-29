@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import dynamic from "next/dynamic";
+import type { Tab } from "./tabs";
 
 const HomeOverview = dynamic(() => import("./HomeOverview"), { ssr: false });
 const IdentitySheet = dynamic(() => import("./IdentitySheet"), { ssr: false });
@@ -13,8 +14,6 @@ const RoutineHabitApp = dynamic(() => import("./RoutineHabitApp"), { ssr: false 
 const TodoApp = dynamic(() => import("../TodoApp").then(m => ({ default: m.TodoApp })), { ssr: false });
 const MemoApp = dynamic(() => import("../MemoApp").then(m => ({ default: m.MemoApp })), { ssr: false });
 
-export type Tab = "home" | "routine" | "todo" | "memo" | "goal" | "finance" | "analytics";
-
 const TABS: { id: Tab; label: string; icon: string }[] = [
   { id: "home", label: "홈", icon: "⌂" },
   { id: "routine", label: "루틴", icon: "↺" },
@@ -24,10 +23,6 @@ const TABS: { id: Tab; label: string; icon: string }[] = [
   { id: "finance", label: "재정", icon: "₩" },
   { id: "analytics", label: "분석", icon: "↗" },
 ];
-
-export function isTab(value: string): value is Tab {
-  return TABS.some((t) => t.id === value);
-}
 
 export default function LifeDashboardApp({ initialTab = "home" }: { initialTab?: Tab }) {
   const [tab, setTab] = useState<Tab>(initialTab);

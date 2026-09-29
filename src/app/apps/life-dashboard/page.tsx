@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { getValidSession } from "@/lib/google";
-import LifeDashboardApp, { isTab } from "@/components/LifeDashboard/LifeDashboardApp";
+import LifeDashboardApp from "@/components/LifeDashboard/LifeDashboardApp";
+import { isTab } from "@/components/LifeDashboard/tabs";
 
 export const dynamic = "force-dynamic";
 
