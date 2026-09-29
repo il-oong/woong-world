@@ -13,7 +13,7 @@ const RoutineHabitApp = dynamic(() => import("./RoutineHabitApp"), { ssr: false 
 const TodoApp = dynamic(() => import("../TodoApp").then(m => ({ default: m.TodoApp })), { ssr: false });
 const MemoApp = dynamic(() => import("../MemoApp").then(m => ({ default: m.MemoApp })), { ssr: false });
 
-type Tab = "home" | "routine" | "todo" | "memo" | "goal" | "finance" | "analytics";
+export type Tab = "home" | "routine" | "todo" | "memo" | "goal" | "finance" | "analytics";
 
 const TABS: { id: Tab; label: string; icon: string }[] = [
   { id: "home", label: "홈", icon: "⌂" },
@@ -25,8 +25,12 @@ const TABS: { id: Tab; label: string; icon: string }[] = [
   { id: "analytics", label: "분석", icon: "↗" },
 ];
 
-export default function LifeDashboardApp() {
-  const [tab, setTab] = useState<Tab>("home");
+export function isTab(value: string): value is Tab {
+  return TABS.some((t) => t.id === value);
+}
+
+export default function LifeDashboardApp({ initialTab = "home" }: { initialTab?: Tab }) {
+  const [tab, setTab] = useState<Tab>(initialTab);
 
   return (
     <div className="space-y-5">

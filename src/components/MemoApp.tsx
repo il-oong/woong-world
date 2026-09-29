@@ -5,6 +5,20 @@ import type { Memo } from "@/lib/memos";
 
 type ListResponse = { memos: Memo[] };
 
+const ERROR_LABEL: Record<string, string> = {
+  not_connected: "세션이 만료됐어요. 새로고침 후 다시 로그인해주세요.",
+  limit_exceeded: "메모는 최대 200개까지 저장할 수 있어요.",
+  missing_text: "메모 내용을 입력해주세요.",
+  text_too_long: "메모가 너무 길어요 (최대 5,000자).",
+  not_found: "메모를 찾을 수 없어요. 새로고침해주세요.",
+  invalid_json: "요청 형식 오류가 발생했어요.",
+  load_failed: "메모를 불러오지 못했어요.",
+};
+
+function errorMessage(err: string): string {
+  return ERROR_LABEL[err] ?? "문제가 발생했어요. 잠시 후 다시 시도해주세요.";
+}
+
 function formatTs(ts: number, now: Date = new Date()): string {
   const d = new Date(ts);
   const hm = `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
@@ -186,10 +200,16 @@ export function MemoApp() {
         </p>
       </header>
 
-      {err === "storage_not_configured" && (
+      {err === "storage_not_configured" ? (
         <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">
           Redis(UPSTASH)가 연결되어 있지 않아 저장이 동작하지 않습니다.
         </div>
+      ) : (
+        err && (
+          <div className="rounded-lg border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-xs text-rose-200">
+            {errorMessage(err)}
+          </div>
+        )
       )}
 
       <div className="flex flex-col gap-2 rounded-lg border border-[var(--border)] bg-[var(--card)] p-3">

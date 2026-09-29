@@ -30,16 +30,22 @@ function redis(): Redis {
   return _redis;
 }
 
-const listKey = (email: string) => `memos:${email.toLowerCase()}`;
+// Stored as a Redis hash (field = memo id) rather than one JSON array under a
+// single key: concurrent add/update/delete calls for the same account then
+// touch only their own field instead of racing on a read-whole-list/
+// write-whole-list round trip that could silently drop another request's
+// change.
+const hashKey = (email: string) => `memos:${email.toLowerCase()}`;
 
 const MAX_ITEMS = 200;
 
 export async function listMemos(email: string): Promise<Memo[]> {
-  const data = await redis().get<Memo[]>(listKey(email));
-  if (!Array.isArray(data)) return [];
+  const data = await redis().hgetall<Record<string, Memo>>(hashKey(email));
+  if (!data) return [];
+  const all = Object.values(data);
   // pinned first (by updatedAt desc), then the rest (by updatedAt desc).
-  const pinned = data.filter((m) => m.pinned).sort((a, b) => b.updatedAt - a.updatedAt);
-  const rest = data.filter((m) => !m.pinned).sort((a, b) => b.updatedAt - a.updatedAt);
+  const pinned = all.filter((m) => m.pinned).sort((a, b) => b.updatedAt - a.updatedAt);
+  const rest = all.filter((m) => !m.pinned).sort((a, b) => b.updatedAt - a.updatedAt);
   return [...pinned, ...rest];
 }
 
@@ -48,8 +54,9 @@ export async function addMemo(
   text: string,
   title: string = "",
 ): Promise<Memo> {
-  const all = await listMemos(email);
-  if (all.length >= MAX_ITEMS) {
+  const key = hashKey(email);
+  const count = await redis().hlen(key);
+  if (count >= MAX_ITEMS) {
     throw new Error("limit_exceeded");
   }
   const now = Date.now();
@@ -61,7 +68,7 @@ export async function addMemo(
     createdAt: now,
     updatedAt: now,
   };
-  await redis().set(listKey(email), [...all, memo]);
+  await redis().hset(key, { [memo.id]: memo });
   return memo;
 }
 
@@ -70,10 +77,9 @@ export async function updateMemo(
   id: string,
   patch: { title?: string; text?: string; pinned?: boolean },
 ): Promise<Memo | null> {
-  const all = await listMemos(email);
-  const idx = all.findIndex((m) => m.id === id);
-  if (idx === -1) return null;
-  const prev = all[idx];
+  const key = hashKey(email);
+  const prev = await redis().hget<Memo>(key, id);
+  if (!prev) return null;
   const next: Memo = {
     ...prev,
     ...(patch.title !== undefined ? { title: patch.title } : {}),
@@ -81,15 +87,11 @@ export async function updateMemo(
     ...(patch.pinned !== undefined ? { pinned: patch.pinned } : {}),
     updatedAt: Date.now(),
   };
-  all[idx] = next;
-  await redis().set(listKey(email), all);
+  await redis().hset(key, { [id]: next });
   return next;
 }
 
 export async function removeMemo(email: string, id: string): Promise<boolean> {
-  const all = await listMemos(email);
-  const next = all.filter((m) => m.id !== id);
-  if (next.length === all.length) return false;
-  await redis().set(listKey(email), next);
-  return true;
+  const removed = await redis().hdel(hashKey(email), id);
+  return removed > 0;
 }
