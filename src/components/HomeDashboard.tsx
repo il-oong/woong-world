@@ -8,12 +8,14 @@ import AlphaHomeWidget from "./Alpha/AlphaHomeWidget";
 import StockBanner from "./Alpha/StockBanner";
 import HomeLifeWidget from "./HomeLifeWidget";
 import HomePlansWidget from "./HomePlansWidget";
+import HomeMemoWidget from "./HomeMemoWidget";
 
 type WidgetId =
   | "briefing"
   | "calendar"
   | "plans"
   | "life-dashboard"
+  | "memo"
   | "alpha";
 
 const STORAGE_KEY = "wh-dashboard-config";
@@ -35,6 +37,7 @@ const WIDGET_META: Record<WidgetId, WidgetMeta> = {
   calendar: { id: "calendar", label: "캘린더", span: 2 },
   plans: { id: "plans", label: "계획 관리", span: 1 },
   "life-dashboard": { id: "life-dashboard", label: "라이프 대시보드", span: 1 },
+  memo: { id: "memo", label: "메모", span: 1 },
   alpha: { id: "alpha", label: "ALPHA 투자 분석", span: 2 },
 };
 
@@ -43,6 +46,7 @@ const DEFAULT_ORDER: WidgetId[] = [
   "calendar",
   "plans",
   "life-dashboard",
+  "memo",
   "alpha",
 ];
 
@@ -231,6 +235,8 @@ function Widget({
       return <HomePlansWidget />;
     case "life-dashboard":
       return <HomeLifeWidget />;
+    case "memo":
+      return <HomeMemoWidget />;
     case "alpha":
       return <StockBanner />;
   }
