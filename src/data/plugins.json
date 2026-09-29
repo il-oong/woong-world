@@ -26,6 +26,19 @@
     "tags": ["체크리스트", "공유"]
   },
   {
+    "id": "memo",
+    "name": "메모",
+    "description": "자유 텍스트 메모 — 제목·고정·편집 지원. 모든 사용자가 사용 가능.",
+    "repo": "il-oong/woong-world",
+    "branch": "main",
+    "pr": null,
+    "path": "/apps/memo",
+    "url": null,
+    "embeddable": true,
+    "accent": "#fbbf24",
+    "tags": ["메모", "공유"]
+  },
+  {
     "id": "life-dashboard",
     "name": "라이프 대시보드",
     "description": "루틴·습관·목표·재정·구독을 한 곳에서 관리.",

@@ -1,12 +1,19 @@
 import { redirect } from "next/navigation";
 import { getValidSession } from "@/lib/google";
-import LifeDashboardApp from "@/components/LifeDashboard/LifeDashboardApp";
+import LifeDashboardApp, { isTab } from "@/components/LifeDashboard/LifeDashboardApp";
 
 export const dynamic = "force-dynamic";
 
-export default async function LifeDashboardPage() {
+export default async function LifeDashboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ tab?: string }>;
+}) {
   const session = await getValidSession();
   if (!session?.email) redirect("/");
+
+  const { tab } = await searchParams;
+  const initialTab = tab && isTab(tab) ? tab : undefined;
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-8 md:py-12">
@@ -14,7 +21,7 @@ export default async function LifeDashboardPage() {
         <h1 className="text-xl font-bold text-white">라이프 대시보드</h1>
         <p className="text-sm text-zinc-500 mt-1">거창한 다짐 말고, 시스템으로 삽니다</p>
       </div>
-      <LifeDashboardApp />
+      <LifeDashboardApp initialTab={initialTab} />
     </div>
   );
 }
