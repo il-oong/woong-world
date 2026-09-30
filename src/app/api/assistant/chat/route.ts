@@ -22,6 +22,7 @@ import {
   getSettings as getInvestSettings,
 } from "@/lib/alpha";
 import { listTodos } from "@/lib/todos";
+import { isMemoStorageConfigured, listMemos } from "@/lib/memos";
 import { listSubscriptions } from "@/lib/subscriptions";
 
 export const dynamic = "force-dynamic";
@@ -56,12 +57,13 @@ export async function POST(req: NextRequest) {
   }
 
   // Gather context
-  const [history, allFiles, plans, todos, subscriptions] = await Promise.all([
+  const [history, allFiles, plans, todos, subscriptions, memos] = await Promise.all([
     loadChat(session.email),
     listFiles(session.email),
     listPlans(session.email),
     listTodos(session.email),
     listSubscriptions(session.email),
+    isMemoStorageConfigured() ? listMemos(session.email).catch(() => []) : Promise.resolve([]),
   ]);
   const today = new Date();
   const fromDate = new Date(today);
@@ -154,7 +156,7 @@ export async function POST(req: NextRequest) {
         isAdmin,
         plugins: pluginContext,
         stock,
-        workspace: { todos, subscriptions },
+        workspace: { todos, memos, subscriptions },
       },
     });
     result = { text: r.text, proposedActions: r.proposedActions };

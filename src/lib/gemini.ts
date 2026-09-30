@@ -8,6 +8,7 @@ import type {
 import { parseProposedAction } from "./assistant";
 import type { CalendarEvent } from "./google";
 import type { Todo } from "./todos";
+import type { Memo } from "./memos";
 import type { Subscription } from "./subscriptions";
 import { eventOnDay, formatTimeRange, toIso } from "./calendar-util";
 import type { Plugin, PluginStatus } from "./plugins";
@@ -238,6 +239,7 @@ export type StockContext = {
 
 export type WorkspaceContext = {
   todos: Todo[];
+  memos: Memo[];
   subscriptions: Subscription[];
 };
 
@@ -368,6 +370,12 @@ function summarizeWorkspace(workspace: WorkspaceContext): string {
     openTodos.length
       ? `Open tasks: ${openTodos.map((todo) => `${todo.id}=${todo.text} (${todo.scope ?? "day"})`).join(" | ")}`
       : "Open tasks: none",
+  );
+  const memos = workspace.memos.slice(0, 30);
+  lines.push(
+    memos.length
+      ? `Memos: ${memos.map((memo) => `${memo.id}=${memo.title ? `[${memo.title}] ` : ""}${memo.text.replace(/\s+/g, " ").slice(0, 60)}${memo.pinned ? " (pinned)" : ""}`).join(" | ")}`
+      : "Memos: none",
   );
   lines.push(
     workspace.subscriptions.length
@@ -528,12 +536,15 @@ async function callChatGemini(
 
 const JARVIS_WORKSPACE_INSTRUCTIONS = `
 Jarvis workspace controls:
-- When the user clearly asks to create, update, complete, or remove a task, manage a subscription, edit the stock watchlist, run VaultSync, or make an Obsidian backup, propose exactly one or more typed actions below. Never claim that a change happened until the user approves it.
+- When the user clearly asks to create, update, complete, or remove a task, write/edit/pin/delete a memo (메모), manage a subscription, edit the stock watchlist, run VaultSync, or make an Obsidian backup, propose exactly one or more typed actions below. Never claim that a change happened until the user approves it.
 - Use IDs provided in [Workspace controls] for updates or removals. If no unambiguous ID is available, ask a short follow-up question instead of guessing.
 - Actions are always subject to the approval button. VaultSync actions additionally require the signed-in administrator.
 <action>{"type":"manage_workspace","params":{"operation":"add_todo","text":"Prepare PR review","scope":"day"}}</action>
 <action>{"type":"manage_workspace","params":{"operation":"update_todo","id":"td_...","patch":{"done":true}}}</action>
 <action>{"type":"manage_workspace","params":{"operation":"remove_todo","id":"td_..."}}</action>
+<action>{"type":"manage_workspace","params":{"operation":"add_memo","title":"Meeting notes","text":"Discuss Q4 roadmap"}}</action>
+<action>{"type":"manage_workspace","params":{"operation":"update_memo","id":"mm_...","patch":{"text":"Updated text","pinned":true}}}</action>
+<action>{"type":"manage_workspace","params":{"operation":"remove_memo","id":"mm_..."}}</action>
 <action>{"type":"manage_workspace","params":{"operation":"add_subscription","name":"Netflix","amount":17000,"paymentDay":15,"cycle":"monthly"}}</action>
 <action>{"type":"manage_workspace","params":{"operation":"remove_subscription","id":"sub_..."}}</action>
 <action>{"type":"manage_workspace","params":{"operation":"add_watch_item","ticker":"NVDA","name":"NVIDIA","market":"US","memo":"AI watchlist"}}</action>
