@@ -32,6 +32,7 @@ export default function HomeMemoWidget() {
   const [err, setErr] = useState<string | null>(null);
   const [text, setText] = useState("");
   const [adding, setAdding] = useState(false);
+  const [pendingId, setPendingId] = useState<string | null>(null);
 
   async function load() {
     const next = await fetchMemos();
@@ -71,6 +72,26 @@ export default function HomeMemoWidget() {
       await load();
     } finally {
       setAdding(false);
+    }
+  }
+
+  async function toggleStar(memo: Memo) {
+    if (pendingId) return;
+    setPendingId(memo.id);
+    try {
+      const res = await fetch(`/api/memos/${encodeURIComponent(memo.id)}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pinned: !memo.pinned }),
+      });
+      if (!res.ok) {
+        const data = (await res.json().catch(() => ({}))) as { error?: string };
+        setErr(data.error ?? `http_${res.status}`);
+        return;
+      }
+      await load();
+    } finally {
+      setPendingId(null);
     }
   }
 
@@ -130,15 +151,29 @@ export default function HomeMemoWidget() {
               key={m.id}
               className="rounded-md border border-[var(--border)] bg-black/20 px-3 py-2"
             >
-              <div className="flex items-center gap-1.5">
-                {m.pinned && <span className="text-[10px] text-amber-400">📌</span>}
-                {m.title && (
-                  <span className="truncate text-xs font-medium">{m.title}</span>
-                )}
+              <div className="flex items-start gap-2">
+                <div className="min-w-0 flex-1">
+                  {m.title && (
+                    <span className="block truncate text-xs font-medium">{m.title}</span>
+                  )}
+                  <p className="line-clamp-2 whitespace-pre-wrap break-words text-[11px] text-[var(--muted)]">
+                    {m.text}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => void toggleStar(m)}
+                  disabled={pendingId === m.id}
+                  aria-label={m.pinned ? "별표 해제" : "별표"}
+                  aria-pressed={m.pinned}
+                  title={m.pinned ? "별표 해제" : "별표 (항상 위에 표시)"}
+                  className={`shrink-0 text-sm leading-none transition disabled:opacity-40 ${
+                    m.pinned ? "text-amber-400" : "text-zinc-600 hover:text-amber-300"
+                  }`}
+                >
+                  {m.pinned ? "★" : "☆"}
+                </button>
               </div>
-              <p className="line-clamp-2 whitespace-pre-wrap break-words text-[11px] text-[var(--muted)]">
-                {m.text}
-              </p>
             </li>
           ))}
           {memos.length > PREVIEW_COUNT && (

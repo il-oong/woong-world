@@ -28,7 +28,7 @@
   {
     "id": "memo",
     "name": "메모",
-    "description": "자유 텍스트 메모 — 제목·고정·편집 지원. 모든 사용자가 사용 가능.",
+    "description": "자유 텍스트 메모 — 제목·별표(상단 고정)·편집 지원. 모든 사용자가 사용 가능.",
     "repo": "il-oong/woong-world",
     "branch": "main",
     "pr": null,
