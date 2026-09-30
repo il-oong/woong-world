@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const ITEMS = [
+  { href: "/housing", label: "청약", amber: false },
   { href: "/", label: "홈", amber: false },
   { href: "/calendar", label: "일정", amber: false },
   { href: "/plans", label: "계획", amber: false },
@@ -15,6 +16,7 @@ const ITEMS = [
 ];
 
 const ADMIN_ITEMS = [
+  { href: "/housing", label: "청약", amber: false },
   { href: "/", label: "허브", amber: false },
   { href: "/calendar", label: "일정", amber: false },
   { href: "/plans", label: "계획", amber: false },

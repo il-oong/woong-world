@@ -4,7 +4,10 @@ const securityHeaders = [
   { key: "X-Frame-Options", value: "SAMEORIGIN" },
   { key: "X-Content-Type-Options", value: "nosniff" },
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
-  { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
+  {
+    key: "Permissions-Policy",
+    value: "camera=(), microphone=(), geolocation=()",
+  },
   {
     key: "Strict-Transport-Security",
     value: "max-age=63072000; includeSubDomains; preload",
@@ -40,6 +43,20 @@ const nextConfig: NextConfig = {
       {
         source: "/:path*",
         headers: securityHeaders,
+      },
+      {
+        source: "/housing/:path*",
+        // Official floor plans stay on their publisher's HTTPS host. Only the
+        // housing pages need these images; do not relax other app routes.
+        headers: securityHeaders
+          .filter((h) => h.key === "Content-Security-Policy")
+          .map((h) => ({
+            ...h,
+            value: h.value.replace(
+              "img-src 'self' data: blob:",
+              "img-src 'self' data: blob: https:",
+            ),
+          })),
       },
     ];
   },
