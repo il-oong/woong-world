@@ -3,6 +3,7 @@ import { createEvent, getValidSession } from "@/lib/google";
 import { createPlan, updatePlan } from "@/lib/plans";
 import { addRoutine } from "@/lib/routines";
 import { addTodo, removeTodo, updateTodo } from "@/lib/todos";
+import { addMemo, removeMemo, updateMemo } from "@/lib/memos";
 import { addSubscription, removeSubscription } from "@/lib/subscriptions";
 import { addWatchItem, deleteWatchItem } from "@/lib/alpha";
 import { isAdminSession } from "@/lib/admin";
@@ -161,6 +162,15 @@ export async function POST(req: NextRequest) {
         result = { todo };
       } else if (operation.operation === "remove_todo") {
         if (!(await removeTodo(session.email, operation.id))) throw new Error("todo_not_found");
+        result = { removed: operation.id };
+      } else if (operation.operation === "add_memo") {
+        result = { memo: await addMemo(session.email, operation.text, operation.title ?? "") };
+      } else if (operation.operation === "update_memo") {
+        const memo = await updateMemo(session.email, operation.id, operation.patch);
+        if (!memo) throw new Error("memo_not_found");
+        result = { memo };
+      } else if (operation.operation === "remove_memo") {
+        if (!(await removeMemo(session.email, operation.id))) throw new Error("memo_not_found");
         result = { removed: operation.id };
       } else if (operation.operation === "add_subscription") {
         result = {

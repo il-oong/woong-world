@@ -696,6 +696,12 @@ function WorkspaceActionBody({
         return `Update task ${params.id}`;
       case "remove_todo":
         return `Remove task ${params.id}`;
+      case "add_memo":
+        return `Add memo: ${params.title ? `[${params.title}] ` : ""}${params.text.slice(0, 80)}`;
+      case "update_memo":
+        return `Update memo ${params.id}`;
+      case "remove_memo":
+        return `Remove memo ${params.id}`;
       case "add_subscription":
         return `Add subscription: ${params.name} (${params.amount.toLocaleString()} KRW)`;
       case "remove_subscription":

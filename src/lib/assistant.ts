@@ -24,6 +24,9 @@ export type WorkspaceOperation =
   | { operation: "add_todo"; text: string; scope: "day" | "week" | "month" }
   | { operation: "update_todo"; id: string; patch: { text?: string; done?: boolean; scope?: "day" | "week" | "month" } }
   | { operation: "remove_todo"; id: string }
+  | { operation: "add_memo"; text: string; title?: string }
+  | { operation: "update_memo"; id: string; patch: { title?: string; text?: string; pinned?: boolean } }
+  | { operation: "remove_memo"; id: string }
   | { operation: "add_subscription"; name: string; amount: number; paymentDay: number; cycle: "monthly" | "yearly"; monthOfYear?: number }
   | { operation: "remove_subscription"; id: string }
   | { operation: "add_watch_item"; ticker: string; name: string; market: "KR" | "US"; memo?: string }
@@ -307,6 +310,34 @@ function parseWorkspaceOperation(value: Record<string, unknown>): WorkspaceOpera
   }
   if (operation === "remove_todo") {
     return isId(value.id, "td_") ? { operation, id: value.id } : null;
+  }
+  if (operation === "add_memo") {
+    const memoText = text(value.text, 5_000);
+    if (!memoText) return null;
+    if (value.title === undefined || value.title === "") return { operation, text: memoText };
+    const title = text(value.title, 200);
+    return title ? { operation, text: memoText, title } : null;
+  }
+  if (operation === "update_memo") {
+    if (!isId(value.id, "mm_") || !isRecord(value.patch)) return null;
+    const patch: { title?: string; text?: string; pinned?: boolean } = {};
+    if (value.patch.title !== undefined) {
+      if (typeof value.patch.title !== "string" || value.patch.title.length > 200) return null;
+      patch.title = value.patch.title.trim();
+    }
+    if (value.patch.text !== undefined) {
+      const memoText = text(value.patch.text, 5_000);
+      if (!memoText) return null;
+      patch.text = memoText;
+    }
+    if (value.patch.pinned !== undefined) {
+      if (typeof value.patch.pinned !== "boolean") return null;
+      patch.pinned = value.patch.pinned;
+    }
+    return Object.keys(patch).length ? { operation, id: value.id, patch } : null;
+  }
+  if (operation === "remove_memo") {
+    return isId(value.id, "mm_") ? { operation, id: value.id } : null;
   }
   if (operation === "add_subscription") {
     const name = text(value.name, 200);
