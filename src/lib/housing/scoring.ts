@@ -31,13 +31,16 @@ export function monthlyPayment(principal: number, rate: number, years: number) {
 }
 export function funding(unit: Unit, profile: Profile, today = todayKst()) {
   let cumulative = 0;
-  const payments = [...unit.payments].sort((a, b) =>
-    a.date.localeCompare(b.date),
-  );
+  const datesKnown = unit.payments.every((p) => p.date !== null);
+  // Relative deadlines stay in the published order; never invent calendar dates.
+  const payments = datesKnown
+    ? [...unit.payments].sort((a, b) => a.date!.localeCompare(b.date!))
+    : unit.payments;
   return payments.map((p, i) => {
     cumulative += p.amount;
+    if (!datesKnown) return { ...p, cumulative, available: null, shortfall: null, past: p.date !== null && p.date < today };
     const start = new Date(today),
-      end = new Date(p.date);
+      end = new Date(p.date!);
     const lastDay = new Date(
       Date.UTC(end.getUTCFullYear(), end.getUTCMonth() + 1, 0),
     ).getUTCDate();
@@ -60,7 +63,7 @@ export function funding(unit: Unit, profile: Profile, today = todayKst()) {
       available,
       shortfall:
         available === null ? null : Math.max(0, cumulative - available),
-      past: p.date < today,
+      past: p.date! < today,
     };
   });
 }

@@ -15,7 +15,22 @@ import {
   httpsUrl,
 } from "../src/lib/housing/model";
 import { fromApplyhome } from "../src/lib/housing/applyhome";
+import { catalog, mergeCatalog } from "../src/lib/housing/catalog";
 const today = "2026-09-30";
+test("verified public notice survives missing Redis, while deletion and corrections override it", () => {
+  const notice = catalog[0];
+  assert.equal(mergeCatalog().find((n) => n.id === "2026000453")?.title, "광명 시티프라디움 에듀하임");
+  assert.equal(mergeCatalog({ [notice.id]: null }).length, 0);
+  assert.equal(mergeCatalog({ [notice.id]: { ...notice, title: "정정 공고" } })[0].title, "정정 공고");
+});
+
+test("undated contractual payments show amounts without inventing cash availability", () => {
+  const unit = catalog[0].units[0];
+  assert.equal(unit.payments.reduce((sum, payment) => sum + payment.amount, 0), unit.price);
+  assert.deepEqual(unit.payments.slice(2, 6).map((p) => p.date), ["2027-04-30", "2027-11-30", "2028-05-31", "2028-11-30"]);
+  assert.ok(funding(unit, profile, today).every((p) => p.available === null && p.shortfall === null));
+  assert.equal(assess(catalog[0], unit, profile, null, today).metrics.money.value, null);
+});
 test("an incomplete unit cannot hide a known cash shortfall in the representative card", () => {
   const ranked = rankNotices(
     [fixture],

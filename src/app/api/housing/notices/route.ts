@@ -1,6 +1,6 @@
 import { authorize, failure, json, readBody } from "@/lib/housing/http";
 import { noticeSchema, todayKst } from "@/lib/housing/model";
-import { saveNotice } from "@/lib/housing/store";
+import { saveNotice, getNotices } from "@/lib/housing/store";
 export async function POST(req: Request) {
   try {
     const a = await authorize(req, true);
@@ -15,7 +15,7 @@ export async function POST(req: Request) {
       ...body.notice,
       reviewedAt: todayKst(),
     });
-    const existing = await a.db.hget("housing:v1:notices", notice.id);
+    const existing = (await getNotices()).find((n) => n.id === notice.id);
     if (existing && !notice.changeNote.trim())
       return json({ error: "정정 등록 시 변경 내용을 적어주세요" }, 400);
     await saveNotice(notice);
@@ -31,7 +31,7 @@ export async function DELETE(req: Request) {
     const { id } = await readBody(req, 1000);
     if (typeof id !== "string" || !/^[a-zA-Z0-9_-]{1,80}$/.test(id))
       return json({ error: "공고번호 확인 필요" }, 400);
-    await a.db.hdel("housing:v1:notices", id);
+    await a.db.hset("housing:v1:notices", { [id]: null });
     return json({ ok: true });
   } catch (e) {
     return failure(e);

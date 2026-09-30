@@ -35,10 +35,8 @@ export function detectKind(name: string, mime?: string): FileKind {
 
 async function extractPdf(buf: Uint8Array): Promise<string> {
   const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
-  pdfjs.GlobalWorkerOptions.workerSrc = "";
   const loadingTask = pdfjs.getDocument({
     data: buf,
-    isEvalSupported: false,
     useSystemFonts: true,
   });
   const doc = await loadingTask.promise;

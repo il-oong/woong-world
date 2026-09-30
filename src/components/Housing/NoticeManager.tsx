@@ -29,6 +29,10 @@ function blank(): Notice {
     publishedAt: "",
     point: null,
     moveIn: null,
+    moveInNote: "",
+    priceNote: "",
+    locationUrl: null,
+    locationImageUrl: null,
     events: [],
     units: [],
     rules: [],
@@ -217,6 +221,10 @@ export function NoticeManager({ notices }: { notices: Notice[] }) {
                 ["applicationUrl", "공식 신청 페이지 주소"],
                 ["publishedAt", "모집공고일"],
                 ["moveIn", "확인된 입주일"],
+                ["moveInNote", "입주 예정 안내 (정확한 날짜가 없을 때)"],
+                ["priceNote", "금액 산정 기준·납부 안내"],
+                ["locationUrl", "공식 현장 지도 주소"],
+                ["locationImageUrl", "공식 위치 안내 이미지 주소"],
               ] as const
             ).map(([k, label]) => (
               <Field
@@ -230,7 +238,7 @@ export function NoticeManager({ notices }: { notices: Notice[] }) {
                       ? "url"
                       : "text"
                 }
-                onChange={(v) => edit(k, k === "moveIn" ? v || null : v)}
+                onChange={(v) => edit(k, k === "moveIn" || k === "locationUrl" || k === "locationImageUrl" ? v || null : v)}
               />
             ))}
             <label className="text-xs">
@@ -435,7 +443,7 @@ export function NoticeManager({ notices }: { notices: Notice[] }) {
                     }
                   />
                   <Field
-                    label="납부 날짜"
+                    label="납부 날짜 (미확정이면 비움)"
                     type="date"
                     value={p.date}
                     onChange={(v) =>
@@ -443,7 +451,7 @@ export function NoticeManager({ notices }: { notices: Notice[] }) {
                         i,
                         "payments",
                         u.payments.map((p, k) =>
-                          k === j ? { ...p, date: v } : p,
+                          k === j ? { ...p, date: v || null } : p,
                         ),
                       )
                     }
@@ -484,7 +492,7 @@ export function NoticeManager({ notices }: { notices: Notice[] }) {
                   onClick={() =>
                     unitEdit(i, "payments", [
                       ...u.payments,
-                      { label: "", date: "", amount: 0 },
+                      { label: "", date: null, amount: 0 },
                     ])
                   }
                 >

@@ -8,6 +8,7 @@ import {
   ruleKeys,
   ruleLabels,
   applicationStatus,
+  emptyProfile,
   won,
 } from "@/lib/housing/model";
 import {
@@ -48,7 +49,7 @@ export function Detail({
     { ...data.commutes, [n.id]: commute },
   ).filter((r) => r.assessment.total !== null && !r.assessment.blockers.length);
   const rank = ranked.findIndex((v) => v.notice.id === n.id) + 1;
-  const flows = data.profile ? funding(unit, data.profile) : [];
+  const flows = funding(unit, data.profile ?? emptyProfile());
   const monthly =
     data.profile?.loan !== null && data.profile
       ? monthlyPayment(
@@ -225,6 +226,12 @@ export function Detail({
               className="h-72 w-full rounded-xl border-0"
               src={`https://www.openstreetmap.org/export/embed.html?bbox=${n.point.lng - 0.012},${n.point.lat - 0.008},${n.point.lng + 0.012},${n.point.lat + 0.008}&layer=mapnik&marker=${n.point.lat},${n.point.lng}`}
             />
+          ) : n.locationImageUrl ? (
+            <div className="rounded-xl bg-white p-3">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={n.locationImageUrl} alt={`${n.title} 공식 위치 안내 · 현장과 견본주택 구분`} className="h-72 w-full object-contain" loading="lazy" referrerPolicy="no-referrer" />
+              <p className="mt-2 text-xs text-slate-600">공식 안내도입니다. ‘현장’이 공급 위치이며 견본주택과 다릅니다.</p>
+            </div>
           ) : (
             <div className="grid h-56 place-items-center rounded-xl bg-white/5 p-5 text-center text-sm text-slate-400">
               검증된 단지 좌표가 없어 지도 표시를 기다리고 있습니다.
@@ -233,7 +240,7 @@ export function Detail({
           <div className="mt-4 flex flex-wrap gap-2">
             {n.address && (
               <External
-                href={`https://map.kakao.com/link/search/${encodeURIComponent(n.address)}`}
+                href={n.locationUrl ?? `https://map.kakao.com/link/search/${encodeURIComponent(n.address)}`}
               >
                 지도·길찾기
               </External>
@@ -278,7 +285,7 @@ export function Detail({
           <h2 className="text-xl font-semibold">{unit.name} 평면도</h2>
           <p className="my-3 text-sm text-slate-400">
             전용 {unit.area ?? "미확인"}㎡ · 방 {unit.rooms ?? "미확인"}개 ·
-            입주 {n.moveIn ?? "확인 필요"}
+            입주 {n.moveIn ?? (n.moveInNote || "확인 필요")}
           </p>
           {unit.floorPlanImageUrl ? (
             <div className="rounded-xl bg-white p-3">
@@ -317,6 +324,9 @@ export function Detail({
           번 반영하며, 중도금 대출 전환은 별도 검토가 필요합니다.
           옵션·세금·이사비·관리비·대출 부대비용은 제외했습니다.
         </p>
+        {n.priceNote && <p className="mt-3 text-sm text-amber-200">{n.priceNote}</p>}
+        {unit.payments.some((p) => p.date === null) && <p className="mt-3 text-sm text-amber-200">계약일·입주지정일 등 미확정 날짜가 있어 가용 자금·부족액·돈 점수 계산을 보류합니다. 납부액은 아래에서 확인할 수 있습니다.</p>}
+        {!data.profile && flows.length > 0 && <Link className={`${button} mt-3`} href="/housing/profile">내 정보 등록하기</Link>}
         {flows.length ? (
           <div className="mt-5 overflow-x-auto">
             <table className="w-full min-w-[620px] text-left text-sm">
@@ -341,7 +351,7 @@ export function Detail({
                     <td className="py-4 pr-4">
                       {f.label}
                       <span className="block text-xs text-slate-500">
-                        {f.date}
+                        {f.date ?? "개별 날짜 확인 필요"}
                         {f.past ? " · 지난 일정" : ""}
                       </span>
                     </td>

@@ -15,7 +15,7 @@ export default async function Page({
     searchParams,
     loadHousing(),
   ]);
-  if (data.error)
+  if (data.error && !data.notices.length)
     return (
       <div role="alert">
         <h1 className="text-2xl">공고를 불러올 수 없습니다</h1>

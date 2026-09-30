@@ -1,13 +1,13 @@
 import { Redis } from "@upstash/redis";
 import { createHash } from "node:crypto";
 import {
-  noticeSchema,
   profileSchema,
   type Notice,
   type Profile,
   type Commute,
   todayKst,
 } from "./model";
+import { mergeCatalog } from "./catalog";
 
 export function housingStore() {
   const url = process.env.UPSTASH_REDIS_REST_URL ?? process.env.KV_REST_API_URL;
@@ -20,10 +20,10 @@ export function userKey(email: string) {
 }
 export async function getNotices(): Promise<Notice[]> {
   const db = housingStore();
-  if (!db) return [];
+  if (!db) return mergeCatalog();
   const records =
     await db.hgetall<Record<string, Notice>>("housing:v1:notices");
-  return Object.values(records ?? {}).map((v) => noticeSchema.parse(v));
+  return mergeCatalog(records ?? {});
 }
 export async function saveNotice(n: Notice) {
   const db = housingStore();

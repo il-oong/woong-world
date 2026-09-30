@@ -35,8 +35,9 @@ export async function loadHousing(): Promise<HousingData> {
     if (!db)
       return {
         ...base,
+        notices: await getNotices(),
         error:
-          "청약 데이터 저장소가 아직 연결되지 않았습니다. 관리자 설정 후 이용할 수 있습니다.",
+          "공개 공고는 열람할 수 있습니다. 내 정보·관심 청약 저장은 데이터 저장소 연결 후 이용할 수 있습니다.",
       };
     const [notices, profile, favorites] = await Promise.all([
       getNotices(),

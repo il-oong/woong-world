@@ -116,7 +116,7 @@ const unitSchema = z.object({
   floorPlanImageUrl: httpsUrl.nullable().default(null),
   payments: z
     .array(
-      z.object({ label: z.string().min(1).max(100), date: dateSchema, amount }),
+      z.object({ label: z.string().min(1).max(100), date: dateSchema.nullable(), amount }),
     )
     .max(30)
     .default([]),
@@ -133,6 +133,10 @@ export const noticeSchema = z
     publishedAt: dateSchema,
     point: pointSchema.nullable().default(null),
     moveIn: dateSchema.nullable().default(null),
+    moveInNote: z.string().max(200).default(""),
+    priceNote: z.string().max(500).default(""),
+    locationUrl: httpsUrl.nullable().default(null),
+    locationImageUrl: httpsUrl.nullable().default(null),
     events: z
       .array(
         z.object({
