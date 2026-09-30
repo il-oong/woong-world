@@ -8,6 +8,7 @@ import {
   userKey,
 } from "./store";
 import type { Commute, Notice, Profile } from "./model";
+import feed from "@/data/housing-feed.json";
 export type HousingData = {
   notices: Notice[];
   profile: Profile | null;
@@ -16,6 +17,7 @@ export type HousingData = {
   connected: boolean;
   admin: boolean;
   error: string | null;
+  feedUpdatedAt: string | null;
 };
 export async function loadHousing(): Promise<HousingData> {
   const session = await readSession();
@@ -28,6 +30,7 @@ export async function loadHousing(): Promise<HousingData> {
     connected: !!email,
     admin: false,
     error: null,
+    feedUpdatedAt: feed.updatedAt,
   };
   try {
     base.admin = await isAdminEmail(email);

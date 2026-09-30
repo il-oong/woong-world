@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "vault-sync": "node vault-sync-daemon.mjs",
-    "test:housing": "tsx --test tests/housing.test.ts"
+    "test:housing": "tsx --test tests/housing.test.ts tests/housing-sync.test.ts",
+    "sync:housing": "tsx scripts/sync-housing.ts"
   },
   "dependencies": {
     "@upstash/redis": "^1.37.0",

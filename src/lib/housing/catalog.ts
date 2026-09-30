@@ -1,4 +1,5 @@
 import { noticeSchema, type Notice } from "./model";
+import feed from "@/data/housing-feed.json";
 
 // Public facts manually checked against the official notice PDF on 2026-09-30.
 // Evidence and update instructions: docs/housing.md. Never include personal data here.
@@ -58,8 +59,21 @@ export const catalog: Notice[] = [noticeSchema.parse({
 })];
 
 // Null is a persistent removal marker, so a deleted bundled notice stays hidden.
-export function mergeCatalog(records: Record<string, unknown> = {}): Notice[] {
+export function mergeCatalog(records: Record<string, unknown> = {}, daily: unknown[] = feed.notices): Notice[] {
   const merged = new Map(catalog.map((n) => [n.id, n]));
+  for (const value of daily) {
+    const latest = noticeSchema.parse(value);
+    const reviewed = merged.get(latest.id);
+    if (!reviewed) { merged.set(latest.id, latest); continue; }
+    // The reviewed summary is only valid while the official core facts still match.
+    const dates = new Set(reviewed.events.map((e) => `${e.type}:${e.date}`));
+    const changed = reviewed.title !== latest.title ||
+      reviewed.publishedAt !== latest.publishedAt ||
+      JSON.stringify(reviewed.units.map((u) => u.price).sort()) !== JSON.stringify(latest.units.map((u) => u.price).sort()) ||
+      latest.events.some((e) => !dates.has(`${e.type}:${e.date}`));
+    if (changed)
+      merged.set(latest.id, noticeSchema.parse({ ...latest, changeNote: "공식 기본정보가 이전 분석과 달라졌습니다. 청약통장·전매제한 등은 정정공고 원문 확인 전까지 보류합니다." }));
+  }
   for (const [id, value] of Object.entries(records)) {
     if (value === null) merged.delete(id);
     else {

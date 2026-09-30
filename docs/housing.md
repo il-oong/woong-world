@@ -6,7 +6,9 @@
 
 **내 정보 등록**에서 자금, 직장 주소, 면적·방, 선호 시설, 통장·무주택 조건과 다섯 능력치 중요도를 저장합니다. 금액 입력 단위는 만원, 내부 저장·공고 편집 단위는 원입니다. 미입력은 0원과 구분합니다. 본인 로그인으로만 저장·조회하며 삭제 시 관심 목록과 교통 결과도 지웁니다.
 
-관리자는 `/housing/manage`에서 청약홈 APT 링크를 가져오거나, 공고문 텍스트를 붙여넣어 AI 초안을 만들 수 있습니다. 초안을 원문과 대조하고 체크한 뒤 공개합니다. 코드 편집 없이 주택형·일정·납부금·요약·평면도·위치·근거를 수정할 수 있습니다. 같은 공고번호로 수정하면 변경 설명이 필수이며 상세 화면에 표시됩니다. 자동 정정 공고 감시는 아직 없습니다.
+관리자는 `/housing/manage`에서 청약홈 APT 링크를 가져오거나, 공고문 텍스트를 붙여넣어 AI 초안을 만들 수 있습니다. 초안을 원문과 대조하고 체크한 뒤 공개합니다. 코드 편집 없이 주택형·일정·납부금·요약·평면도·위치·근거를 수정할 수 있습니다. 같은 공고번호로 수정하면 변경 설명이 필수이며 상세 화면에 표시됩니다.
+
+공개 APT 기본정보는 GitHub Actions가 한국시간 매일 오전 11:17에 공식 API로 조회해 `src/data/housing-feed.json`을 갱신합니다. 공개 저장소의 표준 GitHub Actions 실행과 기존 Vercel Git 배포를 이용하며 Vercel Cron이나 유료 요금제는 필요하지 않습니다. GitHub 예약 실행은 지연될 수 있어 화면에 실제 갱신일을 표시합니다. API 오류·자료 누락 시 작업이 실패하고 이전 자료를 유지합니다. 최근 120일 모집공고를 갱신하며 APT 이외 주택 종류는 현재 자동 수집 범위가 아닙니다. 공개 데이터에서 확인되지 않는 통장·전매제한·평면도 등은 미확인으로 표시하고, 공식 기본정보가 기존 분석과 달라지면 종전 분석을 보류합니다. 관리자가 저장한 공고 수정본은 자동 자료보다 우선합니다.
 
 ## 서비스 설정
 
@@ -17,14 +19,14 @@
 | `SESSION_SECRET`, Google OAuth 설정 | 기존 로그인 | 개인 정보 저장 불가 |
 | `ADMIN_EMAIL` 또는 기존 관리자 목록 | 공고 등록 권한 | 일반 사용자는 공고 편집 불가 |
 | `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN` | 공고·개인정보 저장 (기존 KV 별칭 지원) | 연결 안내 표시 |
-| `APPLYHOME_SERVICE_KEY` | 공공데이터포털 청약홈 분양정보 조회 서비스의 디코딩된 키 | 자동 가져오기 불가, 직접 입력 가능 |
+| `APPLYHOME_SERVICE_KEY` | 공공데이터포털 청약홈 분양정보 조회 서비스의 디코딩된 키. GitHub 저장소의 Actions secret에 등록하고 관리자 가져오기에도 쓰려면 Vercel 환경 변수에도 등록 | 일일 갱신·관리자 API 가져오기 불가 |
 | `GEMINI_API_KEY` | 공고문 사전 분석 (기존 설정 재사용) | 직접 요약 입력 가능 |
 | `KAKAO_REST_API_KEY` | 공급·직장 주소를 좌표로 변환 | 확인한 좌표 직접 입력·지도 링크 사용 |
 | `ODSAY_API_KEY` | 대중교통 경로 조회 | 교통 점수 미확인 |
 
 연결 자료: [청약홈 API](https://www.data.go.kr/data/15098547/openapi.do), [공식 API 명세](https://infuser.odcloud.kr/api/stages/37000/api-docs), [카카오 주소 검색](https://developers.kakao.com/docs/latest/ko/local/dev-guide#address-coord), [ODsay 가이드](https://lab.odsay.com/guide/guide?platform=web).
 
-키 발급과 제공사의 이용 조건·요금 확인은 운영 연결 전에 필요합니다. 이번 변경은 키 발급·유료 가입·운영 배포를 수행하지 않습니다. 실제 키를 통한 외부 공급자 응답 검증은 별도로 필요합니다.
+무료 [공공데이터포털 청약홈 분양정보 조회 서비스](https://www.data.go.kr/data/15098547/openapi.do) 활용 신청 후 GitHub 저장소 **Settings → Secrets and variables → Actions → New repository secret**에서 `APPLYHOME_SERVICE_KEY`를 설정해야 일일 갱신이 실제 작동합니다. 키는 채팅이나 코드에 붙여넣지 마세요. 설정 뒤 **Actions → 청약 공고 하루 한 번 갱신 → Run workflow**로 첫 실행을 확인하세요. 실제 키를 통한 외부 공급자 응답 검증은 설정 후 필요합니다.
 
 ## 실제 공고 등록
 
@@ -63,4 +65,4 @@
 
 `npm run test:housing`, `npx eslint src/lib/housing src/components/Housing src/app/housing src/app/api/housing`, `npm run build`로 핵심 계산·입력 검증과 빌드를 확인합니다. 테스트용 공고는 `tests/`에만 있으며 실제 공고 1건은 위 공개 카탈로그에 명시적으로 포함했습니다.
 
-운영 환경에서는 공고 하나를 등록해 실제 API 금액·날짜·평면도·지도·교통과 공고 원문이 일치하는지 확인한 뒤 사용 범위를 넓히세요. 공고 전체 자동 수집, 정정 감시, 청약 일정 푸시 발송은 별도 연결 범위입니다.
+운영 환경에서는 첫 일일 실행 후 실제 API 금액·날짜와 공고 원문이 일치하는지 확인하세요. APT 이외 공고 자동 수집, 정정공고 원문 자동 해석, 청약 일정 푸시 발송은 별도 연결 범위입니다.

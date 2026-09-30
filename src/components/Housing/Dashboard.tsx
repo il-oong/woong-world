@@ -118,6 +118,11 @@ export function Dashboard({
           </Link>
         )}
       </HousingHeader>
+      <p className="mb-5 text-xs text-slate-400">
+        {data.feedUpdatedAt
+          ? `공식 청약홈 기본정보 갱신: ${new Date(data.feedUpdatedAt).toLocaleDateString("ko-KR", { timeZone: "Asia/Seoul" })} · 자격과 전매제한은 공고문 확인 여부를 별도 표시합니다.`
+          : "공식 청약홈 자동 갱신 준비 중 · 확인된 공고부터 표시합니다."}
+      </p>
       {data.error && (
         <p role="alert" className={`${panel} mb-5 text-amber-200`}>
           {data.error}

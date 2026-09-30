@@ -1,6 +1,7 @@
 import { noticeSchema, dateSchema, type Notice } from "./model";
 type Row = Record<string, string | number | null>;
 const str = (r: Row, k: string) => String(r[k] ?? "");
+export type ApplyhomeRow = Row;
 export function fromApplyhome(detail: Row, models: Row[]): Notice {
   const house = str(detail, "HOUSE_MANAGE_NO"),
     id = str(detail, "PBLANC_NO");
@@ -66,35 +67,36 @@ export async function importApplyhome(sourceUrl: string) {
     id = u.searchParams.get("pblancNo");
   if (!house || !id || !/^\d{10}$/.test(house) || !/^\d{10}$/.test(id))
     throw Error("공고번호가 올바르지 않습니다");
+  const query = { "cond[HOUSE_MANAGE_NO::EQ]": house, "cond[PBLANC_NO::EQ]": id };
+  const [details, models] = await Promise.all([
+    fetchApplyhomePage("getAPTLttotPblancDetail", 1, query),
+    fetchApplyhomePage("getAPTLttotPblancMdl", 1, query),
+  ]);
+  if (details.totalCount !== 1 || details.data.length !== 1 || !models.data.length || models.totalCount > 100)
+    throw Error("공고를 찾지 못했습니다");
+  return fromApplyhome(details.data[0], models.data);
+}
+
+export async function fetchApplyhomePage(
+  endpoint: "getAPTLttotPblancDetail" | "getAPTLttotPblancMdl",
+  page: number,
+  filters: Record<string, string> = {},
+  fetcher: typeof fetch = fetch,
+): Promise<{ data: Row[]; totalCount: number }> {
   const key = process.env.APPLYHOME_SERVICE_KEY;
   if (!key) throw Error("공공데이터포털 청약홈 서비스 키가 필요합니다");
-  async function get(endpoint: string) {
-    const url = new URL(
-      `https://api.odcloud.kr/api/ApplyhomeInfoDetailSvc/v1/${endpoint}`,
-    );
-    for (const [k, v] of Object.entries({
-      serviceKey: key!,
-      page: "1",
-      perPage: "100",
-      "cond[HOUSE_MANAGE_NO::EQ]": house!,
-      "cond[PBLANC_NO::EQ]": id!,
-    }))
-      url.searchParams.set(k, v);
-    const response = await fetch(url, {
-      signal: AbortSignal.timeout(12000),
-      cache: "no-store",
-    });
-    if (!response.ok) throw Error("청약홈 데이터 조회 실패");
-    const data = await response.json();
-    if (!Array.isArray(data.data) || data.totalCount > 100)
-      throw Error("공고 데이터 확인 필요");
-    return data.data as Row[];
-  }
-  const [details, models] = await Promise.all([
-    get("getAPTLttotPblancDetail"),
-    get("getAPTLttotPblancMdl"),
-  ]);
-  if (details.length !== 1 || !models.length)
-    throw Error("공고를 찾지 못했습니다");
-  return fromApplyhome(details[0], models);
+  if (!Number.isInteger(page) || page < 1) throw Error("공고 페이지 번호 확인 필요");
+  const url = new URL(`https://api.odcloud.kr/api/ApplyhomeInfoDetailSvc/v1/${endpoint}`);
+  for (const [k, v] of Object.entries({ serviceKey: key, page: String(page), perPage: "100", ...filters }))
+    url.searchParams.set(k, v);
+  const response = await fetcher(url, { signal: AbortSignal.timeout(15000), cache: "no-store" });
+  if (!response.ok) throw Error(`청약홈 ${endpoint} 조회 실패 (${response.status})`);
+  const result: unknown = await response.json();
+  if (!result || typeof result !== "object" || !("data" in result) || !("totalCount" in result))
+    throw Error("청약홈 응답 형식 확인 필요");
+  const { data, totalCount } = result as { data: unknown; totalCount: unknown };
+  if (!Array.isArray(data) || !data.every((v) => v && typeof v === "object" && !Array.isArray(v)) ||
+      typeof totalCount !== "number" || !Number.isInteger(totalCount) || totalCount < 0)
+    throw Error("청약홈 응답 자료 확인 필요");
+  return { data: data as Row[], totalCount };
 }
