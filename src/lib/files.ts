@@ -8,6 +8,7 @@ import { newId } from "./assistant";
 
 const MAX_INLINE_TEXT = 1_000_000;
 const MAX_BLOB_BYTES = 25_000_000;
+const MAX_IMAGE_BYTES = 5_000_000;
 const MAX_REMOTE_BYTES = 2_000_000;
 const MAX_REMOTE_REDIRECTS = 3;
 
@@ -70,13 +71,16 @@ function stripHtml(html: string): string {
 }
 
 export async function processUploadedFile(
-  email: string,
   file: File,
 ): Promise<UploadedFile> {
   if (file.size > MAX_BLOB_BYTES) {
     throw new Error(`File is too large (maximum ${MAX_BLOB_BYTES / 1_000_000} MB)`);
   }
   const kind = detectKind(file.name, file.type);
+  if (kind === "image" &&
+    (file.size > MAX_IMAGE_BYTES || !["image/png", "image/jpeg", "image/webp", "image/gif"].includes(file.type.toLowerCase()))) {
+    throw new Error("Only PNG, JPEG, WebP, or GIF images up to 5 MB are allowed");
+  }
   const id = newId("f");
   const now = Date.now();
   const buf = new Uint8Array(await file.arrayBuffer());
@@ -89,9 +93,10 @@ export async function processUploadedFile(
     createdAt: now,
   };
 
-  if (isBlobConfigured()) {
-    const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
-    const path = `assistant/${email.toLowerCase()}/${id}-${safeName}`;
+  // Text, PDF, and Word contents are kept in the account-scoped Redis record.
+  // Do not create unnecessary public copies of those personal documents.
+  if (isBlobConfigured() && kind === "image") {
+    const path = `assistant/${id}`;
     const result = await put(path, Buffer.from(buf), {
       access: "public",
       contentType: file.type || "application/octet-stream",

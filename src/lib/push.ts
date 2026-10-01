@@ -2,6 +2,7 @@ import { Redis } from "@upstash/redis";
 import webpush from "web-push";
 
 export type PushRecord = {
+  ownerEmail: string;
   endpoint: string;
   keys: { p256dh: string; auth: string };
   briefingHour: number;
@@ -53,26 +54,34 @@ function redis(): Redis {
 const subKey = (deviceId: string) => `push:sub:${deviceId}`;
 const hourKey = (h: number) => `push:hour:${h}`;
 
+export function isSubscriptionOwner(record: PushRecord | null, email: string): boolean {
+  return Boolean(record?.ownerEmail && record.ownerEmail === email.trim().toLowerCase());
+}
+
 export async function saveSubscription(
   deviceId: string,
   record: PushRecord,
-  oldHour?: number,
 ): Promise<void> {
   const r = redis();
+  const existing = await r.get<PushRecord>(subKey(deviceId));
+  if (existing?.ownerEmail && !isSubscriptionOwner(existing, record.ownerEmail)) throw new Error("forbidden");
   await r.set(subKey(deviceId), record);
-  if (oldHour !== undefined && oldHour !== record.briefingHour) {
-    await r.srem(hourKey(oldHour), deviceId);
+  if (existing && existing.briefingHour !== record.briefingHour) {
+    await r.srem(hourKey(existing.briefingHour), deviceId);
   }
   await r.sadd(hourKey(record.briefingHour), deviceId);
 }
 
 export async function removeSubscription(
   deviceId: string,
-  briefingHour: number,
+  ownerEmail: string,
 ): Promise<void> {
   const r = redis();
+  const existing = await r.get<PushRecord>(subKey(deviceId));
+  if (!existing) return;
+  if (!isSubscriptionOwner(existing, ownerEmail)) throw new Error("forbidden");
   await r.del(subKey(deviceId));
-  await r.srem(hourKey(briefingHour), deviceId);
+  await r.srem(hourKey(existing.briefingHour), deviceId);
 }
 
 export async function getSubscription(

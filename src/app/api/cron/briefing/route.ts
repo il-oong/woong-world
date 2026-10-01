@@ -221,12 +221,10 @@ export async function GET(req: NextRequest) {
       const script = await generateBriefingScript(secretaryName, events, plans, mode, performance);
       const audioBuffer = await synthesize(script, voiceId);
 
-      const dateStr = now.toISOString().slice(0, 10);
-      const safeEmail = email.replace(/[^a-zA-Z0-9]/g, "_");
       const { url: audioUrl } = await put(
-        `briefings/${safeEmail}/${dateStr}-auto.mp3`,
+        `briefings/${crypto.randomUUID()}.mp3`,
         audioBuffer,
-        { access: "public", contentType: "audio/mpeg", allowOverwrite: true },
+        { access: "public", contentType: "audio/mpeg" },
       );
 
       await saveBriefingCache(email, { audioUrl, script, generatedAt: Date.now() });

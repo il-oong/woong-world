@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getValidSession } from "@/lib/google";
 
 const GEMINI_MODEL = "gemini-2.5-flash";
 const GEMINI_ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
@@ -93,12 +94,16 @@ RSI, 이동평균, 거래량, 모멘텀 데이터를 기반으로 매수/매도 
 }
 
 export async function GET(req: NextRequest) {
+  const session = await getValidSession();
+  if (!session?.email) {
+    return NextResponse.json({ error: "not_connected" }, { status: 401 });
+  }
   const { searchParams } = req.nextUrl;
   const rawTicker = (searchParams.get("ticker") ?? "").toUpperCase().trim();
   const market = (searchParams.get("market") ?? "KR").toUpperCase();
 
-  if (!rawTicker) {
-    return NextResponse.json({ error: "ticker 파라미터가 필요합니다" }, { status: 400 });
+  if (!/^[A-Z0-9.^-]{1,20}$/.test(rawTicker) || (market !== "KR" && market !== "US")) {
+    return NextResponse.json({ error: "invalid_ticker" }, { status: 400 });
   }
 
   const yTicker = market === "KR" ? `${rawTicker}.KS` : rawTicker;

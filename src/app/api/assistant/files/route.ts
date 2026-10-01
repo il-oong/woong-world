@@ -45,13 +45,14 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const processed = await processUploadedFile(session.email, file);
+    const processed = await processUploadedFile(file);
     await addFile(session.email, processed);
     return Response.json({ file: processed });
   } catch (e) {
+    const message = e instanceof Error ? e.message : "upload_failed";
     return Response.json(
-      { error: e instanceof Error ? e.message : "upload_failed" },
-      { status: 500 },
+      { error: message },
+      { status: message.includes("too large") || message.includes("5 MB") ? 413 : 500 },
     );
   }
 }
