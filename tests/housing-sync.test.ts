@@ -16,7 +16,7 @@ test("daily collection validates detail and model pages before publishing", asyn
   const read: typeof fetchApplyhomePage = async (endpoint, page, filters) => {
     calls.push(`${endpoint}:${page}`);
     if (endpoint === "getAPTLttotPblancDetail") {
-      assert.equal(filters?.["cond[RCRIT_PBLANC_DE::GTE]"], "2026-08-16");
+      assert.equal(filters?.["cond[RCRIT_PBLANC_DE::GTE]"], "2026-06-02");
       return { data: [row], totalCount: 1 };
     }
     assert.equal(filters?.["cond[PBLANC_NO::EQ]"], row.PBLANC_NO);
@@ -27,6 +27,23 @@ test("daily collection validates detail and model pages before publishing", asyn
   assert.equal(result.notices[0].units[0].price, 800000000);
   assert.equal(result.notices[0].reviewedAt, null);
   assert.equal(mergeCatalog({}, result.notices).length, 2);
+});
+
+test("official API uses filtered matchCount rather than all-time totalCount", async () => {
+  const previous = process.env.APPLYHOME_SERVICE_KEY;
+  process.env.APPLYHOME_SERVICE_KEY = "test-key";
+  try {
+    const fetcher: typeof fetch = async (input) => {
+      const url = new URL(String(input));
+      assert.equal(url.searchParams.get("cond[RCRIT_PBLANC_DE::GTE]"), "2026-06-02");
+      return new Response(JSON.stringify({ data: [row], totalCount: 2885, matchCount: 1 }), { status: 200 });
+    };
+    const result = await fetchApplyhomePage("getAPTLttotPblancDetail", 1, { "cond[RCRIT_PBLANC_DE::GTE]": "2026-06-02" }, fetcher);
+    assert.equal(result.totalCount, 1);
+  } finally {
+    if (previous === undefined) delete process.env.APPLYHOME_SERVICE_KEY;
+    else process.env.APPLYHOME_SERVICE_KEY = previous;
+  }
 });
 
 test("incomplete model response rejects the complete update", async () => {

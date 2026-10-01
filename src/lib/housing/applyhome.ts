@@ -94,9 +94,12 @@ export async function fetchApplyhomePage(
   const result: unknown = await response.json();
   if (!result || typeof result !== "object" || !("data" in result) || !("totalCount" in result))
     throw Error("청약홈 응답 형식 확인 필요");
-  const { data, totalCount } = result as { data: unknown; totalCount: unknown };
+  const { data, totalCount, matchCount } = result as { data: unknown; totalCount: unknown; matchCount?: unknown };
   if (!Array.isArray(data) || !data.every((v) => v && typeof v === "object" && !Array.isArray(v)) ||
       typeof totalCount !== "number" || !Number.isInteger(totalCount) || totalCount < 0)
     throw Error("청약홈 응답 자료 확인 필요");
-  return { data: data as Row[], totalCount };
+  if (Object.keys(filters).length &&
+      (typeof matchCount !== "number" || !Number.isInteger(matchCount) || matchCount < 0))
+    throw Error("청약홈 검색 결과 건수를 확인할 수 없습니다");
+  return { data: data as Row[], totalCount: Object.keys(filters).length ? matchCount as number : totalCount };
 }

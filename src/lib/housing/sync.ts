@@ -3,15 +3,15 @@ import { dateSchema, type Notice, todayKst } from "./model";
 
 type Page = { data: ApplyhomeRow[]; totalCount: number };
 type Reader = typeof fetchApplyhomePage;
-const LIMIT = 500;
+const LIMIT = 300;
 
 export async function collectHousing(now = new Date(), read: Reader = fetchApplyhomePage): Promise<{ updatedAt: string; notices: Notice[] }> {
   const today = todayKst(now);
   const cutoff = new Date(`${today}T00:00:00+09:00`);
-  cutoff.setUTCDate(cutoff.getUTCDate() - 45);
+  cutoff.setUTCDate(cutoff.getUTCDate() - 120);
   const filters = { "cond[RCRIT_PBLANC_DE::GTE]": todayKst(cutoff) };
   const first: Page = await read("getAPTLttotPblancDetail", 1, filters);
-  if (first.totalCount > LIMIT) throw Error(`최근 45일 공고 ${first.totalCount}건이 안전 한도 ${LIMIT}건을 초과했습니다. 수집 범위를 점검하세요.`);
+  if (first.totalCount > LIMIT) throw Error(`최근 120일 공고 ${first.totalCount}건이 안전 한도 ${LIMIT}건을 초과했습니다. 수집 범위를 점검하세요.`);
   const rows = [...first.data];
   for (let page = 2; rows.length < first.totalCount; page++) {
     const next = await read("getAPTLttotPblancDetail", page, filters);
