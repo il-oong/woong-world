@@ -16,7 +16,7 @@ test("daily collection validates detail and model pages before publishing", asyn
   const read: typeof fetchApplyhomePage = async (endpoint, page, filters) => {
     calls.push(`${endpoint}:${page}`);
     if (endpoint === "getAPTLttotPblancDetail") {
-      assert.equal(filters?.["cond[RCRIT_PBLANC_DE::GTE]"], "2026-06-02");
+      assert.equal(filters?.["cond[RCRIT_PBLANC_DE::GTE]"], "2026-08-16");
       return { data: [row], totalCount: 1 };
     }
     assert.equal(filters?.["cond[PBLANC_NO::EQ]"], row.PBLANC_NO);
