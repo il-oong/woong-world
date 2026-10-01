@@ -19,7 +19,7 @@ import {
   rankNotices,
 } from "@/lib/housing/scoring";
 import { isClosed } from "@/lib/housing/model";
-import { mapProviderQuery, mapSearchQuery, mapSearchUrl } from "@/lib/housing/map-search";
+import { mapPreview, mapProviderQuery, mapSearchQuery, mapSearchUrl } from "@/lib/housing/map-search";
 import {
   Bars,
   button,
@@ -54,6 +54,8 @@ export function Detail({
   ).filter((r) => r.assessment.total !== null && !r.assessment.blockers.length);
   const rank = ranked.findIndex((v) => v.notice.id === n.id) + 1;
   const flows = funding(unit, data.profile ?? emptyProfile());
+  const preview = n.point ? null : mapPreview(n);
+  const displayedPoint = n.point ?? preview?.point;
   const monthly =
     data.profile?.loan !== null && data.profile
       ? monthlyPayment(
@@ -228,14 +230,17 @@ export function Detail({
               공급 위치 요약: {mapSearchQuery(n.address, n.title)}
             </p>
           )}
-          {n.point ? (
-            <iframe
-              title={`${n.title} 위치 지도`}
-              loading="lazy"
-              referrerPolicy="no-referrer"
-              className="h-72 w-full rounded-xl border-0"
-              src={`https://www.openstreetmap.org/export/embed.html?bbox=${n.point.lng - 0.012},${n.point.lat - 0.008},${n.point.lng + 0.012},${n.point.lat + 0.008}&layer=mapnik&marker=${n.point.lat},${n.point.lng}`}
-            />
+          {displayedPoint ? (
+            <div>
+              <iframe
+                title={`${n.title} 위치 지도`}
+                loading="lazy"
+                referrerPolicy="no-referrer"
+                className="h-72 w-full rounded-xl border-0"
+                src={`https://maps.google.com/maps?q=${displayedPoint.lat},${displayedPoint.lng}&z=15&output=embed`}
+              />
+              {preview && <p className="mt-2 text-xs text-amber-200">카카오맵에 등록된 예정 단지 위치입니다(2026.10.01. 확인). 공고가 확정한 출입구 좌표는 아닙니다.</p>}
+            </div>
           ) : n.locationImageUrl ? (
             <div className="rounded-xl bg-white p-3">
               {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -250,17 +255,17 @@ export function Detail({
           <div className="mt-4 flex flex-wrap gap-2">
             {n.address && (
               <External
-                href={mapSearchUrl(n)}
+                href={preview?.sourceUrl ?? mapSearchUrl(n)}
               >
-                {n.locationUrl ? "지도·길찾기" : "지도에서 검색"}
+                {n.locationUrl || preview ? "지도·길찾기" : "지도에서 검색"}
               </External>
             )}
             <button
               className={button}
-              disabled={busy || !data.profile}
+              disabled={busy || !data.profile || !n.point}
               onClick={traffic}
             >
-              {busy ? "조회 중…" : "내 직장까지 교통 조회"}
+              {busy ? "조회 중…" : !n.point && data.profile ? "교통 경로 좌표 확인 중" : "내 직장까지 교통 조회"}
             </button>
           </div>
           <p role="status" className="mt-3 text-sm text-amber-200">
@@ -270,7 +275,7 @@ export function Detail({
             {a.metrics.transport.reason}
           </p>
           <p className="mt-2 text-xs text-slate-500">
-            {n.point === null && !n.locationUrl && "검색 결과가 실제 공급 블록인지 공고 원문과 대조해주세요. "}
+            {n.point === null && "정확한 출입구 좌표가 확인되기 전에는 통근 경로를 계산하지 않습니다. "}
             교통 조회는 일반 경로 예상치입니다. 출근 시간의 혼잡·실시간 지연은
             반영하지 않습니다.
           </p>

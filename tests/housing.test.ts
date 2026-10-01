@@ -16,7 +16,7 @@ import {
 } from "../src/lib/housing/model";
 import { fromApplyhome } from "../src/lib/housing/applyhome";
 import { catalog, mergeCatalog } from "../src/lib/housing/catalog";
-import { mapProviderQuery, mapSearchQuery, mapSearchUrl } from "../src/lib/housing/map-search";
+import { mapPreview, mapProviderQuery, mapSearchQuery, mapSearchUrl } from "../src/lib/housing/map-search";
 import feed from "../src/data/housing-feed.json";
 const today = "2026-09-30";
 test("a multi-city supply address searches the actual project block", () => {
@@ -29,6 +29,9 @@ test("a multi-city supply address searches the actual project block", () => {
   assert.equal(mapProviderQuery(a17.address, a17.title), "인천계양 A17");
   assert.equal(decodeURIComponent(mapSearchUrl(a6).split("/search/")[1]), "인천계양 A6");
   assert.equal(mapSearchUrl(catalog[0]), catalog[0].locationUrl);
+  assert.deepEqual(mapPreview(a6)?.point, { lat: 37.5526540270373, lng: 126.75619766034752 });
+  assert.equal(mapPreview(a17)?.sourceUrl, "https://place.map.kakao.com/1329340730");
+  assert.equal(mapPreview({ ...a6, address: "다른 지역 다른 블록" }), null);
 });
 test("verified public notice survives missing Redis, while deletion and corrections override it", () => {
   const notice = catalog[0];

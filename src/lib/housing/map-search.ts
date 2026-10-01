@@ -26,3 +26,28 @@ export function mapSearchUrl(notice: Pick<Notice, "address" | "title" | "locatio
   const query = mapProviderQuery(notice.address, notice.title);
   return `https://map.kakao.com/link/search/${encodeURIComponent(query)}`;
 }
+
+// These are registered place markers for planned apartments, not surveyed
+// building entrances. Keep them separate from Notice.point, which powers
+// route calculations, and recheck the block label if an official notice changes.
+const gyeyangPlaces = {
+  "2026000414": {
+    block: "A6",
+    point: { lat: 37.5526540270373, lng: 126.75619766034752 },
+    sourceUrl: "https://place.map.kakao.com/656918402",
+  },
+  "2026820010": {
+    block: "A17",
+    point: { lat: 37.5446256715147, lng: 126.755096766738 },
+    sourceUrl: "https://place.map.kakao.com/1329340730",
+  },
+} as const;
+
+export function mapPreview(notice: Pick<Notice, "id" | "address" | "title">) {
+  const place = gyeyangPlaces[notice.id as keyof typeof gyeyangPlaces];
+  if (!place) return null;
+  return mapSearchQuery(notice.address, notice.title) ===
+    `인천계양 테크노밸리 공공주택지구 ${place.block}블록`
+    ? place
+    : null;
+}
