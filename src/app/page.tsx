@@ -9,6 +9,7 @@ import type { SecretaryProfile } from "@/lib/secretary";
 export default function HomePage() {
   const [profile, setProfile] = useState<SecretaryProfile | null | undefined>(undefined);
   const [connected, setConnected] = useState<boolean | undefined>(undefined);
+  const [accountEmail, setAccountEmail] = useState<string | null>(null);
   const [showSetup, setShowSetup] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
 
@@ -16,17 +17,19 @@ export default function HomePage() {
     fetch("/api/secretary").then(async (r) => {
       if (r.status === 401) {
         setConnected(false);
+        setAccountEmail(null);
         setProfile(null);
         return;
       }
       setConnected(true);
       if (r.ok) {
-        const d = (await r.json()) as { profile: SecretaryProfile | null };
+        const d = (await r.json()) as { profile: SecretaryProfile | null; email: string };
         setProfile(d.profile);
+        setAccountEmail(d.email);
       } else {
         setProfile(null);
       }
-    }).catch(() => { setConnected(false); setProfile(null); });
+    }).catch(() => { setConnected(false); setAccountEmail(null); setProfile(null); });
   }, []);
 
   useEffect(() => {
@@ -115,6 +118,7 @@ export default function HomePage() {
                   ? "오늘 플러그인 상태를 확인해드릴게요."
                   : "오늘도 좋은 하루 되세요."}
               </p>
+              {accountEmail && <p className="mt-2 text-xs text-[var(--muted)]">내 Google 계정: {accountEmail}</p>}
             </div>
 
             {profile !== null && (
@@ -134,7 +138,7 @@ export default function HomePage() {
             )}
           </header>
 
-          <HomeDashboard isAdmin={isAdmin} secretaryName={profile?.name ?? "비서"} />
+          <HomeDashboard key={accountEmail} isAdmin={isAdmin} secretaryName={profile?.name ?? "비서"} />
 
           {isAdmin && <HubGrid />}
         </div>

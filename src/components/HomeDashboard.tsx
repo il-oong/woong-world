@@ -9,21 +9,12 @@ import StockBanner from "./Alpha/StockBanner";
 import HomeLifeWidget from "./HomeLifeWidget";
 import HomePlansWidget from "./HomePlansWidget";
 import HomeMemoWidget from "./HomeMemoWidget";
-
-type WidgetId =
-  | "briefing"
-  | "calendar"
-  | "plans"
-  | "life-dashboard"
-  | "memo"
-  | "alpha";
-
-const STORAGE_KEY = "wh-dashboard-config";
-
-type DashboardConfig = {
-  order: WidgetId[];
-  hidden: WidgetId[];
-};
+import {
+  defaultDashboardConfig,
+  parseDashboardConfig,
+  type DashboardConfig,
+  type WidgetId,
+} from "@/lib/dashboard-config";
 
 type WidgetMeta = {
   id: WidgetId;
@@ -41,37 +32,6 @@ const WIDGET_META: Record<WidgetId, WidgetMeta> = {
   alpha: { id: "alpha", label: "ALPHA 투자 분석", span: 2 },
 };
 
-const DEFAULT_ORDER: WidgetId[] = [
-  "briefing",
-  "calendar",
-  "plans",
-  "life-dashboard",
-  "memo",
-  "alpha",
-];
-
-function loadConfig(): DashboardConfig {
-  if (typeof window === "undefined") {
-    return { order: DEFAULT_ORDER, hidden: [] };
-  }
-  try {
-    const stored = window.localStorage.getItem(STORAGE_KEY);
-    if (!stored) return { order: DEFAULT_ORDER, hidden: [] };
-    const parsed = JSON.parse(stored) as Partial<DashboardConfig>;
-    return {
-      order: Array.isArray(parsed.order) ? (parsed.order as WidgetId[]) : DEFAULT_ORDER,
-      hidden: Array.isArray(parsed.hidden) ? (parsed.hidden as WidgetId[]) : [],
-    };
-  } catch {
-    return { order: DEFAULT_ORDER, hidden: [] };
-  }
-}
-
-function saveConfig(c: DashboardConfig) {
-  if (typeof window === "undefined") return;
-  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(c));
-}
-
 export function HomeDashboard({
   isAdmin,
   secretaryName,
@@ -79,21 +39,57 @@ export function HomeDashboard({
   isAdmin: boolean;
   secretaryName: string;
 }) {
-  const [config, setConfig] = useState<DashboardConfig>({
-    order: DEFAULT_ORDER,
-    hidden: [],
-  });
+  const [config, setConfig] = useState<DashboardConfig>(defaultDashboardConfig);
   const [editMode, setEditMode] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [configError, setConfigError] = useState("");
 
   useEffect(() => {
-    setConfig(loadConfig());
-    setMounted(true);
+    let cancelled = false;
+    fetch("/api/dashboard/preferences")
+      .then(async (response) => {
+        if (!response.ok) throw new Error("위젯 설정을 불러오지 못했습니다.");
+        const data = (await response.json()) as { config: unknown; saved: boolean; canMigrateLegacy: boolean };
+        if (!data.saved && data.canMigrateLegacy) {
+          const legacy = window.localStorage.getItem("wh-dashboard-config");
+          if (legacy) {
+            try {
+              const previous = parseDashboardConfig(JSON.parse(legacy));
+              const migrated = await fetch("/api/dashboard/preferences", {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(previous),
+              });
+              if (migrated.ok) return previous;
+            } catch { /* Ignore malformed old browser preferences. */ }
+          }
+        }
+        return parseDashboardConfig(data.config);
+      })
+      .then((next) => { if (!cancelled) setConfig(next); })
+      .catch(() => { if (!cancelled) setConfigError("위젯 설정을 불러오지 못했습니다."); })
+      .finally(() => { if (!cancelled) setMounted(true); });
+    return () => { cancelled = true; };
   }, []);
 
-  const updateConfig = (next: DashboardConfig) => {
-    setConfig(next);
-    saveConfig(next);
+  const updateConfig = async (next: DashboardConfig) => {
+    if (saving) return;
+    setSaving(true);
+    setConfigError("");
+    try {
+      const response = await fetch("/api/dashboard/preferences", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(next),
+      });
+      if (!response.ok) throw new Error("위젯 설정을 저장하지 못했습니다.");
+      setConfig(next);
+    } catch {
+      setConfigError("위젯 설정을 저장하지 못했습니다.");
+    } finally {
+      setSaving(false);
+    }
   };
 
   const availableIds: WidgetId[] = (Object.keys(WIDGET_META) as WidgetId[]).filter(
@@ -122,15 +118,15 @@ export function HomeDashboard({
     const toAll = allOrdered.indexOf(targetId);
     const newOrder = [...allOrdered];
     [newOrder[fromAll], newOrder[toAll]] = [newOrder[toAll], newOrder[fromAll]];
-    updateConfig({ ...config, order: newOrder });
+    void updateConfig({ ...config, order: newOrder });
   };
 
   const hide = (id: WidgetId) => {
-    updateConfig({ ...config, hidden: [...config.hidden, id] });
+    void updateConfig({ ...config, hidden: [...config.hidden, id] });
   };
 
   const unhide = (id: WidgetId) => {
-    updateConfig({ ...config, hidden: config.hidden.filter((x) => x !== id) });
+    void updateConfig({ ...config, hidden: config.hidden.filter((x) => x !== id) });
   };
 
   return (
@@ -140,6 +136,7 @@ export function HomeDashboard({
         <button
           type="button"
           onClick={() => setEditMode((v) => !v)}
+          disabled={!mounted || saving}
           className={`rounded-md border px-3 py-1 text-xs transition ${
             editMode
               ? "border-[var(--accent)]/60 bg-[var(--accent)]/10 text-[var(--accent)]"
@@ -149,6 +146,7 @@ export function HomeDashboard({
           {editMode ? "편집 완료" : "위젯 편집"}
         </button>
       </div>
+      {configError && <p role="alert" className="mb-4 text-xs text-rose-300">{configError}</p>}
 
       <div className="grid gap-4 lg:grid-cols-2">
         {visible.map((id, idx) => {
@@ -163,7 +161,7 @@ export function HomeDashboard({
                     <button
                       type="button"
                       onClick={() => move(id, -1)}
-                      disabled={idx === 0}
+                      disabled={saving || idx === 0}
                       className="rounded px-1.5 py-0.5 text-[var(--muted)] transition hover:bg-white/5 hover:text-foreground disabled:opacity-30"
                       aria-label="위로"
                     >
@@ -172,7 +170,7 @@ export function HomeDashboard({
                     <button
                       type="button"
                       onClick={() => move(id, 1)}
-                      disabled={idx === visible.length - 1}
+                      disabled={saving || idx === visible.length - 1}
                       className="rounded px-1.5 py-0.5 text-[var(--muted)] transition hover:bg-white/5 hover:text-foreground disabled:opacity-30"
                       aria-label="아래로"
                     >
@@ -181,6 +179,7 @@ export function HomeDashboard({
                     <button
                       type="button"
                       onClick={() => hide(id)}
+                      disabled={saving}
                       className="rounded px-1.5 py-0.5 text-[var(--muted)] transition hover:bg-rose-500/10 hover:text-rose-300"
                     >
                       숨김
@@ -207,6 +206,7 @@ export function HomeDashboard({
                 key={id}
                 type="button"
                 onClick={() => unhide(id)}
+                disabled={saving}
                 className="rounded-md border border-[var(--border)] px-3 py-1 text-xs text-[var(--muted)] hover:border-[var(--accent)]/40 hover:text-foreground"
               >
                 + {WIDGET_META[id].label}

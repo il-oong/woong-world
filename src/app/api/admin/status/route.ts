@@ -1,11 +1,13 @@
-import { getAdminEmail, isAdminSession } from "@/lib/admin";
+import { isAdminEmail, isSuperAdminEmail } from "@/lib/admin";
+import { getValidSession } from "@/lib/google";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  const isAdmin = await isAdminSession();
+  const session = await getValidSession();
+  const isAdmin = await isAdminEmail(session?.email);
   return Response.json({
     isAdmin,
-    adminEmail: getAdminEmail(),
+    isSuperAdmin: isSuperAdminEmail(session?.email),
   });
 }

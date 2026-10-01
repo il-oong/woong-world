@@ -142,8 +142,8 @@ export async function fetchUserEmail(accessToken: string): Promise<string | null
     headers: { Authorization: `Bearer ${accessToken}` },
   });
   if (!res.ok) return null;
-  const data = (await res.json()) as { email?: string };
-  return data.email ?? null;
+  const data = (await res.json()) as { email?: string; verified_email?: boolean };
+  return data.verified_email && data.email ? data.email.trim().toLowerCase() : null;
 }
 
 export async function refreshSession(

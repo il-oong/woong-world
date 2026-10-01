@@ -4,31 +4,29 @@ import { useEffect, useState } from "react";
 
 type Data = { super: string; extras: string[] };
 
-export function AdminPeoplePanel() {
+export function AdminPeoplePanel({ canManage }: { canManage: boolean }) {
   const [data, setData] = useState<Data | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [newEmail, setNewEmail] = useState("");
   const [busy, setBusy] = useState(false);
 
-  const load = async () => {
-    try {
-      const res = await fetch("/api/admin/list");
-      const d = (await res.json().catch(() => ({}))) as Partial<Data> & {
-        error?: string;
-      };
-      if (!res.ok) {
-        setErr(d.error ?? `http_${res.status}`);
-        return;
-      }
-      setData({ super: d.super ?? "", extras: d.extras ?? [] });
-      setErr(null);
-    } catch (e) {
-      setErr(e instanceof Error ? e.message : "load_failed");
-    }
-  };
-
   useEffect(() => {
-    void load();
+    let cancelled = false;
+    fetch("/api/admin/list")
+      .then(async (res) => {
+        const data = (await res.json().catch(() => ({}))) as Partial<Data> & { error?: string };
+        if (!res.ok) throw new Error(data.error ?? `http_${res.status}`);
+        return data;
+      })
+      .then((data) => {
+        if (cancelled) return;
+        setData({ super: data.super ?? "", extras: data.extras ?? [] });
+        setErr(null);
+      })
+      .catch((error: unknown) => {
+        if (!cancelled) setErr(error instanceof Error ? error.message : "load_failed");
+      });
+    return () => { cancelled = true; };
   }, []);
 
   const add = async () => {
@@ -80,7 +78,9 @@ export function AdminPeoplePanel() {
 
   if (!data) {
     return (
-      <p className="text-xs text-[var(--muted)]">불러오는 중...</p>
+      <p role={err ? "alert" : "status"} className="text-xs text-[var(--muted)]">
+        {err ? humanError(err) : "불러오는 중..."}
+      </p>
     );
   }
 
@@ -112,20 +112,20 @@ export function AdminPeoplePanel() {
                 className="flex items-center justify-between rounded-md border border-[var(--border)] bg-black/20 px-3 py-2 text-sm"
               >
                 <span className="font-mono">{email}</span>
-                <button
+                {canManage && <button
                   type="button"
                   onClick={() => void remove(email)}
                   disabled={busy}
                   className="rounded-md border border-[var(--border)] px-2 py-1 text-[11px] text-[var(--muted)] transition hover:border-rose-400/40 hover:text-rose-300 disabled:opacity-40"
                 >
                   제거
-                </button>
+                </button>}
               </li>
             ))
           )}
         </ul>
 
-        <div className="mt-4 flex gap-2">
+        {canManage && <div className="mt-4 flex gap-2">
           <input
             type="email"
             value={newEmail}
@@ -147,14 +147,16 @@ export function AdminPeoplePanel() {
           >
             추가
           </button>
-        </div>
+        </div>}
 
         {err && (
           <p className="mt-3 text-xs text-rose-300">{err}</p>
         )}
 
         <p className="mt-3 text-[11px] leading-relaxed text-[var(--muted)]">
-          상대가 그 Google 계정으로 비서에 로그인하면 즉시 관리자 권한 적용. 이메일 주소는 Google 로그인 시 사용하는 주소와 정확히 일치해야 합니다.
+          {canManage
+            ? "상대가 등록한 Google 계정으로 로그인하면 관리자 권한이 적용됩니다. 이메일 주소는 Google 로그인 계정과 정확히 일치해야 합니다."
+            : "관리자 지정과 해제는 기본 관리자만 할 수 있습니다."}
         </p>
       </section>
     </div>
@@ -171,6 +173,8 @@ function humanError(code?: string): string {
       return "Redis 연결이 안 되어 있어 저장할 수 없습니다.";
     case "not_admin":
       return "관리자 권한이 필요합니다.";
+    case "not_owner":
+      return "기본 관리자만 권한을 변경할 수 있습니다.";
     default:
       return code ?? "알 수 없는 오류";
   }

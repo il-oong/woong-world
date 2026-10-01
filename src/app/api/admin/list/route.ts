@@ -1,6 +1,7 @@
 import {
   addAdmin,
   isAdminSession,
+  isSuperAdminSession,
   listAdmins,
   removeAdmin,
 } from "@/lib/admin";
@@ -16,8 +17,8 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
-  if (!(await isAdminSession())) {
-    return Response.json({ error: "not_admin" }, { status: 403 });
+  if (!(await isSuperAdminSession())) {
+    return Response.json({ error: "not_owner" }, { status: 403 });
   }
   let body: { email?: unknown };
   try {
@@ -38,8 +39,8 @@ export async function POST(req: Request) {
 }
 
 export async function DELETE(req: Request) {
-  if (!(await isAdminSession())) {
-    return Response.json({ error: "not_admin" }, { status: 403 });
+  if (!(await isSuperAdminSession())) {
+    return Response.json({ error: "not_owner" }, { status: 403 });
   }
   const email = new URL(req.url).searchParams.get("email") ?? "";
   try {

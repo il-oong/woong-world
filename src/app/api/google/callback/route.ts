@@ -37,11 +37,12 @@ export async function GET(req: NextRequest) {
       return NextResponse.redirect(retryUrl);
     }
     const email = await fetchUserEmail(tokens.access_token);
+    if (!email) throw new Error("verified_email_required");
     const session = {
       accessToken: tokens.access_token,
       refreshToken: tokens.refresh_token,
       expiresAt: Date.now() + tokens.expires_in * 1000,
-      email: email ?? undefined,
+      email,
     };
     await writeSession(session);
     await saveSessionToRedis(session).catch(() => {});
