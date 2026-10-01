@@ -21,7 +21,7 @@ export const catalog: Notice[] = [noticeSchema.parse({
   moveInNote: "2029년 3월 예정 · 지정일 추후 안내",
   priceNote: "주택형별 최고층 구간 공급금액 기준(원문 9~10쪽). 실제 동·층에 따라 달라집니다. 계약금 10%(1차 3천만원, 2차 1개월 내 나머지), 중도금 40%, 잔금 50%. 옵션·세금 등 별도.",
   locationUrl: "https://place.map.kakao.com/328464023",
-  locationImageUrl: `${website}/resources/img/sub/contact_map.v100.png`,
+  locationImageUrl: "/housing/gwangmyeong/location.png",
   events: [
     { label: "특별공급 접수 시작", date: "2026-09-29", type: "open", time: "09:00" },
     { label: "특별공급 접수 마감", date: "2026-09-29", type: "close", time: "17:30" },
@@ -38,7 +38,7 @@ export const catalog: Notice[] = [noticeSchema.parse({
   units: units.map(([id, area, price]) => ({
     id, name: id, area, price,
     floorPlanUrl: `${website}/pages/unit?tab=${id}`,
-    floorPlanImageUrl: `${website}/resources/data/cyber/${id}/unit_iso.jpg`,
+    floorPlanImageUrl: `/housing/gwangmyeong/${id}.jpg`,
     payments: [
       { label: "계약금 1차 · 계약 시", date: null, amount: 30000000 },
       { label: "계약금 2차 · 계약 후 1개월 내", date: null, amount: price / 10 - 30000000 },

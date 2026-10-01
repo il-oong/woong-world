@@ -329,7 +329,7 @@ export function Detail({
           옵션·세금·이사비·관리비·대출 부대비용은 제외했습니다.
         </p>
         {n.priceNote && <p className="mt-3 text-sm text-amber-200">{n.priceNote}</p>}
-        {unit.payments.some((p) => p.date === null) && <p className="mt-3 text-sm text-amber-200">계약일·입주지정일 등 미확정 날짜가 있어 가용 자금·부족액·돈 점수 계산을 보류합니다. 납부액은 아래에서 확인할 수 있습니다.</p>}
+        {flows.some((f) => f.estimated) && <p className="mt-3 text-sm text-amber-200">날짜가 미정인 납부액은 현재 입력한 자금 기준입니다. 날짜가 정해진 행에서만 월 저축액을 반영합니다. 입력하지 않은 저축액·대출액은 0원으로 둔 임시 계산이며, 전체 자금·돈 점수의 확정 판단은 보류합니다.</p>}
         {!data.profile && flows.length > 0 && <Link className={`${button} mt-3`} href="/housing/profile">내 정보 등록하기</Link>}
         {flows.length ? (
           <div className="mt-5 overflow-x-auto">
@@ -354,6 +354,7 @@ export function Detail({
                   <tr key={i} className="border-b border-white/5">
                     <td className="py-4 pr-4">
                       {f.label}
+                      {f.estimated && <span className="ml-2 text-xs text-amber-200">임시 계산</span>}
                       <span className="block text-xs text-slate-500">
                         {f.date ?? "개별 날짜 확인 필요"}
                         {f.past ? " · 지난 일정" : ""}

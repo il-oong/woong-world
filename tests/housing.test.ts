@@ -24,11 +24,17 @@ test("verified public notice survives missing Redis, while deletion and correcti
   assert.equal(mergeCatalog({ [notice.id]: { ...notice, title: "정정 공고" } }).find((n) => n.id === notice.id)?.title, "정정 공고");
 });
 
-test("undated contractual payments show amounts without inventing cash availability", () => {
+test("undated payments compare entered cash without inventing saving months or verified money score", () => {
   const unit = catalog[0].units[0];
   assert.equal(unit.payments.reduce((sum, payment) => sum + payment.amount, 0), unit.price);
   assert.deepEqual(unit.payments.slice(2, 6).map((p) => p.date), ["2027-04-30", "2027-11-30", "2028-05-31", "2028-11-30"]);
-  assert.ok(funding(unit, profile, today).every((p) => p.available === null && p.shortfall === null));
+  const rows = funding(unit, profile, today);
+  assert.equal(rows[0].available, profile.cash);
+  assert.equal(rows[0].estimated, true);
+  assert.equal(rows[2].estimated, false);
+  assert.ok(rows[2].available! > profile.cash!);
+  assert.equal(rows.at(-1)?.available, profile.cash! + profile.loan!);
+  assert.equal(funding(unit, { ...profile, monthlySaving: null, loan: null }, today)[0].available, profile.cash);
   assert.equal(assess(catalog[0], unit, profile, null, today).metrics.money.value, null);
 });
 test("an incomplete unit cannot hide a known cash shortfall in the representative card", () => {
