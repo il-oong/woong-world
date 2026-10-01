@@ -56,6 +56,25 @@ test("verified public notice survives missing Redis, while deletion and correcti
   assert.equal(mergeCatalog({ [notice.id]: { ...notice, title: "정정 공고" } }).find((n) => n.id === notice.id)?.title, "정정 공고");
 });
 
+test("Gyeyang A17 uses the reviewed LH document instead of generic APT priority dates", () => {
+  const notice = mergeCatalog().find((item) => item.id === "2026820010");
+  assert.ok(notice);
+  assert.equal(notice.reviewedAt, "2026-10-01");
+  assert.equal(notice.rules.length, 7);
+  assert.equal(notice.requirements.accountMonths, 6);
+  assert.equal(notice.requirements.accountDeposit, 0);
+  assert.ok(notice.events.some((event) => event.date === "2026-10-26" && event.label.includes("본청약")));
+  assert.ok(!notice.events.some((event) => event.label.includes("1순위")));
+  assert.match(notice.rules.find((rule) => rule.key === "resale")?.summary ?? "", /3년/);
+  const changedFeed = feed.notices.find((item) => item.id === notice.id);
+  assert.ok(changedFeed);
+  const stale = mergeCatalog({}, [{ ...changedFeed, units: changedFeed.units.map((unit, index) => index === 0
+    ? { ...unit, price: (unit.price ?? 0) + 10000 }
+    : unit) }]).find((item) => item.id === notice.id);
+  assert.equal(stale?.reviewedAt, null);
+  assert.equal(stale?.rules.length, 0);
+});
+
 test("undated payments compare entered cash without inventing saving months or verified money score", () => {
   const unit = catalog[0].units[0];
   assert.equal(unit.payments.reduce((sum, payment) => sum + payment.amount, 0), unit.price);

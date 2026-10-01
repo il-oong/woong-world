@@ -119,10 +119,11 @@ export function assess(
     ["통장 가입 개월", req.accountMonths, p.accountMonths],
     ["통장 예치금", req.accountDeposit, p.accountDeposit],
   ] as const) {
+    const noDepositRequired = label === "통장 예치금" && min === 0;
     const status =
-      !n.reviewedAt || min === null || actual === null
+      !n.reviewedAt || min === null || (actual === null && !noDepositRequired)
         ? "unknown"
-        : actual >= min
+        : noDepositRequired || (actual !== null && actual >= min)
           ? "pass"
           : "fail";
     checks.push({
@@ -131,7 +132,9 @@ export function assess(
       detail:
         min === null
           ? "공고 확인 필요"
-          : `공고 기준 ${min.toLocaleString()} 이상`,
+          : noDepositRequired
+            ? "공고상 별도 예치금 기준 없음"
+            : `공고 기준 ${min.toLocaleString()} 이상`,
     });
     if (status === "fail") blockers.push(`${label} 부족`);
   }

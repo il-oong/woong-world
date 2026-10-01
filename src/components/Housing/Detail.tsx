@@ -111,7 +111,10 @@ export function Detail({
           {n.supplyType} 기준 요약입니다. 세부 공급 유형에 따른 차이는 원문에서
           확인하세요. 자료가 없으면 제한 없음으로 판단하지 않습니다.
         </p>
-        <dl className="mt-5 grid gap-4 md:grid-cols-2">
+        {!n.rules.length && <p className="mt-5 rounded-xl border border-amber-300/20 bg-amber-300/5 p-4 text-sm leading-6 text-amber-100">
+          이 공고는 아직 모집공고문을 분석하지 않았습니다. 아래 일정·가격은 청약홈 API 기본정보이며, 자격·제한은 확인되지 않았습니다. <a href={n.sourceUrl} target="_blank" rel="noopener noreferrer" className="underline">공식 공고 보기 ↗</a>
+        </p>}
+        {!!n.rules.length && <dl className="mt-5 grid gap-4 md:grid-cols-2">
           {ruleKeys.map((key) => {
             const r = n.rules.find((v) => v.key === key);
             return (
@@ -141,9 +144,9 @@ export function Detail({
               </div>
             );
           })}
-        </dl>
-        <h3 className="mt-6 text-sm font-semibold">내 조건 사전 점검</h3>
-        {!data.profile ? (
+        </dl>}
+        {!!n.rules.length && <h3 className="mt-6 text-sm font-semibold">내 조건 사전 점검</h3>}
+        {!!n.rules.length && (!data.profile ? (
           <Link href="/housing/profile" className={`${button} mt-3`}>
             내 정보 등록하기
           </Link>
@@ -173,7 +176,7 @@ export function Detail({
               </li>
             ))}
           </ul>
-        )}
+        ))}
       </section>
       <section className={`${panel} mb-6`}>
         <div className="flex flex-wrap items-center justify-between gap-4">

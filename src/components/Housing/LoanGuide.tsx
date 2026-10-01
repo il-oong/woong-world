@@ -47,6 +47,7 @@ export function LoanGuide({ notice, unit, profile }: { notice: Notice; unit: Uni
     rate: interest, stress: stressRate, years: duration,
   }) : null;
   const isHoneymoon = notice.title.includes("신혼희망타운");
+  const isGyeyangA17 = notice.id === "2026820010" && notice.reviewedAt !== null;
   const policyPrice = unit.price <= 600_000_000;
 
   return (
@@ -59,6 +60,7 @@ export function LoanGuide({ notice, unit, profile }: { notice: Notice; unit: Uni
       {needsReview && <p className="mt-2 text-sm text-amber-200">규제 자료를 확인한 지 30일이 지났습니다. 아래 공식 링크에서 현재 규제지역 여부를 확인한 뒤 선택해 주세요.</p>}
       <p className="mt-2 text-xs leading-5 text-slate-400">지역 분류는 공급지 기준입니다. 분양가격과 대출 심사 때의 담보평가액은 다를 수 있습니다. 중도금 집단대출과 잔금대출 규칙도 다릅니다.</p>
       <p className="mt-3 rounded-lg bg-white/5 p-3 text-sm leading-6 text-slate-300">무주택 일반 주택구입 주담대의 LTV 기준은 규제지역 40%, 비규제지역 70%이며 생애최초는 70%입니다. 수도권·규제지역의 주택가격별 총액 상한은 15억원 이하 6억원, 15억원 초과~25억원 이하 4억원, 25억원 초과 2억원입니다. 실제 가능액에는 DSR 등 추가 심사가 적용됩니다.</p>
+      {isGyeyangA17 && <p className="mt-3 rounded-lg border border-amber-300/20 bg-amber-300/5 p-3 text-sm leading-6 text-amber-100">이 공고는 LH 공고문 3·8쪽에 따라 신혼희망타운 전용 수익공유형 모기지를 주택가격의 최소 30% 이상 의무 가입해야 합니다. 아래 계산기는 일반 주담대 규제 비교용이며, 전용 모기지의 승인액·상환액 계산이 아닙니다. 주택도시기금 융자금 5,500만원은 함께 받을 수 없다고 공고에 명시돼 있습니다.</p>}
       <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <label className="text-sm">규제지역 여부
           <select className={inputClass} value={region} onChange={(e) => setRegion(e.target.value as Regulation)}>
@@ -100,10 +102,10 @@ export function LoanGuide({ notice, unit, profile }: { notice: Notice; unit: Uni
 
       <h3 className="mt-7 text-lg font-semibold">먼저 비교할 대출</h3>
       <div className="mt-3 grid gap-3 md:grid-cols-2">
-        {isHoneymoon && <LoanOption title="신혼희망타운 전용 모기지" description="LH 안내 기준 연 1.6% 고정·최대 4억원·주택가격 70% 이내입니다. 매각차익을 기금과 나누며, 의무가입 여부와 실행 시점 조건은 이 공고문에서 먼저 확인하세요." href={loanSources.honeymoon} />}
-        {policyPrice && <LoanOption title="보금자리론" description="공급가가 6억원 이하라 가격요건을 우선 검토할 수 있습니다. 공사 안내 한도는 일반 최대 3.6억원, 생애최초 최대 4.2억원이며 소득·주택 보유·담보평가·DTI 등은 별도 확인이 필요합니다." href={loanSources.mortgage} />}
-        {policyPrice && <LoanOption title="주택도시기금 디딤돌·신혼부부 상품" description="무주택, 소득·자산, 주택가격·면적 조건을 확인한 뒤 비교하세요. 이 계산기의 일반 주담대 한도가 정책대출 승인액을 뜻하지는 않습니다." href="https://nhuf.molit.go.kr/FP/FP05/FP0503/FP05030101.jsp" />}
-        <LoanOption title="은행 주택구입 주담대" description="정책대출 요건을 충족하지 못하거나 추가 자금이 필요하면 은행 금리·상환방식·중도상환수수료와 집단대출 전환 조건을 비교하세요." href={loanSources.compare} linkLabel="금융감독원 상품 비교 ↗" />
+        {isHoneymoon && <LoanOption title="신혼희망타운 전용 모기지" description={isGyeyangA17 ? "이 공고는 주택가격의 최소 30% 가입이 의무입니다. 공고문 기준 최대 4억원·주택가격의 70% 이내이며, 매각차익 공유 조건과 실제 대출심사를 확인하세요." : "LH 안내 기준 연 1.6% 고정·최대 4억원·주택가격 70% 이내입니다. 매각차익을 기금과 나누며, 의무가입 여부와 실행 시점 조건은 이 공고문에서 먼저 확인하세요."} href={loanSources.honeymoon} />}
+        {!isGyeyangA17 && policyPrice && <LoanOption title="보금자리론" description="공급가가 6억원 이하라 가격요건을 우선 검토할 수 있습니다. 공사 안내 한도는 일반 최대 3.6억원, 생애최초 최대 4.2억원이며 소득·주택 보유·담보평가·DTI 등은 별도 확인이 필요합니다." href={loanSources.mortgage} />}
+        {!isGyeyangA17 && policyPrice && <LoanOption title="주택도시기금 디딤돌·신혼부부 상품" description="무주택, 소득·자산, 주택가격·면적 조건을 확인한 뒤 비교하세요. 이 계산기의 일반 주담대 한도가 정책대출 승인액을 뜻하지는 않습니다." href="https://nhuf.molit.go.kr/FP/FP05/FP0503/FP05030101.jsp" />}
+        {!isGyeyangA17 && <LoanOption title="은행 주택구입 주담대" description="정책대출 요건을 충족하지 못하거나 추가 자금이 필요하면 은행 금리·상환방식·중도상환수수료와 집단대출 전환 조건을 비교하세요." href={loanSources.compare} linkLabel="금융감독원 상품 비교 ↗" />}
       </div>
       <p className="mt-5 text-xs leading-5 text-slate-400">근거: <a className="underline" href={loanSources.regions} target="_blank" rel="noopener noreferrer">국토부 규제지역 현황</a> · <a className="underline" href={loanSources.rules} target="_blank" rel="noopener noreferrer">금융위 대출규제 문답</a> · <a className="underline" href={loanSources.dsr} target="_blank" rel="noopener noreferrer">금융위 DSR 기준</a>. 신청 전 최신 규정과 해당 공고의 집단대출 안내를 다시 확인하세요.</p>
     </section>
