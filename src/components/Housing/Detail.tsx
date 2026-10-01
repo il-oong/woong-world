@@ -20,6 +20,7 @@ import {
 } from "@/lib/housing/scoring";
 import { isClosed } from "@/lib/housing/model";
 import { mapPreview, mapProviderQuery, mapSearchQuery, mapSearchUrl } from "@/lib/housing/map-search";
+import { LoanGuide } from "./LoanGuide";
 import {
   Bars,
   button,
@@ -422,6 +423,7 @@ export function Detail({
           </p>
         )}
       </section>
+      <LoanGuide key={`${n.id}:${unit.id}`} notice={n} unit={unit} profile={data.profile} />
       <section className={panel}>
         <h2 className="text-xl font-semibold">신청 일정</h2>
         <ul className="mt-5 grid gap-3 sm:grid-cols-2">
