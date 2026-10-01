@@ -22,6 +22,12 @@ import { join } from "node:path";
 import { mapPreview, mapProviderQuery, mapSearchQuery, mapSearchUrl } from "../src/lib/housing/map-search";
 import feed from "../src/data/housing-feed.json";
 const today = "2026-09-30";
+test("기존 프로필은 혼인 여부 미선택으로 열리고 선택한 값은 저장 스키마에 유지된다", () => {
+  const { married: _married, ...legacy } = profile;
+  assert.equal(profileSchema.parse(legacy).married, "unknown");
+  assert.equal(profileSchema.parse({ ...legacy, married: "yes" }).married, "yes");
+  assert.equal(profileSchema.parse({ ...legacy, married: "no" }).married, "no");
+});
 test("official Gyeyang floorplans match all current unit types and bundled images exist", () => {
   for (const [id, count] of [["2026000414", 13], ["2026820010", 3]] as const) {
     const notice = mergeCatalog().find((item) => item.id === id);
