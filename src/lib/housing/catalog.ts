@@ -1,5 +1,6 @@
 import { noticeSchema, type Notice } from "./model";
 import feed from "@/data/housing-feed.json";
+import { withReviewedFloorplans } from "./floorplans";
 
 // Public facts manually checked against the official notice PDF on 2026-09-30.
 // Evidence and update instructions: docs/housing.md. Never include personal data here.
@@ -64,7 +65,7 @@ export function mergeCatalog(records: Record<string, unknown> = {}, daily: unkno
   for (const value of daily) {
     const latest = noticeSchema.parse(value);
     const reviewed = merged.get(latest.id);
-    if (!reviewed) { merged.set(latest.id, latest); continue; }
+    if (!reviewed) { merged.set(latest.id, withReviewedFloorplans(latest)); continue; }
     // The reviewed summary is only valid while the official core facts still match.
     const dates = new Set(reviewed.events.map((e) => `${e.type}:${e.date}`));
     const changed = reviewed.title !== latest.title ||

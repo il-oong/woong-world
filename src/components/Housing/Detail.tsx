@@ -304,7 +304,7 @@ export function Detail({
             입주 {n.moveIn ?? (n.moveInNote || "확인 필요")}
           </p>
           {unit.floorPlanImageUrl ? (
-            <div className="rounded-xl bg-white p-3">
+            <a href={unit.floorPlanImageUrl} target="_blank" rel="noopener noreferrer" className="block rounded-xl bg-white p-3" aria-label={`${unit.name} 평면도 크게 보기`}>
               {/* Official external images are not fetched through the server image optimizer. */}
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
@@ -314,7 +314,7 @@ export function Detail({
                 loading="lazy"
                 referrerPolicy="no-referrer"
               />
-            </div>
+            </a>
           ) : (
             <div className="grid h-56 place-items-center rounded-xl bg-white/5 p-6 text-center text-sm text-slate-400">
               등록된 평면도 이미지가 없습니다.
@@ -322,6 +322,7 @@ export function Detail({
               공식 자료에서 해당 주택형을 확인해주세요.
             </div>
           )}
+          {unit.floorPlanImageUrl && <p className="mt-2 text-xs text-slate-400">이미지를 누르면 큰 크기로 볼 수 있습니다. 구조와 치수는 공식 자료에서 최종 확인하세요.</p>}
           <div className="mt-4">
             <External href={unit.floorPlanUrl ?? n.sourceUrl}>
               {unit.floorPlanUrl ? "공식 평면도 자료" : "공고 원문에서 확인"}

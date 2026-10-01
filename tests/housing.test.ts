@@ -16,9 +16,25 @@ import {
 } from "../src/lib/housing/model";
 import { fromApplyhome } from "../src/lib/housing/applyhome";
 import { catalog, mergeCatalog } from "../src/lib/housing/catalog";
+import { withReviewedFloorplans } from "../src/lib/housing/floorplans";
+import { existsSync } from "node:fs";
+import { join } from "node:path";
 import { mapPreview, mapProviderQuery, mapSearchQuery, mapSearchUrl } from "../src/lib/housing/map-search";
 import feed from "../src/data/housing-feed.json";
 const today = "2026-09-30";
+test("official Gyeyang floorplans match all current unit types and bundled images exist", () => {
+  for (const [id, count] of [["2026000414", 13], ["2026820010", 3]] as const) {
+    const notice = mergeCatalog().find((item) => item.id === id);
+    assert.ok(notice);
+    assert.equal(notice.units.length, count);
+    for (const unit of notice.units) {
+      assert.ok(unit.floorPlanUrl?.startsWith("https://"));
+      assert.ok(unit.floorPlanImageUrl?.endsWith(".webp"));
+      assert.ok(existsSync(join(process.cwd(), "public", unit.floorPlanImageUrl!.slice(1))));
+    }
+    assert.equal(withReviewedFloorplans({ ...notice, units: [{ ...notice.units[0], name: "새 주택형", floorPlanImageUrl: null }] }).units[0].floorPlanImageUrl, null);
+  }
+});
 test("a multi-city supply address searches the actual project block", () => {
   const a6 = feed.notices.find((n) => n.title.includes("인천계양지구 A6블록"));
   const a17 = feed.notices.find((n) => n.title.includes("인천계양 A17블록"));
