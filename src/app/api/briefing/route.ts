@@ -48,10 +48,8 @@ export async function POST() {
     const script = await generateBriefingScript(secretaryName, events, plans, mode);
     const audioBuffer = await synthesize(script, voiceId);
 
-    const dateStr = now.toISOString().slice(0, 10);
-    const safeEmail = session.email.replace(/[^a-zA-Z0-9]/g, "_");
     const { url: audioUrl } = await put(
-      `briefings/${safeEmail}/${dateStr}-${Date.now()}.mp3`,
+      `briefings/${crypto.randomUUID()}.mp3`,
       audioBuffer,
       { access: "public", contentType: "audio/mpeg" },
     );

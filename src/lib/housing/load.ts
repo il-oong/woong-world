@@ -1,4 +1,5 @@
 import { readSession } from "@/lib/session";
+import { refreshSession } from "@/lib/google";
 import { isAdminEmail } from "@/lib/admin";
 import {
   getCommutes,
@@ -21,7 +22,12 @@ export type HousingData = {
 };
 export async function loadHousing(): Promise<HousingData> {
   const session = await readSession();
-  const email = session?.email;
+  // Server Components cannot update cookies. Check an expired Google session
+  // without writing here; a Route Handler will persist a refreshed token.
+  const validSession = session && session.expiresAt - 60_000 <= Date.now()
+    ? await refreshSession(session)
+    : session;
+  const email = validSession?.email;
   const base: HousingData = {
     notices: [],
     profile: null,

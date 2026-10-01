@@ -39,3 +39,11 @@ export async function createToken(email: string): Promise<string> {
 export async function getEmailFromToken(token: string): Promise<string | null> {
   return redis().get<string>(tokenKey(token));
 }
+
+export async function revokeToken(email: string): Promise<void> {
+  const r = redis();
+  const key = emailKey(email.toLowerCase());
+  const token = await r.get<string>(key);
+  if (token) await r.del(tokenKey(token));
+  await r.del(key);
+}

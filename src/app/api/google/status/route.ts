@@ -1,5 +1,4 @@
-import { isConfigured } from "@/lib/google";
-import { readSession } from "@/lib/session";
+import { getValidSession, isConfigured } from "@/lib/google";
 
 export const dynamic = "force-dynamic";
 
@@ -8,7 +7,7 @@ export async function GET() {
   if (!configured) {
     return Response.json({ configured: false, connected: false });
   }
-  const session = await readSession();
+  const session = await getValidSession();
   if (!session) return Response.json({ configured: true, connected: false });
   return Response.json({
     configured: true,

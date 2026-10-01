@@ -225,7 +225,11 @@ export async function GET(req: NextRequest) {
     const events = await listAllCalendarsEvents(session, todayStart, rangeEnd, calIds);
 
     const script = await generateBriefingScript(name, events, plans, mode, performance);
-    return new Response(script, { headers: { "Content-Type": "text/plain; charset=utf-8" } });
+    return new Response(script, { headers: {
+      "Content-Type": "text/plain; charset=utf-8",
+      "Cache-Control": "private, no-store",
+      "Referrer-Policy": "no-referrer",
+    } });
   } catch (e) {
     return new Response(e instanceof Error ? e.message : "error", { status: 500 });
   }

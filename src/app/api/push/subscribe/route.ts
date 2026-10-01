@@ -4,8 +4,19 @@ import {
   isVapidConfigured,
   saveSubscription,
 } from "@/lib/push";
+import { getValidSession } from "@/lib/google";
 
 export const dynamic = "force-dynamic";
+
+function validEndpoint(value: unknown): value is string {
+  if (typeof value !== "string" || value.length > 2048) return false;
+  try {
+    const url = new URL(value);
+    return url.protocol === "https:" && !url.username && !url.password;
+  } catch {
+    return false;
+  }
+}
 
 export async function GET() {
   if (!isVapidConfigured()) {
@@ -22,6 +33,8 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
+  const session = await getValidSession();
+  if (!session?.email) return Response.json({ error: "not_connected" }, { status: 401 });
   if (!isVapidConfigured()) {
     return Response.json({ error: "push_not_configured" }, { status: 503 });
   }
@@ -29,7 +42,6 @@ export async function POST(req: NextRequest) {
     deviceId?: string;
     subscription?: { endpoint: string; keys: { p256dh: string; auth: string } };
     briefingHour?: number;
-    oldHour?: number;
   };
   try {
     body = (await req.json()) as typeof body;
@@ -37,13 +49,15 @@ export async function POST(req: NextRequest) {
     return Response.json({ error: "invalid_json" }, { status: 400 });
   }
 
-  const { deviceId, subscription, briefingHour, oldHour } = body;
+  const { deviceId, subscription, briefingHour } = body;
   if (
-    !deviceId ||
-    !subscription?.endpoint ||
-    !subscription.keys?.p256dh ||
-    !subscription.keys?.auth ||
-    briefingHour === undefined
+    typeof deviceId !== "string" || !/^[0-9a-f-]{36}$/i.test(deviceId) ||
+    !validEndpoint(subscription?.endpoint) ||
+    typeof subscription.keys?.p256dh !== "string" ||
+    subscription.keys.p256dh.length > 512 ||
+    typeof subscription.keys?.auth !== "string" ||
+    subscription.keys.auth.length > 512 ||
+    !Number.isInteger(briefingHour) || briefingHour! < 0 || briefingHour! > 23
   ) {
     return Response.json({ error: "invalid_input" }, { status: 400 });
   }
@@ -51,11 +65,12 @@ export async function POST(req: NextRequest) {
   try {
     await saveSubscription(
       deviceId,
-      { endpoint: subscription.endpoint, keys: subscription.keys, briefingHour },
-      oldHour,
+      { ownerEmail: session.email.toLowerCase(), endpoint: subscription.endpoint, keys: subscription.keys, briefingHour: briefingHour! },
     );
     return Response.json({ ok: true });
   } catch (e) {
+    if (e instanceof Error && e.message === "forbidden")
+      return Response.json({ error: "forbidden" }, { status: 403 });
     return Response.json(
       { error: e instanceof Error ? e.message : "save_failed" },
       { status: 500 },

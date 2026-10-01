@@ -1,4 +1,4 @@
-import { readSession } from "@/lib/session";
+import { getValidSession } from "@/lib/google";
 import { isAdminEmail } from "@/lib/admin";
 import { housingStore } from "./store";
 import { ZodError } from "zod";
@@ -23,7 +23,7 @@ export async function authorize(req: Request, admin = false) {
   }
   if (req.method !== "GET" && !sameOrigin)
     return { error: json({ error: "요청 출처를 확인할 수 없습니다" }, 403) };
-  const session = await readSession();
+  const session = await getValidSession();
   if (!session?.email)
     return { error: json({ error: "구글 로그인이 필요합니다" }, 401) };
   if (admin && !(await isAdminEmail(session.email)))
