@@ -25,6 +25,11 @@ export function getAdminEmail(): string {
   return getSuperAdminEmail();
 }
 
+export function isSuperAdminEmail(email?: string | null): boolean {
+  const owner = getSuperAdminEmail();
+  return Boolean(owner && email && email.trim().toLowerCase() === owner);
+}
+
 async function readExtras(): Promise<string[]> {
   const r = redis();
   if (!r) return [];
@@ -46,10 +51,14 @@ export async function listAdmins(): Promise<{ super: string; extras: string[] }>
 export async function isAdminEmail(email?: string | null): Promise<boolean> {
   if (!email) return false;
   const e = email.toLowerCase();
-  const superE = getSuperAdminEmail();
-  if (superE && e === superE) return true;
+  if (isSuperAdminEmail(e)) return true;
   const extras = await readExtras();
   return extras.includes(e);
+}
+
+export async function isSuperAdminSession(): Promise<boolean> {
+  const session = await getValidSession();
+  return isSuperAdminEmail(session?.email);
 }
 
 export async function isAdminSession(): Promise<boolean> {

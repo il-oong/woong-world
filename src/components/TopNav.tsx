@@ -6,7 +6,6 @@ import { usePathname } from "next/navigation";
 
 const ITEMS = [
   { href: "/housing", label: "청약", amber: false },
-  { href: "/", label: "홈", amber: false },
   { href: "/calendar", label: "일정", amber: false },
   { href: "/plans", label: "계획", amber: false },
   { href: "/apps/memo", label: "메모", amber: false },
@@ -17,7 +16,6 @@ const ITEMS = [
 
 const ADMIN_ITEMS = [
   { href: "/housing", label: "청약", amber: false },
-  { href: "/", label: "허브", amber: false },
   { href: "/calendar", label: "일정", amber: false },
   { href: "/plans", label: "계획", amber: false },
   { href: "/apps/memo", label: "메모", amber: false },
@@ -75,8 +73,6 @@ export function TopNav() {
   }, [pathname]);
 
   const items = adminMode ? ADMIN_ITEMS : ITEMS;
-  const brand = adminMode ? "웅허브" : "비서";
-
   const handleLogout = async () => {
     if (loggingOut) return;
     if (!confirm("로그아웃하시겠어요? 다시 사용하려면 구글 로그인이 필요합니다.")) return;
@@ -96,9 +92,9 @@ export function TopNav() {
           href="/"
           className="mr-2 shrink-0 whitespace-nowrap font-mono text-[11px] uppercase tracking-[0.25em] text-[var(--accent)] sm:mr-3"
         >
-          {brand}
+          허브
         </Link>
-        <div className="flex flex-1 items-center gap-0.5 overflow-x-auto text-xs sm:gap-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <div className="flex min-w-0 flex-1 items-center gap-0.5 overflow-x-auto text-xs sm:justify-end sm:gap-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {items.map((it) => {
             const active =
               it.href === "/"

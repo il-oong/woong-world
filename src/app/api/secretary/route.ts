@@ -17,7 +17,7 @@ export async function GET() {
     return Response.json({ error: "not_connected" }, { status: 401 });
   }
   const profile = await getProfile(session.email);
-  return Response.json({ profile });
+  return Response.json({ profile, email: session.email });
 }
 
 export async function POST(req: Request) {
