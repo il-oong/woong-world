@@ -21,7 +21,9 @@ jobs:
           APPLYHOME_SERVICE_KEY: ${{ secrets.APPLYHOME_SERVICE_KEY }}
         run: npm run sync:housing
       - name: 검증
-        run: npm run test:housing
+        run: |
+          npm run test:housing
+          npm run build
       - name: 변경된 공고 공개
         run: |
           if git diff --quiet -- src/data/housing-feed.json; then exit 0; fi

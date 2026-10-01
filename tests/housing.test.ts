@@ -20,8 +20,8 @@ const today = "2026-09-30";
 test("verified public notice survives missing Redis, while deletion and corrections override it", () => {
   const notice = catalog[0];
   assert.equal(mergeCatalog().find((n) => n.id === "2026000453")?.title, "광명 시티프라디움 에듀하임");
-  assert.equal(mergeCatalog({ [notice.id]: null }).length, 0);
-  assert.equal(mergeCatalog({ [notice.id]: { ...notice, title: "정정 공고" } })[0].title, "정정 공고");
+  assert.equal(mergeCatalog({ [notice.id]: null }).some((n) => n.id === notice.id), false);
+  assert.equal(mergeCatalog({ [notice.id]: { ...notice, title: "정정 공고" } }).find((n) => n.id === notice.id)?.title, "정정 공고");
 });
 
 test("undated contractual payments show amounts without inventing cash availability", () => {
