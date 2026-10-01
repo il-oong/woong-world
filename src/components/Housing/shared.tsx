@@ -45,7 +45,8 @@ export function Bars({
                 aria-valuemin={0}
                 aria-valuemax={100}
                 aria-valuenow={m.value ?? undefined}
-                aria-valuetext={m.value === null ? "분석 대기" : `${m.value}점`}
+                aria-valuetext={m.value === null ? m.missingLabel ?? "분석 대기" : `${m.estimated ? "추정 " : ""}${m.value}점`}
+                title={m.reason}
               >
                 <div
                   className={
@@ -60,8 +61,8 @@ export function Bars({
                   style={{ width: `${m.value ?? 0}%` }}
                 />
               </div>
-              <span className="w-16 text-right tabular-nums text-slate-300">
-                {m.value ?? "미확인"}
+              <span className="w-20 shrink-0 text-right tabular-nums text-slate-300" title={m.reason}>
+                {m.value === null ? m.missingLabel ?? "미확인" : <>{m.estimated && <span className="mr-1 text-[10px] text-amber-200">추정</span>}{m.value}</>}
               </span>
             </div>
             {!compact && (

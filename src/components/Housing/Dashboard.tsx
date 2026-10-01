@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { type HousingData } from "@/lib/housing/load";
 import {
@@ -31,11 +31,10 @@ export function Dashboard({
     [commutes, setCommutes] = useState(data.commutes),
     [busy, setBusy] = useState(false),
     [favBusy, setFavBusy] = useState<string | null>(null);
-  const ranked = rankNotices(
-    data.notices.filter((n) => !isClosed(n)),
-    data.profile,
-    commutes,
-  );
+  const compared = useMemo(() => rankNotices(data.notices.filter((n) => !isClosed(n) ||
+    (day !== null && n.events.some((e) => e.date === day))), data.profile, commutes,
+    new Date(`${today}T00:00:00+09:00`), data.notices), [data.notices, data.profile, commutes, today, day]);
+  const ranked = compared.filter((r) => !isClosed(r.notice));
   const rankMap = new Map(
     ranked
       .filter(
@@ -50,13 +49,9 @@ export function Dashboard({
         ? rankMap.has(n.id)
         : true,
   );
-  const cards = rankNotices(
-    visible.filter((n) =>
-      day ? n.events.some((e) => e.date === day) : !isClosed(n),
-    ),
-    data.profile,
-    commutes,
-  );
+  const visibleIds = new Set(visible.map((n) => n.id));
+  const cards = compared.filter(({ notice: n }) => visibleIds.has(n.id) &&
+    (day ? n.events.some((e) => e.date === day) : !isClosed(n)));
   const [year, mon] = month.split("-").map(Number),
     offset = new Date(Date.UTC(year, mon - 1, 1)).getUTCDay(),
     days = new Date(Date.UTC(year, mon, 0)).getUTCDate();
@@ -131,11 +126,11 @@ export function Dashboard({
       {!data.profile && (
         <div className="mb-6 rounded-2xl border border-teal-300/20 bg-teal-300/5 px-6 py-5">
           <p className="font-medium text-teal-100">
-            나에게 맞는 추천을 시작해보세요
+            분양가·면적으로 먼저 비교해보세요
           </p>
           <p className="mt-2 text-sm text-slate-400">
-            예산, 직장, 원하는 집을 등록하면 다섯 가지 능력치로 비교할 수
-            있습니다. 등록 전에는 전체 일정이 표시됩니다.
+            등록 전에도 공급가·주택형으로 예비 순위를 보여줍니다. 내 예산,
+            직장 주소, 선호 지역을 저장하면 본인 기준으로 비교합니다.
           </p>
         </div>
       )}
@@ -172,7 +167,7 @@ export function Dashboard({
           <div className="flex gap-1">
             {[
               ["all", "전체 일정"],
-              ["recommended", "내 추천"],
+              ["recommended", "예비 추천"],
               ["favorites", "관심 청약"],
             ].map(([value, label]) => (
               <button
@@ -291,11 +286,10 @@ export function Dashboard({
                 ? `${day} 청약 일정`
                 : data.profile
                   ? "나에게 맞는 추천 청약"
-                  : "접수 중·예정 청약"}
+                  : "분양가·면적 예비 비교"}
             </h2>
             <p className="mt-2 text-xs text-slate-400">
-              조건 충족 후보 → 종합점수 순 · 정보가 부족하면 순위 보류 · 실제
-              당첨 순위와 다릅니다.
+              확인된 항목과 추정값의 가중평균 순 · 항목별 추정 근거는 상세에서 확인 · 실제 당첨 순위와 다릅니다.
             </p>
           </div>
           <div className="flex gap-2">
@@ -353,7 +347,7 @@ export function Dashboard({
                 <div className="flex items-center justify-between gap-3">
                   <span className="text-xs font-medium text-teal-300">
                     {rankMap.has(n.id)
-                      ? `내 추천 ${rankMap.get(n.id)}위`
+                      ? `${data.profile ? "내 예비 추천" : "예비 비교"} ${rankMap.get(n.id)}위`
                       : a.blockers.length
                         ? "조건 확인 필요"
                         : "분석 대기"}
@@ -374,8 +368,9 @@ export function Dashboard({
                       {a.total ?? "—"}
                     </strong>
                     <p className="text-[10px] text-slate-500">
-                      {a.total === null ? `분석 ${a.coverage}%` : "종합점수"}
+                      {a.total === null ? "비교 자료 부족" : a.provisional ? "예비 점수" : "종합점수"}
                     </p>
+                    <p className="mt-1 text-[10px] text-slate-400">{a.measuredCount ?? 0}/5항목 · 평가 비중 {a.coverage}%</p>
                   </div>
                 </div>
                 <Bars assessment={a} compact />
@@ -383,8 +378,10 @@ export function Dashboard({
                   {a.blockers.length
                     ? a.blockers.join(" · ")
                     : a.total === null
-                      ? "아직 확인할 정보가 있어 추천 순위를 보류합니다."
-                      : "입력한 필수 조건에 맞는 후보입니다. 세부 자격은 원문을 확인하세요."}
+                      ? "내 정보나 비교 자료가 필요합니다. 상세에서 필요한 정보를 확인하세요."
+                      : a.provisional
+                        ? "일부 항목만 평가한 예비 비교입니다. 추정 점수는 실제 교통·입지·투자 분석과 다를 수 있습니다."
+                        : "현재 확인한 항목으로 비교한 결과입니다. 신청 자격은 공고 원문을 확인하세요."}
                 </p>
                 <span className="mt-3 inline-block text-sm text-teal-200">
                   상세 분석 보기 →

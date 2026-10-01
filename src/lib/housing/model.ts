@@ -55,6 +55,7 @@ export const profileSchema = z.object({
     .max(4)
     .default(["마트", "병원"]),
   region: z.string().trim().max(100).default(""),
+  preferredRegion: z.string().trim().max(100).default(""),
   account: z.enum(["yes", "no", "unknown"]).default("unknown"),
   accountMonths: z.number().int().min(0).max(1200).nullable().default(null),
   accountDeposit: nullableAmount,

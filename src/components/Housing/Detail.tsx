@@ -10,9 +10,10 @@ import {
   applicationStatus,
   emptyProfile,
   won,
+  todayKst,
 } from "@/lib/housing/model";
 import {
-  assess,
+  roughAssess,
   funding,
   monthlyPayment,
   rankNotices,
@@ -42,11 +43,13 @@ export function Detail({
     [busy, setBusy] = useState(false),
     [message, setMessage] = useState("");
   const unit = n.units.find((u) => u.id === unitId)!;
-  const a = assess(n, unit, data.profile, commute);
+  const a = roughAssess(n, unit, data.profile, commute, todayKst(), data.notices);
   const ranked = rankNotices(
     data.notices.filter((v) => !isClosed(v)),
     data.profile,
     { ...data.commutes, [n.id]: commute },
+    new Date(),
+    data.notices,
   ).filter((r) => r.assessment.total !== null && !r.assessment.blockers.length);
   const rank = ranked.findIndex((v) => v.notice.id === n.id) + 1;
   const flows = funding(unit, data.profile ?? emptyProfile());
@@ -171,13 +174,14 @@ export function Detail({
       <section className={`${panel} mb-6`}>
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
-            <h2 className="text-xl font-semibold">나와의 궁합</h2>
+            <h2 className="text-xl font-semibold">{data.profile ? "나와의 궁합" : "분양가·면적 예비 비교"}</h2>
             <p className="mt-2 text-sm text-slate-400">
               {rank
-                ? `공고 추천 ${rank}위 (분석 가능한 대표 주택형 기준)`
+                ? `공고 예비 추천 ${rank}위 (대표 주택형 기준)`
                 : "추천 순위 보류"}{" "}
-              · 선택 주택형 종합{" "}
+              · 선택 주택형 {a.provisional ? "예비 점수" : "종합점수"}{" "}
               {a.total === null ? "분석 미완료" : `${a.total}점`}
+              {" "}· {a.measuredCount ?? 0}/5항목 · 평가 비중 {a.coverage}%
             </p>
           </div>
           <label className="text-sm">
@@ -199,9 +203,9 @@ export function Detail({
           <Bars assessment={a} />
         </div>
         <p className="mt-5 text-xs leading-5 text-slate-500">
-          중요도를 반영한 가중평균입니다. 필요한 항목이 모두 확인돼야 종합점수가
-          나옵니다. 투자 점수는 주변 가격 대비 지표이며, 전매제한·미래 수익을
-          점수로 보장하지 않습니다.
+          점수가 나온 항목만 중요도를 반영해 평균을 냅니다. 미평가 항목은 0점으로 채우지 않습니다.
+          ‘추정’은 납부 일정·실제 경로·시설 거리·실거래 자료를 대신해 공개 공급가·면적·지역으로 거칠게 비교한 값입니다.
+          평가 항목이 다른 공고끼리는 예비 점수만으로 결정하지 말고 근거를 비교하세요. 자격과 전매제한은 추정하지 않습니다.
         </p>
         {a.blockers.length > 0 && (
           <p className="mt-4 text-sm text-amber-200">
