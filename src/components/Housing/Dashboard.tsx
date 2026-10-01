@@ -4,6 +4,7 @@ import Link from "next/link";
 import { type HousingData } from "@/lib/housing/load";
 import {
   type Commute,
+  type Notice,
   applicationStatus,
   isClosed,
   won,
@@ -16,6 +17,13 @@ const eventStyle = {
   result: "bg-violet-400/15 text-violet-200",
   contract: "bg-amber-300/15 text-amber-200",
 };
+type EventType = Notice["events"][number]["type"];
+const eventTypes: { type: EventType; label: string }[] = [
+  { type: "open", label: "접수 시작" },
+  { type: "close", label: "접수 마감" },
+  { type: "result", label: "당첨 발표" },
+  { type: "contract", label: "계약" },
+];
 export function Dashboard({
   data,
   today,
@@ -26,6 +34,7 @@ export function Dashboard({
   const [month, setMonth] = useState(today.slice(0, 7)),
     [day, setDay] = useState<string | null>(null),
     [filter, setFilter] = useState("all"),
+    [enabledTypes, setEnabledTypes] = useState<EventType[]>(eventTypes.map((e) => e.type)),
     [favorites, setFavorites] = useState(data.favorites),
     [message, setMessage] = useState(""),
     [commutes, setCommutes] = useState(data.commutes),
@@ -50,8 +59,9 @@ export function Dashboard({
         : true,
   );
   const visibleIds = new Set(visible.map((n) => n.id));
+  const showEvent = (type: EventType) => enabledTypes.includes(type);
   const cards = compared.filter(({ notice: n }) => visibleIds.has(n.id) &&
-    (day ? n.events.some((e) => e.date === day) : !isClosed(n)));
+    (day ? n.events.some((e) => e.date === day && showEvent(e.type)) : !isClosed(n)));
   const [year, mon] = month.split("-").map(Number),
     offset = new Date(Date.UTC(year, mon - 1, 1)).getUTCDay(),
     days = new Date(Date.UTC(year, mon, 0)).getUTCDate();
@@ -181,6 +191,20 @@ export function Dashboard({
             ))}
           </div>
         </div>
+        <div className="mb-4 flex flex-wrap items-center gap-2" role="group" aria-label="달력 일정 종류 필터">
+          <span className="mr-1 text-xs text-slate-400">일정 표시</span>
+          {eventTypes.map(({ type, label }) => (
+            <button key={type} type="button" aria-pressed={showEvent(type)}
+              onClick={() => setEnabledTypes((current) => current.includes(type)
+                ? current.filter((value) => value !== type)
+                : [...current, type])}
+              className={`rounded-lg border px-2.5 py-1.5 text-xs transition ${showEvent(type)
+                ? `${eventStyle[type]} border-current`
+                : "border-white/10 text-slate-500 hover:text-slate-300"}`}>
+              {showEvent(type) ? "●" : "○"} {label}
+            </button>
+          ))}
+        </div>
         <div className="overflow-x-auto">
           <div className="min-w-0">
             <div className="grid grid-cols-7">
@@ -201,7 +225,7 @@ export function Dashboard({
                   const date = `${month}-${String(num).padStart(2, "0")}`;
                   const events = visible.flatMap((n) =>
                     n.events
-                      .filter((e) => e.date === date)
+                      .filter((e) => e.date === date && showEvent(e.type))
                       .map((e) => ({ n, e })),
                   );
                   return (
@@ -224,15 +248,10 @@ export function Dashboard({
                                 key={`${n.id}-${j}`}
                                 href={`/housing/${n.id}`}
                                 className={`block truncate rounded px-1.5 py-1 text-[10px] sm:text-xs ${eventStyle[e.type]}`}
+                                aria-label={`${n.title} · ${e.label}`}
                                 title={`${n.title} · ${e.label}`}
                               >
-                                <span>
-                                  {favorites.includes(n.id) ? "★ " : ""}
-                                  {e.label}
-                                </span>
-                                <span className="block truncate font-medium">
-                                  {n.title}
-                                </span>
+                                {favorites.includes(n.id) ? "★ " : ""}{n.title}
                               </Link>
                             ))}
                           </div>
@@ -246,7 +265,7 @@ export function Dashboard({
           </div>
         </div>
         <p className="mt-4 text-xs text-slate-400">
-          🟢 접수 시작 · 🔴 마감 · 🟣 발표 · 🟡 계약 · 한국시간 기준
+          색상별 일정은 위 필터에서 켜고 끌 수 있습니다 · 한국시간 기준
           <span className="sm:hidden"> · 날짜를 눌러 목록 보기</span>
         </p>
       </section>
@@ -257,7 +276,7 @@ export function Dashboard({
         <div className="grid gap-3 sm:grid-cols-3">
           {visible
             .flatMap((n) =>
-              n.events.filter((e) => e.date >= today).map((e) => ({ n, e })),
+              n.events.filter((e) => e.date >= today && showEvent(e.type)).map((e) => ({ n, e })),
             )
             .sort((a, b) => a.e.date.localeCompare(b.e.date))
             .slice(0, 3)
@@ -274,7 +293,7 @@ export function Dashboard({
               </Link>
             ))}
         </div>
-        {!visible.some((n) => n.events.some((e) => e.date >= today)) && (
+        {!visible.some((n) => n.events.some((e) => e.date >= today && showEvent(e.type))) && (
           <p className="text-xs text-slate-500">등록된 예정 일정이 없습니다.</p>
         )}
       </section>

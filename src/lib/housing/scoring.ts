@@ -42,32 +42,34 @@ export function funding(unit: Unit, profile: Profile, today = todayKst()) {
     : unit.payments;
   return payments.map((p, i) => {
     cumulative += p.amount;
-    if (!datesKnown) return { ...p, cumulative, available: null, shortfall: null, past: p.date !== null && p.date < today };
-    const start = new Date(today),
-      end = new Date(p.date!);
-    const lastDay = new Date(
-      Date.UTC(end.getUTCFullYear(), end.getUTCMonth() + 1, 0),
-    ).getUTCDate();
-    const months = Math.max(
-      0,
-      (end.getUTCFullYear() - start.getUTCFullYear()) * 12 +
-        end.getUTCMonth() -
-        start.getUTCMonth() -
-        (end.getUTCDate() < Math.min(start.getUTCDate(), lastDay) ? 1 : 0),
-    );
+    // An undated payment can still be compared with today's cash. Do not add
+    // future savings when its deadline is unknown.
+    let months = 0;
+    if (p.date !== null) {
+      const start = new Date(today), end = new Date(p.date);
+      const lastDay = new Date(
+        Date.UTC(end.getUTCFullYear(), end.getUTCMonth() + 1, 0),
+      ).getUTCDate();
+      months = Math.max(
+        0,
+        (end.getUTCFullYear() - start.getUTCFullYear()) * 12 +
+          end.getUTCMonth() - start.getUTCMonth() -
+          (end.getUTCDate() < Math.min(start.getUTCDate(), lastDay) ? 1 : 0),
+      );
+    }
     // Loan is a single final-payment assumption, never also counted at interim stages.
     const loan = i === payments.length - 1 ? profile.loan : 0;
-    const available =
-      profile.cash === null || profile.monthlySaving === null || loan === null
-        ? null
-        : profile.cash + months * profile.monthlySaving + loan;
+    const available = profile.cash === null
+      ? null
+      : profile.cash + months * (profile.monthlySaving ?? 0) + (loan ?? 0);
     return {
       ...p,
       cumulative,
       available,
       shortfall:
         available === null ? null : Math.max(0, cumulative - available),
-      past: p.date! < today,
+      estimated: p.date === null || profile.monthlySaving === null || loan === null,
+      past: p.date !== null && p.date < today,
     };
   });
 }
@@ -148,7 +150,7 @@ export function assess(
   if (
     u.price !== null &&
     cashflow.length &&
-    cashflow.every((r) => r.shortfall !== null) &&
+    cashflow.every((r) => r.shortfall !== null && !r.estimated) &&
     p.monthlyBudget !== null &&
     monthly !== null &&
     (n.kind !== "rent" || u.monthlyRent !== null)

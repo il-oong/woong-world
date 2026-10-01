@@ -32,9 +32,14 @@ export const httpsUrl = z
   .max(2000)
   .url()
   .refine((v) => {
+    if (!URL.canParse(v)) return false;
     const u = new URL(v);
     return u.protocol === "https:" && !u.username && !u.password;
   }, "https 주소를 입력하세요");
+const imageUrl = z.union([
+  httpsUrl,
+  z.string().regex(/^\/housing\/[a-zA-Z0-9/_-]+\.(?:png|jpg|jpeg|webp)$/, "주택 이미지 경로를 확인하세요"),
+]);
 export const pointSchema = z.object({
   lat: z.number().min(33).max(39),
   lng: z.number().min(124).max(132),
@@ -114,7 +119,7 @@ const unitSchema = z.object({
   price: nullableAmount,
   monthlyRent: nullableAmount,
   floorPlanUrl: httpsUrl.nullable().default(null),
-  floorPlanImageUrl: httpsUrl.nullable().default(null),
+  floorPlanImageUrl: imageUrl.nullable().default(null),
   payments: z
     .array(
       z.object({ label: z.string().min(1).max(100), date: dateSchema.nullable(), amount }),
@@ -137,7 +142,7 @@ export const noticeSchema = z
     moveInNote: z.string().max(200).default(""),
     priceNote: z.string().max(500).default(""),
     locationUrl: httpsUrl.nullable().default(null),
-    locationImageUrl: httpsUrl.nullable().default(null),
+    locationImageUrl: imageUrl.nullable().default(null),
     events: z
       .array(
         z.object({
