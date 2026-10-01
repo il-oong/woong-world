@@ -10,6 +10,7 @@ import {
   won,
 } from "@/lib/housing/model";
 import { rankNotices } from "@/lib/housing/scoring";
+import { eventsThroughNextMonth, scheduleWindow } from "@/lib/housing/schedule";
 import { Bars, button, HousingHeader, panel, request } from "./shared";
 const eventStyle = {
   open: "bg-teal-300/15 text-teal-200",
@@ -40,6 +41,7 @@ export function Dashboard({
     [commutes, setCommutes] = useState(data.commutes),
     [busy, setBusy] = useState(false),
     [favBusy, setFavBusy] = useState<string | null>(null);
+  const [showAllUpcoming, setShowAllUpcoming] = useState(false);
   const compared = useMemo(() => rankNotices(data.notices.filter((n) => !isClosed(n) ||
     (day !== null && n.events.some((e) => e.date === day))), data.profile, commutes,
     new Date(`${today}T00:00:00+09:00`), data.notices), [data.notices, data.profile, commutes, today, day]);
@@ -60,6 +62,8 @@ export function Dashboard({
   );
   const visibleIds = new Set(visible.map((n) => n.id));
   const showEvent = (type: EventType) => enabledTypes.includes(type);
+  const schedule = scheduleWindow(today);
+  const upcoming = eventsThroughNextMonth(visible, today, enabledTypes);
   const cards = compared.filter(({ notice: n }) => visibleIds.has(n.id) &&
     (day ? n.events.some((e) => e.date === day && showEvent(e.type)) : !isClosed(n)));
   const [year, mon] = month.split("-").map(Number),
@@ -271,31 +275,39 @@ export function Dashboard({
       </section>
       <section className="mt-6" aria-label="다가오는 청약 일정">
         <h2 className="mb-3 text-sm font-semibold text-slate-300">
-          다가오는 일정
+          기준일 다음 달까지의 일정
         </h2>
-        <div className="grid gap-3 sm:grid-cols-3">
-          {visible
-            .flatMap((n) =>
-              n.events.filter((e) => e.date >= today && showEvent(e.type)).map((e) => ({ n, e })),
-            )
-            .sort((a, b) => a.e.date.localeCompare(b.e.date))
-            .slice(0, 3)
-            .map(({ n, e }, i) => (
-              <Link
-                href={`/housing/${n.id}`}
-                key={`${n.id}-${i}`}
-                className="rounded-xl border border-white/10 bg-white/[.02] p-4 hover:border-teal-300/30"
-              >
-                <span className="text-xs text-teal-300">
-                  {e.date} · {e.label}
-                </span>
-                <p className="mt-2 truncate text-sm">{n.title}</p>
-              </Link>
-            ))}
+        <p className="mb-4 text-xs text-slate-400">
+          {today} 기준 · {schedule.end}까지 · 현재 발표된 공고만 집계하며 새 공고는 매일 갱신됩니다.
+        </p>
+        <div className="grid gap-3 sm:grid-cols-2">
+          {schedule.months.map((monthKey) => {
+            const monthly = upcoming.filter(({ event }) => event.date.startsWith(monthKey));
+            return <div key={monthKey} className="rounded-xl border border-white/10 bg-white/[.02] p-4">
+              <div className="mb-3 flex items-center justify-between gap-2">
+                <h3 className="font-semibold">{Number(monthKey.slice(0, 4))}년 {Number(monthKey.slice(5))}월 · {monthly.length}건</h3>
+                <button type="button" className="text-xs text-teal-200 underline" onClick={() => { setMonth(monthKey); setDay(null); }}>
+                  달력 보기
+                </button>
+              </div>
+              <div className="space-y-2">
+                {monthly.slice(0, showAllUpcoming ? undefined : 3).map(({ notice, event }, index) =>
+                  <Link href={`/housing/${notice.id}`} key={`${notice.id}-${event.date}-${event.label}-${index}`}
+                    className="block rounded-lg border border-white/10 p-2.5 hover:border-teal-300/30">
+                    <span className={`rounded px-1.5 py-0.5 text-xs ${eventStyle[event.type]}`}>{event.label}</span>
+                    <span className="ml-2 text-xs text-slate-400">{event.date}</span>
+                    <p className="mt-1.5 truncate text-sm">{notice.title}</p>
+                  </Link>,
+                )}
+                {!monthly.length && <p className="text-xs text-slate-500">현재 발표된 일정이 없습니다.</p>}
+              </div>
+            </div>;
+          })}
         </div>
-        {!visible.some((n) => n.events.some((e) => e.date >= today && showEvent(e.type))) && (
-          <p className="text-xs text-slate-500">등록된 예정 일정이 없습니다.</p>
-        )}
+        {schedule.months.some((monthKey) => upcoming.filter(({ event }) => event.date.startsWith(monthKey)).length > 3) &&
+        <button type="button" className={`${button} mt-3`} onClick={() => setShowAllUpcoming((value) => !value)}>
+          {showAllUpcoming ? "일정 접기" : `두 달 전체 일정 ${upcoming.length}건 보기`}
+        </button>}
       </section>
       <section className="mt-9">
         <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
