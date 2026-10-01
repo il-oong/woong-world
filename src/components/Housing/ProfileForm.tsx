@@ -222,6 +222,7 @@ export function ProfileForm({
               [
                 ["account", "청약통장 보유"],
                 ["homeless", "무주택 여부"],
+                ["married", "현재 혼인 여부"],
               ] as const
             ).map(([key, label]) => (
               <label key={key} className="text-sm">
@@ -233,9 +234,9 @@ export function ProfileForm({
                     change(key, e.target.value as Profile[typeof key])
                   }
                 >
-                  <option value="unknown">확인 필요</option>
-                  <option value="yes">예</option>
-                  <option value="no">아니오</option>
+                  <option value="unknown">{key === "married" ? "선택하지 않음" : "확인 필요"}</option>
+                  <option value="yes">{key === "married" ? "기혼" : "예"}</option>
+                  <option value="no">{key === "married" ? "미혼" : "아니오"}</option>
                 </select>
               </label>
             ))}

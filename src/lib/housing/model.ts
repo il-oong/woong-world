@@ -62,6 +62,7 @@ export const profileSchema = z.object({
   region: z.string().trim().max(100).default(""),
   preferredRegion: z.string().trim().max(100).default(""),
   account: z.enum(["yes", "no", "unknown"]).default("unknown"),
+  married: z.enum(["yes", "no", "unknown"]).default("unknown"),
   accountMonths: z.number().int().min(0).max(1200).nullable().default(null),
   accountDeposit: nullableAmount,
   homeless: z.enum(["yes", "no", "unknown"]).default("unknown"),
