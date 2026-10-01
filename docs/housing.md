@@ -8,7 +8,9 @@
 
 관리자는 `/housing/manage`에서 청약홈 APT 링크를 가져오거나, 공고문 텍스트를 붙여넣어 AI 초안을 만들 수 있습니다. 초안을 원문과 대조하고 체크한 뒤 공개합니다. 코드 편집 없이 주택형·일정·납부금·요약·평면도·위치·근거를 수정할 수 있습니다. 같은 공고번호로 수정하면 변경 설명이 필수이며 상세 화면에 표시됩니다.
 
-공개 APT 기본정보는 GitHub Actions가 한국시간 매일 오전 11:17에 공식 API로 조회해 `src/data/housing-feed.json`을 갱신합니다. 공개 저장소의 표준 GitHub Actions 실행과 기존 Vercel Git 배포를 이용하며 Vercel Cron이나 유료 요금제는 필요하지 않습니다. GitHub 예약 실행은 지연될 수 있어 화면에 실제 갱신일을 표시합니다. API 오류·자료 누락 시 작업이 실패하고 이전 자료를 유지합니다. 최근 120일 모집공고를 갱신하며 APT 이외 주택 종류는 현재 자동 수집 범위가 아닙니다. 공개 데이터에서 확인되지 않는 통장·전매제한·평면도 등은 미확인으로 표시하고, 공식 기본정보가 기존 분석과 달라지면 종전 분석을 보류합니다. 관리자가 저장한 공고 수정본은 자동 자료보다 우선합니다.
+공개 APT 분양 기본정보는 청약홈 API에서 최근 120일치, LH 청년 공고와 서울 청년안심주택은 각 공식 사이트에서 최근 45일치를 수집합니다. 상단 **청년주택** 필터로 임대 공고만 골라 볼 수 있습니다. LH 접수 시작·마감은 공식 상세 페이지 일정에서, 서울시 청약신청일은 공식 목록에서 가져옵니다. 서울시 목록에 없는 마감일·임대료·세부 자격을 추정하지 않습니다. LH의 광역 공고는 정확한 건물 주소가 아니므로 지도·교통 평가에 사용하지 않습니다. 자세한 내용과 실제 신청 링크는 각 공식 상세·첨부 공고문에서 확인합니다.
+
+GitHub Actions가 한국시간 매일 오전 11:17에 세 출처를 조회해 `src/data/housing-feed.json`을 갱신합니다. 공개 저장소의 표준 GitHub Actions 실행과 기존 Vercel Git 배포를 이용하며 Vercel Cron이나 유료 요금제는 필요하지 않습니다. GitHub 예약 실행은 지연될 수 있어 화면에 실제 갱신일을 표시합니다. 어느 출처든 오류·자료 누락이 나면 전체 갱신을 실패시키고 이전 자료를 유지합니다. 공개 데이터에서 확인되지 않는 통장·전매제한·평면도 등은 미확인으로 표시하고, 공식 기본정보가 기존 분석과 달라지면 종전 분석을 보류합니다. 관리자가 저장한 공고 수정본은 자동 자료보다 우선합니다.
 
 ## 서비스 설정
 
@@ -24,7 +26,7 @@
 | `KAKAO_REST_API_KEY` | 공급·직장 주소를 좌표로 변환 | 확인한 좌표 직접 입력·지도 링크 사용 |
 | `ODSAY_API_KEY` | 대중교통 경로 조회 | 교통 점수 미확인 |
 
-연결 자료: [청약홈 API](https://www.data.go.kr/data/15098547/openapi.do), [공식 API 명세](https://infuser.odcloud.kr/api/stages/37000/api-docs), [카카오 주소 검색](https://developers.kakao.com/docs/latest/ko/local/dev-guide#address-coord), [ODsay 가이드](https://lab.odsay.com/guide/guide?platform=web).
+연결 자료: [청약홈 API](https://www.data.go.kr/data/15098547/openapi.do), [LH 청년 공고](https://apply.lh.or.kr/lhapply/apply/wt/wrtanc/selectWrtancList.do?mi=1026&panNm=%EC%B2%AD%EB%85%84&viewType=srch), [서울 청년안심주택 모집공고](https://soco.seoul.go.kr/youth/bbs/BMSR00015/list.do?menuNo=400008), [카카오 주소 검색](https://developers.kakao.com/docs/latest/ko/local/dev-guide#address-coord), [ODsay 가이드](https://lab.odsay.com/guide/guide?platform=web).
 
 무료 [공공데이터포털 청약홈 분양정보 조회 서비스](https://www.data.go.kr/data/15098547/openapi.do) 활용 신청 후 GitHub 저장소 **Settings → Secrets and variables → Actions → New repository secret**에서 `APPLYHOME_SERVICE_KEY`를 설정해야 일일 갱신이 실제 작동합니다. 키는 채팅이나 코드에 붙여넣지 마세요. 설정 뒤 **Actions → 청약 공고 하루 한 번 갱신 → Run workflow**로 첫 실행을 확인하세요. 실제 키를 통한 외부 공급자 응답 검증은 설정 후 필요합니다.
 

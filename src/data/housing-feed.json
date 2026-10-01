@@ -1,6 +1,300 @@
 {
-  "updatedAt": "2026-10-01T01:29:28.395Z",
+  "updatedAt": "2026-10-01T08:21:29.904Z",
   "notices": [
+    {
+      "id": "seoul-youth-6680",
+      "title": "[민간임대] 건대입구역 더포디엄830 추가모집공고",
+      "kind": "rent",
+      "audience": "youth",
+      "supplyType": "서울 청년안심주택 · 민간임대",
+      "address": "서울특별시 광진구 아차산로 212",
+      "sourceUrl": "https://soco.seoul.go.kr/youth/bbs/BMSR00015/view.do?boardId=6680&menuNo=400008",
+      "applicationUrl": "https://soco.seoul.go.kr/youth/bbs/BMSR00015/view.do?boardId=6680&menuNo=400008",
+      "publishedAt": "2026-10-01",
+      "point": null,
+      "moveIn": null,
+      "moveInNote": "",
+      "priceNote": "보증금·월 임대료는 공급 유형과 주택형에 따라 다릅니다. 서울시 공고문을 확인하세요.",
+      "locationUrl": null,
+      "locationImageUrl": null,
+      "events": [
+        {
+          "label": "청약신청일",
+          "date": "2026-10-05",
+          "type": "open",
+          "time": null
+        }
+      ],
+      "units": [
+        {
+          "id": "overview",
+          "name": "모집 주택 전체",
+          "area": null,
+          "rooms": null,
+          "price": null,
+          "monthlyRent": null,
+          "floorPlanUrl": null,
+          "floorPlanImageUrl": null,
+          "payments": []
+        }
+      ],
+      "rules": [],
+      "requirements": {
+        "accountRequired": null,
+        "accountMonths": null,
+        "accountDeposit": null,
+        "homelessRequired": null
+      },
+      "nearby": [],
+      "comparable": null,
+      "reviewedAt": null,
+      "changeNote": "서울시 공식 목록의 청약신청일을 표시했습니다. 기간·시간·신청 링크·자격은 공고 상세와 첨부문서를 확인하세요."
+    },
+    {
+      "id": "seoul-youth-6681",
+      "title": "[민간임대] 선릉역 삼성동 마에스트로 추가모집공고",
+      "kind": "rent",
+      "audience": "youth",
+      "supplyType": "서울 청년안심주택 · 민간임대",
+      "address": "서울시 강남구 삼성동 140-32",
+      "sourceUrl": "https://soco.seoul.go.kr/youth/bbs/BMSR00015/view.do?boardId=6681&menuNo=400008",
+      "applicationUrl": "https://soco.seoul.go.kr/youth/bbs/BMSR00015/view.do?boardId=6681&menuNo=400008",
+      "publishedAt": "2026-10-01",
+      "point": null,
+      "moveIn": null,
+      "moveInNote": "",
+      "priceNote": "보증금·월 임대료는 공급 유형과 주택형에 따라 다릅니다. 서울시 공고문을 확인하세요.",
+      "locationUrl": null,
+      "locationImageUrl": null,
+      "events": [
+        {
+          "label": "청약신청일",
+          "date": "2026-10-04",
+          "type": "open",
+          "time": null
+        }
+      ],
+      "units": [
+        {
+          "id": "overview",
+          "name": "모집 주택 전체",
+          "area": null,
+          "rooms": null,
+          "price": null,
+          "monthlyRent": null,
+          "floorPlanUrl": null,
+          "floorPlanImageUrl": null,
+          "payments": []
+        }
+      ],
+      "rules": [],
+      "requirements": {
+        "accountRequired": null,
+        "accountMonths": null,
+        "accountDeposit": null,
+        "homelessRequired": null
+      },
+      "nearby": [],
+      "comparable": null,
+      "reviewedAt": null,
+      "changeNote": "서울시 공식 목록의 청약신청일을 표시했습니다. 기간·시간·신청 링크·자격은 공고 상세와 첨부문서를 확인하세요."
+    },
+    {
+      "id": "seoul-youth-6682",
+      "title": "[민간임대] 상봉역 세이지움 상봉 추가모집공고",
+      "kind": "rent",
+      "audience": "youth",
+      "supplyType": "서울 청년안심주택 · 민간임대",
+      "address": "서울특별시 중랑구 상봉동 503",
+      "sourceUrl": "https://soco.seoul.go.kr/youth/bbs/BMSR00015/view.do?boardId=6682&menuNo=400008",
+      "applicationUrl": "https://soco.seoul.go.kr/youth/bbs/BMSR00015/view.do?boardId=6682&menuNo=400008",
+      "publishedAt": "2026-10-01",
+      "point": null,
+      "moveIn": null,
+      "moveInNote": "",
+      "priceNote": "보증금·월 임대료는 공급 유형과 주택형에 따라 다릅니다. 서울시 공고문을 확인하세요.",
+      "locationUrl": null,
+      "locationImageUrl": null,
+      "events": [
+        {
+          "label": "청약신청일",
+          "date": "2026-10-05",
+          "type": "open",
+          "time": null
+        }
+      ],
+      "units": [
+        {
+          "id": "overview",
+          "name": "모집 주택 전체",
+          "area": null,
+          "rooms": null,
+          "price": null,
+          "monthlyRent": null,
+          "floorPlanUrl": null,
+          "floorPlanImageUrl": null,
+          "payments": []
+        }
+      ],
+      "rules": [],
+      "requirements": {
+        "accountRequired": null,
+        "accountMonths": null,
+        "accountDeposit": null,
+        "homelessRequired": null
+      },
+      "nearby": [],
+      "comparable": null,
+      "reviewedAt": null,
+      "changeNote": "서울시 공식 목록의 청약신청일을 표시했습니다. 기간·시간·신청 링크·자격은 공고 상세와 첨부문서를 확인하세요."
+    },
+    {
+      "id": "seoul-youth-6683",
+      "title": "[민간임대] 강변역 센텀힐스한강 추가모집공고",
+      "kind": "rent",
+      "audience": "youth",
+      "supplyType": "서울 청년안심주택 · 민간임대",
+      "address": "서울특별시 광진구 구의동 587-62",
+      "sourceUrl": "https://soco.seoul.go.kr/youth/bbs/BMSR00015/view.do?boardId=6683&menuNo=400008",
+      "applicationUrl": "https://soco.seoul.go.kr/youth/bbs/BMSR00015/view.do?boardId=6683&menuNo=400008",
+      "publishedAt": "2026-10-01",
+      "point": null,
+      "moveIn": null,
+      "moveInNote": "",
+      "priceNote": "보증금·월 임대료는 공급 유형과 주택형에 따라 다릅니다. 서울시 공고문을 확인하세요.",
+      "locationUrl": null,
+      "locationImageUrl": null,
+      "events": [
+        {
+          "label": "청약신청일",
+          "date": "2026-10-05",
+          "type": "open",
+          "time": null
+        }
+      ],
+      "units": [
+        {
+          "id": "overview",
+          "name": "모집 주택 전체",
+          "area": null,
+          "rooms": null,
+          "price": null,
+          "monthlyRent": null,
+          "floorPlanUrl": null,
+          "floorPlanImageUrl": null,
+          "payments": []
+        }
+      ],
+      "rules": [],
+      "requirements": {
+        "accountRequired": null,
+        "accountMonths": null,
+        "accountDeposit": null,
+        "homelessRequired": null
+      },
+      "nearby": [],
+      "comparable": null,
+      "reviewedAt": null,
+      "changeNote": "서울시 공식 목록의 청약신청일을 표시했습니다. 기간·시간·신청 링크·자격은 공고 상세와 첨부문서를 확인하세요."
+    },
+    {
+      "id": "seoul-youth-6684",
+      "title": "[민간임대] 서울역 어반허브 서울스테이션 추가모집공고",
+      "kind": "rent",
+      "audience": "youth",
+      "supplyType": "서울 청년안심주택 · 민간임대",
+      "address": "서울특별시 용산구 서계동 100-1번지",
+      "sourceUrl": "https://soco.seoul.go.kr/youth/bbs/BMSR00015/view.do?boardId=6684&menuNo=400008",
+      "applicationUrl": "https://soco.seoul.go.kr/youth/bbs/BMSR00015/view.do?boardId=6684&menuNo=400008",
+      "publishedAt": "2026-10-01",
+      "point": null,
+      "moveIn": null,
+      "moveInNote": "",
+      "priceNote": "보증금·월 임대료는 공급 유형과 주택형에 따라 다릅니다. 서울시 공고문을 확인하세요.",
+      "locationUrl": null,
+      "locationImageUrl": null,
+      "events": [
+        {
+          "label": "청약신청일",
+          "date": "2026-10-13",
+          "type": "open",
+          "time": null
+        }
+      ],
+      "units": [
+        {
+          "id": "overview",
+          "name": "모집 주택 전체",
+          "area": null,
+          "rooms": null,
+          "price": null,
+          "monthlyRent": null,
+          "floorPlanUrl": null,
+          "floorPlanImageUrl": null,
+          "payments": []
+        }
+      ],
+      "rules": [],
+      "requirements": {
+        "accountRequired": null,
+        "accountMonths": null,
+        "accountDeposit": null,
+        "homelessRequired": null
+      },
+      "nearby": [],
+      "comparable": null,
+      "reviewedAt": null,
+      "changeNote": "서울시 공식 목록의 청약신청일을 표시했습니다. 기간·시간·신청 링크·자격은 공고 상세와 첨부문서를 확인하세요."
+    },
+    {
+      "id": "seoul-youth-6685",
+      "title": "[민간임대] 동묘앞역 청계로벤하임 추가모집공고",
+      "kind": "rent",
+      "audience": "youth",
+      "supplyType": "서울 청년안심주택 · 민간임대",
+      "address": "서울특별시 종로구 숭인동 240-1 외",
+      "sourceUrl": "https://soco.seoul.go.kr/youth/bbs/BMSR00015/view.do?boardId=6685&menuNo=400008",
+      "applicationUrl": "https://soco.seoul.go.kr/youth/bbs/BMSR00015/view.do?boardId=6685&menuNo=400008",
+      "publishedAt": "2026-10-01",
+      "point": null,
+      "moveIn": null,
+      "moveInNote": "",
+      "priceNote": "보증금·월 임대료는 공급 유형과 주택형에 따라 다릅니다. 서울시 공고문을 확인하세요.",
+      "locationUrl": null,
+      "locationImageUrl": null,
+      "events": [
+        {
+          "label": "청약신청일",
+          "date": "2026-10-06",
+          "type": "open",
+          "time": null
+        }
+      ],
+      "units": [
+        {
+          "id": "overview",
+          "name": "모집 주택 전체",
+          "area": null,
+          "rooms": null,
+          "price": null,
+          "monthlyRent": null,
+          "floorPlanUrl": null,
+          "floorPlanImageUrl": null,
+          "payments": []
+        }
+      ],
+      "rules": [],
+      "requirements": {
+        "accountRequired": null,
+        "accountMonths": null,
+        "accountDeposit": null,
+        "homelessRequired": null
+      },
+      "nearby": [],
+      "comparable": null,
+      "reviewedAt": null,
+      "changeNote": "서울시 공식 목록의 청약신청일을 표시했습니다. 기간·시간·신청 링크·자격은 공고 상세와 첨부문서를 확인하세요."
+    },
     {
       "id": "2026820010",
       "title": "인천계양 A17블록 신혼희망타운(공공분양)(본청약)",
@@ -142,6 +436,287 @@
       "comparable": null,
       "reviewedAt": null,
       "changeNote": "공공데이터에서 가져온 주택형별 최고 공급금액입니다. 전용면적·층별 가격·납부 일정·필수정보는 모집공고 원문 대조가 필요합니다."
+    },
+    {
+      "id": "lh-youth-2015122300020821",
+      "title": "[전북지역본부]2026년 3차 청년매입임대주택 예비입주자 모집공고",
+      "kind": "rent",
+      "audience": "youth",
+      "supplyType": "LH 청년주택 · 매입임대",
+      "address": "전북특별자치도",
+      "sourceUrl": "https://apply.lh.or.kr/lhapply/apply/wt/wrtanc/selectWrtancInfo.do?aisTpCd=26&ccrCnntSysDsCd=03&mi=1026&panId=2015122300020821&uppAisTpCd=13",
+      "applicationUrl": "https://apply.lh.or.kr/lhapply/apply/wt/wrtanc/selectWrtancInfo.do?aisTpCd=26&ccrCnntSysDsCd=03&mi=1026&panId=2015122300020821&uppAisTpCd=13",
+      "publishedAt": "2026-09-30",
+      "point": null,
+      "moveIn": null,
+      "moveInNote": "",
+      "priceNote": "지역·주택별 보증금과 월 임대료는 LH 모집공고문을 확인하세요.",
+      "locationUrl": null,
+      "locationImageUrl": null,
+      "events": [
+        {
+          "label": "청년주택 접수 시작",
+          "date": "2026-10-12",
+          "type": "open",
+          "time": "10:00"
+        },
+        {
+          "label": "청년주택 접수 마감",
+          "date": "2026-10-14",
+          "type": "close",
+          "time": "16:00"
+        },
+        {
+          "label": "당첨자 발표",
+          "date": "2026-12-10",
+          "type": "result",
+          "time": null
+        }
+      ],
+      "units": [
+        {
+          "id": "overview",
+          "name": "모집 주택 전체",
+          "area": null,
+          "rooms": null,
+          "price": null,
+          "monthlyRent": null,
+          "floorPlanUrl": null,
+          "floorPlanImageUrl": null,
+          "payments": []
+        }
+      ],
+      "rules": [],
+      "requirements": {
+        "accountRequired": null,
+        "accountMonths": null,
+        "accountDeposit": null,
+        "homelessRequired": null
+      },
+      "nearby": [],
+      "comparable": null,
+      "reviewedAt": null,
+      "changeNote": "LH 공식 공고 페이지의 게시일·접수일을 수집했습니다. 신청 자격·임대료·세부 위치는 원문에서 확인하세요."
+    },
+    {
+      "id": "lh-youth-2015122300020838",
+      "title": "2026년 3차 대구경북지역 청년매입임대 입주자 모집공고",
+      "kind": "rent",
+      "audience": "youth",
+      "supplyType": "LH 청년주택 · 매입임대",
+      "address": "대구광역시 외",
+      "sourceUrl": "https://apply.lh.or.kr/lhapply/apply/wt/wrtanc/selectWrtancInfo.do?aisTpCd=26&ccrCnntSysDsCd=03&mi=1026&panId=2015122300020838&uppAisTpCd=13",
+      "applicationUrl": "https://apply.lh.or.kr/lhapply/apply/wt/wrtanc/selectWrtancInfo.do?aisTpCd=26&ccrCnntSysDsCd=03&mi=1026&panId=2015122300020838&uppAisTpCd=13",
+      "publishedAt": "2026-09-29",
+      "point": null,
+      "moveIn": null,
+      "moveInNote": "",
+      "priceNote": "지역·주택별 보증금과 월 임대료는 LH 모집공고문을 확인하세요.",
+      "locationUrl": null,
+      "locationImageUrl": null,
+      "events": [
+        {
+          "label": "청년주택 접수 시작",
+          "date": "2026-10-13",
+          "type": "open",
+          "time": "10:00"
+        },
+        {
+          "label": "청년주택 접수 마감",
+          "date": "2026-10-15",
+          "type": "close",
+          "time": "16:00"
+        },
+        {
+          "label": "당첨자 발표",
+          "date": "2026-12-17",
+          "type": "result",
+          "time": null
+        }
+      ],
+      "units": [
+        {
+          "id": "overview",
+          "name": "모집 주택 전체",
+          "area": null,
+          "rooms": null,
+          "price": null,
+          "monthlyRent": null,
+          "floorPlanUrl": null,
+          "floorPlanImageUrl": null,
+          "payments": []
+        }
+      ],
+      "rules": [],
+      "requirements": {
+        "accountRequired": null,
+        "accountMonths": null,
+        "accountDeposit": null,
+        "homelessRequired": null
+      },
+      "nearby": [],
+      "comparable": null,
+      "reviewedAt": null,
+      "changeNote": "LH 공식 공고 페이지의 게시일·접수일을 수집했습니다. 신청 자격·임대료·세부 위치는 원문에서 확인하세요."
+    },
+    {
+      "id": "lh-youth-2015122300020839",
+      "title": "2026년 3차 대구경북(구미)지역 기숙사형 청년주택 입주자 모집공고",
+      "kind": "rent",
+      "audience": "youth",
+      "supplyType": "LH 청년주택 · 매입임대",
+      "address": "경상북도",
+      "sourceUrl": "https://apply.lh.or.kr/lhapply/apply/wt/wrtanc/selectWrtancInfo.do?aisTpCd=26&ccrCnntSysDsCd=03&mi=1026&panId=2015122300020839&uppAisTpCd=13",
+      "applicationUrl": "https://apply.lh.or.kr/lhapply/apply/wt/wrtanc/selectWrtancInfo.do?aisTpCd=26&ccrCnntSysDsCd=03&mi=1026&panId=2015122300020839&uppAisTpCd=13",
+      "publishedAt": "2026-09-29",
+      "point": null,
+      "moveIn": null,
+      "moveInNote": "",
+      "priceNote": "지역·주택별 보증금과 월 임대료는 LH 모집공고문을 확인하세요.",
+      "locationUrl": null,
+      "locationImageUrl": null,
+      "events": [
+        {
+          "label": "청년주택 접수 시작",
+          "date": "2026-10-13",
+          "type": "open",
+          "time": "10:00"
+        },
+        {
+          "label": "청년주택 접수 마감",
+          "date": "2026-10-15",
+          "type": "close",
+          "time": "16:00"
+        },
+        {
+          "label": "당첨자 발표",
+          "date": "2026-12-17",
+          "type": "result",
+          "time": null
+        }
+      ],
+      "units": [
+        {
+          "id": "overview",
+          "name": "모집 주택 전체",
+          "area": null,
+          "rooms": null,
+          "price": null,
+          "monthlyRent": null,
+          "floorPlanUrl": null,
+          "floorPlanImageUrl": null,
+          "payments": []
+        }
+      ],
+      "rules": [],
+      "requirements": {
+        "accountRequired": null,
+        "accountMonths": null,
+        "accountDeposit": null,
+        "homelessRequired": null
+      },
+      "nearby": [],
+      "comparable": null,
+      "reviewedAt": null,
+      "changeNote": "LH 공식 공고 페이지의 게시일·접수일을 수집했습니다. 신청 자격·임대료·세부 위치는 원문에서 확인하세요."
+    },
+    {
+      "id": "seoul-youth-6678",
+      "title": "[민간임대] 대흥역 리마크빌 마포 최초모집공고",
+      "kind": "rent",
+      "audience": "youth",
+      "supplyType": "서울 청년안심주택 · 민간임대",
+      "address": "서울특별시 마포구 염리동 534",
+      "sourceUrl": "https://soco.seoul.go.kr/youth/bbs/BMSR00015/view.do?boardId=6678&menuNo=400008",
+      "applicationUrl": "https://soco.seoul.go.kr/youth/bbs/BMSR00015/view.do?boardId=6678&menuNo=400008",
+      "publishedAt": "2026-09-22",
+      "point": null,
+      "moveIn": null,
+      "moveInNote": "",
+      "priceNote": "보증금·월 임대료는 공급 유형과 주택형에 따라 다릅니다. 서울시 공고문을 확인하세요.",
+      "locationUrl": null,
+      "locationImageUrl": null,
+      "events": [
+        {
+          "label": "청약신청일",
+          "date": "2026-10-01",
+          "type": "open",
+          "time": null
+        }
+      ],
+      "units": [
+        {
+          "id": "overview",
+          "name": "모집 주택 전체",
+          "area": null,
+          "rooms": null,
+          "price": null,
+          "monthlyRent": null,
+          "floorPlanUrl": null,
+          "floorPlanImageUrl": null,
+          "payments": []
+        }
+      ],
+      "rules": [],
+      "requirements": {
+        "accountRequired": null,
+        "accountMonths": null,
+        "accountDeposit": null,
+        "homelessRequired": null
+      },
+      "nearby": [],
+      "comparable": null,
+      "reviewedAt": null,
+      "changeNote": "서울시 공식 목록의 청약신청일을 표시했습니다. 기간·시간·신청 링크·자격은 공고 상세와 첨부문서를 확인하세요."
+    },
+    {
+      "id": "seoul-youth-6679",
+      "title": "[민간임대] 장지역 송파해링턴타워 최초모집공고",
+      "kind": "rent",
+      "audience": "youth",
+      "supplyType": "서울 청년안심주택 · 민간임대",
+      "address": "서울특별시 송파구 장지동 842-1",
+      "sourceUrl": "https://soco.seoul.go.kr/youth/bbs/BMSR00015/view.do?boardId=6679&menuNo=400008",
+      "applicationUrl": "https://soco.seoul.go.kr/youth/bbs/BMSR00015/view.do?boardId=6679&menuNo=400008",
+      "publishedAt": "2026-09-22",
+      "point": null,
+      "moveIn": null,
+      "moveInNote": "",
+      "priceNote": "보증금·월 임대료는 공급 유형과 주택형에 따라 다릅니다. 서울시 공고문을 확인하세요.",
+      "locationUrl": null,
+      "locationImageUrl": null,
+      "events": [
+        {
+          "label": "청약신청일",
+          "date": "2026-09-30",
+          "type": "open",
+          "time": null
+        }
+      ],
+      "units": [
+        {
+          "id": "overview",
+          "name": "모집 주택 전체",
+          "area": null,
+          "rooms": null,
+          "price": null,
+          "monthlyRent": null,
+          "floorPlanUrl": null,
+          "floorPlanImageUrl": null,
+          "payments": []
+        }
+      ],
+      "rules": [],
+      "requirements": {
+        "accountRequired": null,
+        "accountMonths": null,
+        "accountDeposit": null,
+        "homelessRequired": null
+      },
+      "nearby": [],
+      "comparable": null,
+      "reviewedAt": null,
+      "changeNote": "서울시 공식 목록의 청약신청일을 표시했습니다. 기간·시간·신청 링크·자격은 공고 상세와 첨부문서를 확인하세요."
     },
     {
       "id": "2026000424",
@@ -1572,6 +2147,1021 @@
       "changeNote": "공공데이터에서 가져온 주택형별 최고 공급금액입니다. 전용면적·층별 가격·납부 일정·필수정보는 모집공고 원문 대조가 필요합니다."
     },
     {
+      "id": "lh-youth-2015122300020759",
+      "title": "[서울지역본부] 26년 3차 청년 매입임대주택 예비입주자 모집공고",
+      "kind": "rent",
+      "audience": "youth",
+      "supplyType": "LH 청년주택 · 매입임대",
+      "address": "서울특별시",
+      "sourceUrl": "https://apply.lh.or.kr/lhapply/apply/wt/wrtanc/selectWrtancInfo.do?aisTpCd=26&ccrCnntSysDsCd=03&mi=1026&panId=2015122300020759&uppAisTpCd=13",
+      "applicationUrl": "https://apply.lh.or.kr/lhapply/apply/wt/wrtanc/selectWrtancInfo.do?aisTpCd=26&ccrCnntSysDsCd=03&mi=1026&panId=2015122300020759&uppAisTpCd=13",
+      "publishedAt": "2026-09-17",
+      "point": null,
+      "moveIn": null,
+      "moveInNote": "",
+      "priceNote": "지역·주택별 보증금과 월 임대료는 LH 모집공고문을 확인하세요.",
+      "locationUrl": null,
+      "locationImageUrl": null,
+      "events": [
+        {
+          "label": "청년주택 접수 시작",
+          "date": "2026-09-28",
+          "type": "open",
+          "time": "10:00"
+        },
+        {
+          "label": "청년주택 접수 마감",
+          "date": "2026-09-30",
+          "type": "close",
+          "time": "16:00"
+        },
+        {
+          "label": "당첨자 발표",
+          "date": "2026-12-11",
+          "type": "result",
+          "time": null
+        }
+      ],
+      "units": [
+        {
+          "id": "overview",
+          "name": "모집 주택 전체",
+          "area": null,
+          "rooms": null,
+          "price": null,
+          "monthlyRent": null,
+          "floorPlanUrl": null,
+          "floorPlanImageUrl": null,
+          "payments": []
+        }
+      ],
+      "rules": [],
+      "requirements": {
+        "accountRequired": null,
+        "accountMonths": null,
+        "accountDeposit": null,
+        "homelessRequired": null
+      },
+      "nearby": [],
+      "comparable": null,
+      "reviewedAt": null,
+      "changeNote": "LH 공식 공고 페이지의 게시일·접수일을 수집했습니다. 신청 자격·임대료·세부 위치는 원문에서 확인하세요."
+    },
+    {
+      "id": "lh-youth-2015122300020773",
+      "title": "[광주전남지역본부] 청년 매입임대주택 예비입주자 모집공고",
+      "kind": "rent",
+      "audience": "youth",
+      "supplyType": "LH 청년주택 · 매입임대",
+      "address": "전남광주통합특별시",
+      "sourceUrl": "https://apply.lh.or.kr/lhapply/apply/wt/wrtanc/selectWrtancInfo.do?aisTpCd=26&ccrCnntSysDsCd=03&mi=1026&panId=2015122300020773&uppAisTpCd=13",
+      "applicationUrl": "https://apply.lh.or.kr/lhapply/apply/wt/wrtanc/selectWrtancInfo.do?aisTpCd=26&ccrCnntSysDsCd=03&mi=1026&panId=2015122300020773&uppAisTpCd=13",
+      "publishedAt": "2026-09-17",
+      "point": null,
+      "moveIn": null,
+      "moveInNote": "",
+      "priceNote": "지역·주택별 보증금과 월 임대료는 LH 모집공고문을 확인하세요.",
+      "locationUrl": null,
+      "locationImageUrl": null,
+      "events": [
+        {
+          "label": "청년주택 접수 시작",
+          "date": "2026-09-28",
+          "type": "open",
+          "time": "10:00"
+        },
+        {
+          "label": "청년주택 접수 마감",
+          "date": "2026-09-30",
+          "type": "close",
+          "time": "16:00"
+        },
+        {
+          "label": "당첨자 발표",
+          "date": "2026-12-08",
+          "type": "result",
+          "time": null
+        }
+      ],
+      "units": [
+        {
+          "id": "overview",
+          "name": "모집 주택 전체",
+          "area": null,
+          "rooms": null,
+          "price": null,
+          "monthlyRent": null,
+          "floorPlanUrl": null,
+          "floorPlanImageUrl": null,
+          "payments": []
+        }
+      ],
+      "rules": [],
+      "requirements": {
+        "accountRequired": null,
+        "accountMonths": null,
+        "accountDeposit": null,
+        "homelessRequired": null
+      },
+      "nearby": [],
+      "comparable": null,
+      "reviewedAt": null,
+      "changeNote": "LH 공식 공고 페이지의 게시일·접수일을 수집했습니다. 신청 자격·임대료·세부 위치는 원문에서 확인하세요."
+    },
+    {
+      "id": "lh-youth-2015122300020775",
+      "title": "[광주전남지역본부] 기숙사형 청년주택 예비입주자 모집공고",
+      "kind": "rent",
+      "audience": "youth",
+      "supplyType": "LH 청년주택 · 매입임대",
+      "address": "전남광주통합특별시",
+      "sourceUrl": "https://apply.lh.or.kr/lhapply/apply/wt/wrtanc/selectWrtancInfo.do?aisTpCd=26&ccrCnntSysDsCd=03&mi=1026&panId=2015122300020775&uppAisTpCd=13",
+      "applicationUrl": "https://apply.lh.or.kr/lhapply/apply/wt/wrtanc/selectWrtancInfo.do?aisTpCd=26&ccrCnntSysDsCd=03&mi=1026&panId=2015122300020775&uppAisTpCd=13",
+      "publishedAt": "2026-09-17",
+      "point": null,
+      "moveIn": null,
+      "moveInNote": "",
+      "priceNote": "지역·주택별 보증금과 월 임대료는 LH 모집공고문을 확인하세요.",
+      "locationUrl": null,
+      "locationImageUrl": null,
+      "events": [
+        {
+          "label": "청년주택 접수 시작",
+          "date": "2026-09-28",
+          "type": "open",
+          "time": "10:00"
+        },
+        {
+          "label": "청년주택 접수 마감",
+          "date": "2026-09-30",
+          "type": "close",
+          "time": "16:00"
+        },
+        {
+          "label": "당첨자 발표",
+          "date": "2026-12-08",
+          "type": "result",
+          "time": null
+        }
+      ],
+      "units": [
+        {
+          "id": "overview",
+          "name": "모집 주택 전체",
+          "area": null,
+          "rooms": null,
+          "price": null,
+          "monthlyRent": null,
+          "floorPlanUrl": null,
+          "floorPlanImageUrl": null,
+          "payments": []
+        }
+      ],
+      "rules": [],
+      "requirements": {
+        "accountRequired": null,
+        "accountMonths": null,
+        "accountDeposit": null,
+        "homelessRequired": null
+      },
+      "nearby": [],
+      "comparable": null,
+      "reviewedAt": null,
+      "changeNote": "LH 공식 공고 페이지의 게시일·접수일을 수집했습니다. 신청 자격·임대료·세부 위치는 원문에서 확인하세요."
+    },
+    {
+      "id": "lh-youth-2015122300020778",
+      "title": "[충북지역본부]청년 매입임대주택 예비입주자 모집 공고(260917)",
+      "kind": "rent",
+      "audience": "youth",
+      "supplyType": "LH 청년주택 · 매입임대",
+      "address": "충청북도",
+      "sourceUrl": "https://apply.lh.or.kr/lhapply/apply/wt/wrtanc/selectWrtancInfo.do?aisTpCd=26&ccrCnntSysDsCd=03&mi=1026&panId=2015122300020778&uppAisTpCd=13",
+      "applicationUrl": "https://apply.lh.or.kr/lhapply/apply/wt/wrtanc/selectWrtancInfo.do?aisTpCd=26&ccrCnntSysDsCd=03&mi=1026&panId=2015122300020778&uppAisTpCd=13",
+      "publishedAt": "2026-09-17",
+      "point": null,
+      "moveIn": null,
+      "moveInNote": "",
+      "priceNote": "지역·주택별 보증금과 월 임대료는 LH 모집공고문을 확인하세요.",
+      "locationUrl": null,
+      "locationImageUrl": null,
+      "events": [
+        {
+          "label": "청년주택 접수 시작",
+          "date": "2026-09-28",
+          "type": "open",
+          "time": "10:00"
+        },
+        {
+          "label": "청년주택 접수 마감",
+          "date": "2026-09-30",
+          "type": "close",
+          "time": "16:00"
+        },
+        {
+          "label": "당첨자 발표",
+          "date": "2026-12-09",
+          "type": "result",
+          "time": null
+        }
+      ],
+      "units": [
+        {
+          "id": "overview",
+          "name": "모집 주택 전체",
+          "area": null,
+          "rooms": null,
+          "price": null,
+          "monthlyRent": null,
+          "floorPlanUrl": null,
+          "floorPlanImageUrl": null,
+          "payments": []
+        }
+      ],
+      "rules": [],
+      "requirements": {
+        "accountRequired": null,
+        "accountMonths": null,
+        "accountDeposit": null,
+        "homelessRequired": null
+      },
+      "nearby": [],
+      "comparable": null,
+      "reviewedAt": null,
+      "changeNote": "LH 공식 공고 페이지의 게시일·접수일을 수집했습니다. 신청 자격·임대료·세부 위치는 원문에서 확인하세요."
+    },
+    {
+      "id": "lh-youth-2015122300020790",
+      "title": "[부산]청년매입임대주택 예비입주자 모집 공고(복사)",
+      "kind": "rent",
+      "audience": "youth",
+      "supplyType": "LH 청년주택 · 매입임대",
+      "address": "부산광역시",
+      "sourceUrl": "https://apply.lh.or.kr/lhapply/apply/wt/wrtanc/selectWrtancInfo.do?aisTpCd=26&ccrCnntSysDsCd=03&mi=1026&panId=2015122300020790&uppAisTpCd=13",
+      "applicationUrl": "https://apply.lh.or.kr/lhapply/apply/wt/wrtanc/selectWrtancInfo.do?aisTpCd=26&ccrCnntSysDsCd=03&mi=1026&panId=2015122300020790&uppAisTpCd=13",
+      "publishedAt": "2026-09-17",
+      "point": null,
+      "moveIn": null,
+      "moveInNote": "",
+      "priceNote": "지역·주택별 보증금과 월 임대료는 LH 모집공고문을 확인하세요.",
+      "locationUrl": null,
+      "locationImageUrl": null,
+      "events": [
+        {
+          "label": "청년주택 접수 시작",
+          "date": "2026-09-28",
+          "type": "open",
+          "time": "10:00"
+        },
+        {
+          "label": "청년주택 접수 마감",
+          "date": "2026-09-30",
+          "type": "close",
+          "time": "16:00"
+        },
+        {
+          "label": "당첨자 발표",
+          "date": "2026-12-11",
+          "type": "result",
+          "time": null
+        }
+      ],
+      "units": [
+        {
+          "id": "overview",
+          "name": "모집 주택 전체",
+          "area": null,
+          "rooms": null,
+          "price": null,
+          "monthlyRent": null,
+          "floorPlanUrl": null,
+          "floorPlanImageUrl": null,
+          "payments": []
+        }
+      ],
+      "rules": [],
+      "requirements": {
+        "accountRequired": null,
+        "accountMonths": null,
+        "accountDeposit": null,
+        "homelessRequired": null
+      },
+      "nearby": [],
+      "comparable": null,
+      "reviewedAt": null,
+      "changeNote": "LH 공식 공고 페이지의 게시일·접수일을 수집했습니다. 신청 자격·임대료·세부 위치는 원문에서 확인하세요."
+    },
+    {
+      "id": "lh-youth-2015122300020798",
+      "title": "[인천지역본부] 26년 7차 청년 매입임대주택 예비입주자 모집공고(인천,부천)",
+      "kind": "rent",
+      "audience": "youth",
+      "supplyType": "LH 청년주택 · 매입임대",
+      "address": "인천광역시 외",
+      "sourceUrl": "https://apply.lh.or.kr/lhapply/apply/wt/wrtanc/selectWrtancInfo.do?aisTpCd=26&ccrCnntSysDsCd=03&mi=1026&panId=2015122300020798&uppAisTpCd=13",
+      "applicationUrl": "https://apply.lh.or.kr/lhapply/apply/wt/wrtanc/selectWrtancInfo.do?aisTpCd=26&ccrCnntSysDsCd=03&mi=1026&panId=2015122300020798&uppAisTpCd=13",
+      "publishedAt": "2026-09-17",
+      "point": null,
+      "moveIn": null,
+      "moveInNote": "",
+      "priceNote": "지역·주택별 보증금과 월 임대료는 LH 모집공고문을 확인하세요.",
+      "locationUrl": null,
+      "locationImageUrl": null,
+      "events": [
+        {
+          "label": "청년주택 접수 시작",
+          "date": "2026-09-28",
+          "type": "open",
+          "time": "10:00"
+        },
+        {
+          "label": "청년주택 접수 마감",
+          "date": "2026-09-30",
+          "type": "close",
+          "time": "16:00"
+        },
+        {
+          "label": "당첨자 발표",
+          "date": "2026-12-03",
+          "type": "result",
+          "time": null
+        }
+      ],
+      "units": [
+        {
+          "id": "overview",
+          "name": "모집 주택 전체",
+          "area": null,
+          "rooms": null,
+          "price": null,
+          "monthlyRent": null,
+          "floorPlanUrl": null,
+          "floorPlanImageUrl": null,
+          "payments": []
+        }
+      ],
+      "rules": [],
+      "requirements": {
+        "accountRequired": null,
+        "accountMonths": null,
+        "accountDeposit": null,
+        "homelessRequired": null
+      },
+      "nearby": [],
+      "comparable": null,
+      "reviewedAt": null,
+      "changeNote": "LH 공식 공고 페이지의 게시일·접수일을 수집했습니다. 신청 자격·임대료·세부 위치는 원문에서 확인하세요."
+    },
+    {
+      "id": "lh-youth-2015122300020819",
+      "title": "[정정공고][광주전남지역본부] 기숙사형 청년주택 예비입주자 모집공고",
+      "kind": "rent",
+      "audience": "youth",
+      "supplyType": "LH 청년주택 · 매입임대",
+      "address": "전남광주통합특별시",
+      "sourceUrl": "https://apply.lh.or.kr/lhapply/apply/wt/wrtanc/selectWrtancInfo.do?aisTpCd=26&ccrCnntSysDsCd=03&mi=1026&panId=2015122300020819&uppAisTpCd=13",
+      "applicationUrl": "https://apply.lh.or.kr/lhapply/apply/wt/wrtanc/selectWrtancInfo.do?aisTpCd=26&ccrCnntSysDsCd=03&mi=1026&panId=2015122300020819&uppAisTpCd=13",
+      "publishedAt": "2026-09-17",
+      "point": null,
+      "moveIn": null,
+      "moveInNote": "",
+      "priceNote": "지역·주택별 보증금과 월 임대료는 LH 모집공고문을 확인하세요.",
+      "locationUrl": null,
+      "locationImageUrl": null,
+      "events": [
+        {
+          "label": "청년주택 접수 시작",
+          "date": "2026-09-28",
+          "type": "open",
+          "time": "10:00"
+        },
+        {
+          "label": "청년주택 접수 마감",
+          "date": "2026-09-30",
+          "type": "close",
+          "time": "16:00"
+        },
+        {
+          "label": "당첨자 발표",
+          "date": "2026-12-08",
+          "type": "result",
+          "time": null
+        }
+      ],
+      "units": [
+        {
+          "id": "overview",
+          "name": "모집 주택 전체",
+          "area": null,
+          "rooms": null,
+          "price": null,
+          "monthlyRent": null,
+          "floorPlanUrl": null,
+          "floorPlanImageUrl": null,
+          "payments": []
+        }
+      ],
+      "rules": [],
+      "requirements": {
+        "accountRequired": null,
+        "accountMonths": null,
+        "accountDeposit": null,
+        "homelessRequired": null
+      },
+      "nearby": [],
+      "comparable": null,
+      "reviewedAt": null,
+      "changeNote": "LH 공식 공고 페이지의 게시일·접수일을 수집했습니다. 신청 자격·임대료·세부 위치는 원문에서 확인하세요."
+    },
+    {
+      "id": "seoul-youth-6667",
+      "title": "[민간임대] 강변역 비바힐스강변 추가모집공고",
+      "kind": "rent",
+      "audience": "youth",
+      "supplyType": "서울 청년안심주택 · 민간임대",
+      "address": "서울특별시 광진구 구의동 593-11",
+      "sourceUrl": "https://soco.seoul.go.kr/youth/bbs/BMSR00015/view.do?boardId=6667&menuNo=400008",
+      "applicationUrl": "https://soco.seoul.go.kr/youth/bbs/BMSR00015/view.do?boardId=6667&menuNo=400008",
+      "publishedAt": "2026-09-17",
+      "point": null,
+      "moveIn": null,
+      "moveInNote": "",
+      "priceNote": "보증금·월 임대료는 공급 유형과 주택형에 따라 다릅니다. 서울시 공고문을 확인하세요.",
+      "locationUrl": null,
+      "locationImageUrl": null,
+      "events": [
+        {
+          "label": "청약신청일",
+          "date": "2026-09-21",
+          "type": "open",
+          "time": null
+        }
+      ],
+      "units": [
+        {
+          "id": "overview",
+          "name": "모집 주택 전체",
+          "area": null,
+          "rooms": null,
+          "price": null,
+          "monthlyRent": null,
+          "floorPlanUrl": null,
+          "floorPlanImageUrl": null,
+          "payments": []
+        }
+      ],
+      "rules": [],
+      "requirements": {
+        "accountRequired": null,
+        "accountMonths": null,
+        "accountDeposit": null,
+        "homelessRequired": null
+      },
+      "nearby": [],
+      "comparable": null,
+      "reviewedAt": null,
+      "changeNote": "서울시 공식 목록의 청약신청일을 표시했습니다. 기간·시간·신청 링크·자격은 공고 상세와 첨부문서를 확인하세요."
+    },
+    {
+      "id": "seoul-youth-6668",
+      "title": "[민간임대] 등촌역 아임2030 추가모집공고",
+      "kind": "rent",
+      "audience": "youth",
+      "supplyType": "서울 청년안심주택 · 민간임대",
+      "address": "서울특별시 강서구 공항대로59가길 14",
+      "sourceUrl": "https://soco.seoul.go.kr/youth/bbs/BMSR00015/view.do?boardId=6668&menuNo=400008",
+      "applicationUrl": "https://soco.seoul.go.kr/youth/bbs/BMSR00015/view.do?boardId=6668&menuNo=400008",
+      "publishedAt": "2026-09-17",
+      "point": null,
+      "moveIn": null,
+      "moveInNote": "",
+      "priceNote": "보증금·월 임대료는 공급 유형과 주택형에 따라 다릅니다. 서울시 공고문을 확인하세요.",
+      "locationUrl": null,
+      "locationImageUrl": null,
+      "events": [
+        {
+          "label": "청약신청일",
+          "date": "2026-09-17",
+          "type": "open",
+          "time": null
+        }
+      ],
+      "units": [
+        {
+          "id": "overview",
+          "name": "모집 주택 전체",
+          "area": null,
+          "rooms": null,
+          "price": null,
+          "monthlyRent": null,
+          "floorPlanUrl": null,
+          "floorPlanImageUrl": null,
+          "payments": []
+        }
+      ],
+      "rules": [],
+      "requirements": {
+        "accountRequired": null,
+        "accountMonths": null,
+        "accountDeposit": null,
+        "homelessRequired": null
+      },
+      "nearby": [],
+      "comparable": null,
+      "reviewedAt": null,
+      "changeNote": "서울시 공식 목록의 청약신청일을 표시했습니다. 기간·시간·신청 링크·자격은 공고 상세와 첨부문서를 확인하세요."
+    },
+    {
+      "id": "seoul-youth-6669",
+      "title": "[민간임대] 서울대입구역 BX201 추가모집공고",
+      "kind": "rent",
+      "audience": "youth",
+      "supplyType": "서울 청년안심주택 · 민간임대",
+      "address": "서울특별시 관악구 남부순환로 224길 25",
+      "sourceUrl": "https://soco.seoul.go.kr/youth/bbs/BMSR00015/view.do?boardId=6669&menuNo=400008",
+      "applicationUrl": "https://soco.seoul.go.kr/youth/bbs/BMSR00015/view.do?boardId=6669&menuNo=400008",
+      "publishedAt": "2026-09-17",
+      "point": null,
+      "moveIn": null,
+      "moveInNote": "",
+      "priceNote": "보증금·월 임대료는 공급 유형과 주택형에 따라 다릅니다. 서울시 공고문을 확인하세요.",
+      "locationUrl": null,
+      "locationImageUrl": null,
+      "events": [
+        {
+          "label": "청약신청일",
+          "date": "2026-09-21",
+          "type": "open",
+          "time": null
+        }
+      ],
+      "units": [
+        {
+          "id": "overview",
+          "name": "모집 주택 전체",
+          "area": null,
+          "rooms": null,
+          "price": null,
+          "monthlyRent": null,
+          "floorPlanUrl": null,
+          "floorPlanImageUrl": null,
+          "payments": []
+        }
+      ],
+      "rules": [],
+      "requirements": {
+        "accountRequired": null,
+        "accountMonths": null,
+        "accountDeposit": null,
+        "homelessRequired": null
+      },
+      "nearby": [],
+      "comparable": null,
+      "reviewedAt": null,
+      "changeNote": "서울시 공식 목록의 청약신청일을 표시했습니다. 기간·시간·신청 링크·자격은 공고 상세와 첨부문서를 확인하세요."
+    },
+    {
+      "id": "seoul-youth-6670",
+      "title": "[민간임대] 신림역 최강타워 추가모집공고",
+      "kind": "rent",
+      "audience": "youth",
+      "supplyType": "서울 청년안심주택 · 민간임대",
+      "address": "서울특별시 관악구 남부순환로 180길 6",
+      "sourceUrl": "https://soco.seoul.go.kr/youth/bbs/BMSR00015/view.do?boardId=6670&menuNo=400008",
+      "applicationUrl": "https://soco.seoul.go.kr/youth/bbs/BMSR00015/view.do?boardId=6670&menuNo=400008",
+      "publishedAt": "2026-09-17",
+      "point": null,
+      "moveIn": null,
+      "moveInNote": "",
+      "priceNote": "보증금·월 임대료는 공급 유형과 주택형에 따라 다릅니다. 서울시 공고문을 확인하세요.",
+      "locationUrl": null,
+      "locationImageUrl": null,
+      "events": [
+        {
+          "label": "청약신청일",
+          "date": "2026-09-19",
+          "type": "open",
+          "time": null
+        }
+      ],
+      "units": [
+        {
+          "id": "overview",
+          "name": "모집 주택 전체",
+          "area": null,
+          "rooms": null,
+          "price": null,
+          "monthlyRent": null,
+          "floorPlanUrl": null,
+          "floorPlanImageUrl": null,
+          "payments": []
+        }
+      ],
+      "rules": [],
+      "requirements": {
+        "accountRequired": null,
+        "accountMonths": null,
+        "accountDeposit": null,
+        "homelessRequired": null
+      },
+      "nearby": [],
+      "comparable": null,
+      "reviewedAt": null,
+      "changeNote": "서울시 공식 목록의 청약신청일을 표시했습니다. 기간·시간·신청 링크·자격은 공고 상세와 첨부문서를 확인하세요."
+    },
+    {
+      "id": "seoul-youth-6671",
+      "title": "[민간임대] 신풍역 비스타동원 추가모집공고",
+      "kind": "rent",
+      "audience": "youth",
+      "supplyType": "서울 청년안심주택 · 민간임대",
+      "address": "서울특별시 영등포구 신길동 3608번지 외",
+      "sourceUrl": "https://soco.seoul.go.kr/youth/bbs/BMSR00015/view.do?boardId=6671&menuNo=400008",
+      "applicationUrl": "https://soco.seoul.go.kr/youth/bbs/BMSR00015/view.do?boardId=6671&menuNo=400008",
+      "publishedAt": "2026-09-17",
+      "point": null,
+      "moveIn": null,
+      "moveInNote": "",
+      "priceNote": "보증금·월 임대료는 공급 유형과 주택형에 따라 다릅니다. 서울시 공고문을 확인하세요.",
+      "locationUrl": null,
+      "locationImageUrl": null,
+      "events": [
+        {
+          "label": "청약신청일",
+          "date": "2026-09-21",
+          "type": "open",
+          "time": null
+        }
+      ],
+      "units": [
+        {
+          "id": "overview",
+          "name": "모집 주택 전체",
+          "area": null,
+          "rooms": null,
+          "price": null,
+          "monthlyRent": null,
+          "floorPlanUrl": null,
+          "floorPlanImageUrl": null,
+          "payments": []
+        }
+      ],
+      "rules": [],
+      "requirements": {
+        "accountRequired": null,
+        "accountMonths": null,
+        "accountDeposit": null,
+        "homelessRequired": null
+      },
+      "nearby": [],
+      "comparable": null,
+      "reviewedAt": null,
+      "changeNote": "서울시 공식 목록의 청약신청일을 표시했습니다. 기간·시간·신청 링크·자격은 공고 상세와 첨부문서를 확인하세요."
+    },
+    {
+      "id": "seoul-youth-6672",
+      "title": "[민간임대] 연신내역 루미노816 추가모집공고",
+      "kind": "rent",
+      "audience": "youth",
+      "supplyType": "서울 청년안심주택 · 민간임대",
+      "address": "서울특별시 은평구 불광동 302-13번지 외 1필지",
+      "sourceUrl": "https://soco.seoul.go.kr/youth/bbs/BMSR00015/view.do?boardId=6672&menuNo=400008",
+      "applicationUrl": "https://soco.seoul.go.kr/youth/bbs/BMSR00015/view.do?boardId=6672&menuNo=400008",
+      "publishedAt": "2026-09-17",
+      "point": null,
+      "moveIn": null,
+      "moveInNote": "",
+      "priceNote": "보증금·월 임대료는 공급 유형과 주택형에 따라 다릅니다. 서울시 공고문을 확인하세요.",
+      "locationUrl": null,
+      "locationImageUrl": null,
+      "events": [
+        {
+          "label": "청약신청일",
+          "date": "2026-09-21",
+          "type": "open",
+          "time": null
+        }
+      ],
+      "units": [
+        {
+          "id": "overview",
+          "name": "모집 주택 전체",
+          "area": null,
+          "rooms": null,
+          "price": null,
+          "monthlyRent": null,
+          "floorPlanUrl": null,
+          "floorPlanImageUrl": null,
+          "payments": []
+        }
+      ],
+      "rules": [],
+      "requirements": {
+        "accountRequired": null,
+        "accountMonths": null,
+        "accountDeposit": null,
+        "homelessRequired": null
+      },
+      "nearby": [],
+      "comparable": null,
+      "reviewedAt": null,
+      "changeNote": "서울시 공식 목록의 청약신청일을 표시했습니다. 기간·시간·신청 링크·자격은 공고 상세와 첨부문서를 확인하세요."
+    },
+    {
+      "id": "seoul-youth-6673",
+      "title": "[민간임대] 왕십리역 라봄성동 추가모집공고",
+      "kind": "rent",
+      "audience": "youth",
+      "supplyType": "서울 청년안심주택 · 민간임대",
+      "address": "서울특별시 성동구 마장동 836일원",
+      "sourceUrl": "https://soco.seoul.go.kr/youth/bbs/BMSR00015/view.do?boardId=6673&menuNo=400008",
+      "applicationUrl": "https://soco.seoul.go.kr/youth/bbs/BMSR00015/view.do?boardId=6673&menuNo=400008",
+      "publishedAt": "2026-09-17",
+      "point": null,
+      "moveIn": null,
+      "moveInNote": "",
+      "priceNote": "보증금·월 임대료는 공급 유형과 주택형에 따라 다릅니다. 서울시 공고문을 확인하세요.",
+      "locationUrl": null,
+      "locationImageUrl": null,
+      "events": [
+        {
+          "label": "청약신청일",
+          "date": "2026-09-18",
+          "type": "open",
+          "time": null
+        }
+      ],
+      "units": [
+        {
+          "id": "overview",
+          "name": "모집 주택 전체",
+          "area": null,
+          "rooms": null,
+          "price": null,
+          "monthlyRent": null,
+          "floorPlanUrl": null,
+          "floorPlanImageUrl": null,
+          "payments": []
+        }
+      ],
+      "rules": [],
+      "requirements": {
+        "accountRequired": null,
+        "accountMonths": null,
+        "accountDeposit": null,
+        "homelessRequired": null
+      },
+      "nearby": [],
+      "comparable": null,
+      "reviewedAt": null,
+      "changeNote": "서울시 공식 목록의 청약신청일을 표시했습니다. 기간·시간·신청 링크·자격은 공고 상세와 첨부문서를 확인하세요."
+    },
+    {
+      "id": "seoul-youth-6674",
+      "title": "[민간임대] 종암경찰서역(예정) 라온프라이빗 종암 추가모집공고",
+      "kind": "rent",
+      "audience": "youth",
+      "supplyType": "서울 청년안심주택 · 민간임대",
+      "address": "서울특별시 성북구 종암동 83-3 일원",
+      "sourceUrl": "https://soco.seoul.go.kr/youth/bbs/BMSR00015/view.do?boardId=6674&menuNo=400008",
+      "applicationUrl": "https://soco.seoul.go.kr/youth/bbs/BMSR00015/view.do?boardId=6674&menuNo=400008",
+      "publishedAt": "2026-09-17",
+      "point": null,
+      "moveIn": null,
+      "moveInNote": "",
+      "priceNote": "보증금·월 임대료는 공급 유형과 주택형에 따라 다릅니다. 서울시 공고문을 확인하세요.",
+      "locationUrl": null,
+      "locationImageUrl": null,
+      "events": [
+        {
+          "label": "청약신청일",
+          "date": "2026-09-21",
+          "type": "open",
+          "time": null
+        }
+      ],
+      "units": [
+        {
+          "id": "overview",
+          "name": "모집 주택 전체",
+          "area": null,
+          "rooms": null,
+          "price": null,
+          "monthlyRent": null,
+          "floorPlanUrl": null,
+          "floorPlanImageUrl": null,
+          "payments": []
+        }
+      ],
+      "rules": [],
+      "requirements": {
+        "accountRequired": null,
+        "accountMonths": null,
+        "accountDeposit": null,
+        "homelessRequired": null
+      },
+      "nearby": [],
+      "comparable": null,
+      "reviewedAt": null,
+      "changeNote": "서울시 공식 목록의 청약신청일을 표시했습니다. 기간·시간·신청 링크·자격은 공고 상세와 첨부문서를 확인하세요."
+    },
+    {
+      "id": "seoul-youth-6675",
+      "title": "[민간임대] 청량리역 퀸즈W 청량리역 추가모집공고",
+      "kind": "rent",
+      "audience": "youth",
+      "supplyType": "서울 청년안심주택 · 민간임대",
+      "address": "서울특별시 동대문구 전농동 127-359",
+      "sourceUrl": "https://soco.seoul.go.kr/youth/bbs/BMSR00015/view.do?boardId=6675&menuNo=400008",
+      "applicationUrl": "https://soco.seoul.go.kr/youth/bbs/BMSR00015/view.do?boardId=6675&menuNo=400008",
+      "publishedAt": "2026-09-17",
+      "point": null,
+      "moveIn": null,
+      "moveInNote": "",
+      "priceNote": "보증금·월 임대료는 공급 유형과 주택형에 따라 다릅니다. 서울시 공고문을 확인하세요.",
+      "locationUrl": null,
+      "locationImageUrl": null,
+      "events": [
+        {
+          "label": "청약신청일",
+          "date": "2026-09-21",
+          "type": "open",
+          "time": null
+        }
+      ],
+      "units": [
+        {
+          "id": "overview",
+          "name": "모집 주택 전체",
+          "area": null,
+          "rooms": null,
+          "price": null,
+          "monthlyRent": null,
+          "floorPlanUrl": null,
+          "floorPlanImageUrl": null,
+          "payments": []
+        }
+      ],
+      "rules": [],
+      "requirements": {
+        "accountRequired": null,
+        "accountMonths": null,
+        "accountDeposit": null,
+        "homelessRequired": null
+      },
+      "nearby": [],
+      "comparable": null,
+      "reviewedAt": null,
+      "changeNote": "서울시 공식 목록의 청약신청일을 표시했습니다. 기간·시간·신청 링크·자격은 공고 상세와 첨부문서를 확인하세요."
+    },
+    {
+      "id": "seoul-youth-6676",
+      "title": "[민간임대] 회기역 하트리움 추가모집공고",
+      "kind": "rent",
+      "audience": "youth",
+      "supplyType": "서울 청년안심주택 · 민간임대",
+      "address": "서울특별시 동대문구 망우로 46",
+      "sourceUrl": "https://soco.seoul.go.kr/youth/bbs/BMSR00015/view.do?boardId=6676&menuNo=400008",
+      "applicationUrl": "https://soco.seoul.go.kr/youth/bbs/BMSR00015/view.do?boardId=6676&menuNo=400008",
+      "publishedAt": "2026-09-17",
+      "point": null,
+      "moveIn": null,
+      "moveInNote": "",
+      "priceNote": "보증금·월 임대료는 공급 유형과 주택형에 따라 다릅니다. 서울시 공고문을 확인하세요.",
+      "locationUrl": null,
+      "locationImageUrl": null,
+      "events": [
+        {
+          "label": "청약신청일",
+          "date": "2026-09-21",
+          "type": "open",
+          "time": null
+        }
+      ],
+      "units": [
+        {
+          "id": "overview",
+          "name": "모집 주택 전체",
+          "area": null,
+          "rooms": null,
+          "price": null,
+          "monthlyRent": null,
+          "floorPlanUrl": null,
+          "floorPlanImageUrl": null,
+          "payments": []
+        }
+      ],
+      "rules": [],
+      "requirements": {
+        "accountRequired": null,
+        "accountMonths": null,
+        "accountDeposit": null,
+        "homelessRequired": null
+      },
+      "nearby": [],
+      "comparable": null,
+      "reviewedAt": null,
+      "changeNote": "서울시 공식 목록의 청약신청일을 표시했습니다. 기간·시간·신청 링크·자격은 공고 상세와 첨부문서를 확인하세요."
+    },
+    {
+      "id": "seoul-youth-6677",
+      "title": "[민간임대] 광흥창역 이랜드PEER신촌 추가모집공고",
+      "kind": "rent",
+      "audience": "youth",
+      "supplyType": "서울 청년안심주택 · 민간임대",
+      "address": "서울특별시 마포구 창전동 450",
+      "sourceUrl": "https://soco.seoul.go.kr/youth/bbs/BMSR00015/view.do?boardId=6677&menuNo=400008",
+      "applicationUrl": "https://soco.seoul.go.kr/youth/bbs/BMSR00015/view.do?boardId=6677&menuNo=400008",
+      "publishedAt": "2026-09-17",
+      "point": null,
+      "moveIn": null,
+      "moveInNote": "",
+      "priceNote": "보증금·월 임대료는 공급 유형과 주택형에 따라 다릅니다. 서울시 공고문을 확인하세요.",
+      "locationUrl": null,
+      "locationImageUrl": null,
+      "events": [
+        {
+          "label": "청약신청일",
+          "date": "2026-09-20",
+          "type": "open",
+          "time": null
+        }
+      ],
+      "units": [
+        {
+          "id": "overview",
+          "name": "모집 주택 전체",
+          "area": null,
+          "rooms": null,
+          "price": null,
+          "monthlyRent": null,
+          "floorPlanUrl": null,
+          "floorPlanImageUrl": null,
+          "payments": []
+        }
+      ],
+      "rules": [],
+      "requirements": {
+        "accountRequired": null,
+        "accountMonths": null,
+        "accountDeposit": null,
+        "homelessRequired": null
+      },
+      "nearby": [],
+      "comparable": null,
+      "reviewedAt": null,
+      "changeNote": "서울시 공식 목록의 청약신청일을 표시했습니다. 기간·시간·신청 링크·자격은 공고 상세와 첨부문서를 확인하세요."
+    },
+    {
+      "id": "seoul-youth-6666",
+      "title": "[민간임대] 공덕역 e·seo(이서) 최초모집공고",
+      "kind": "rent",
+      "audience": "youth",
+      "supplyType": "서울 청년안심주택 · 민간임대",
+      "address": "서울특별시 마포구 염리동 172-10번지",
+      "sourceUrl": "https://soco.seoul.go.kr/youth/bbs/BMSR00015/view.do?boardId=6666&menuNo=400008",
+      "applicationUrl": "https://soco.seoul.go.kr/youth/bbs/BMSR00015/view.do?boardId=6666&menuNo=400008",
+      "publishedAt": "2026-09-15",
+      "point": null,
+      "moveIn": null,
+      "moveInNote": "",
+      "priceNote": "보증금·월 임대료는 공급 유형과 주택형에 따라 다릅니다. 서울시 공고문을 확인하세요.",
+      "locationUrl": null,
+      "locationImageUrl": null,
+      "events": [
+        {
+          "label": "청약신청일",
+          "date": "2026-09-22",
+          "type": "open",
+          "time": null
+        }
+      ],
+      "units": [
+        {
+          "id": "overview",
+          "name": "모집 주택 전체",
+          "area": null,
+          "rooms": null,
+          "price": null,
+          "monthlyRent": null,
+          "floorPlanUrl": null,
+          "floorPlanImageUrl": null,
+          "payments": []
+        }
+      ],
+      "rules": [],
+      "requirements": {
+        "accountRequired": null,
+        "accountMonths": null,
+        "accountDeposit": null,
+        "homelessRequired": null
+      },
+      "nearby": [],
+      "comparable": null,
+      "reviewedAt": null,
+      "changeNote": "서울시 공식 목록의 청약신청일을 표시했습니다. 기간·시간·신청 링크·자격은 공고 상세와 첨부문서를 확인하세요."
+    },
+    {
       "id": "2026000103",
       "title": "더샵 분당하이스트",
       "kind": "sale",
@@ -2742,6 +4332,459 @@
       "changeNote": "공공데이터에서 가져온 주택형별 최고 공급금액입니다. 전용면적·층별 가격·납부 일정·필수정보는 모집공고 원문 대조가 필요합니다."
     },
     {
+      "id": "lh-youth-2015122300020717",
+      "title": "[경남지역본부]26년 3차 청년매입임대 예비입주자 모집공고",
+      "kind": "rent",
+      "audience": "youth",
+      "supplyType": "LH 청년주택 · 매입임대",
+      "address": "경상남도",
+      "sourceUrl": "https://apply.lh.or.kr/lhapply/apply/wt/wrtanc/selectWrtancInfo.do?aisTpCd=26&ccrCnntSysDsCd=03&mi=1026&panId=2015122300020717&uppAisTpCd=13",
+      "applicationUrl": "https://apply.lh.or.kr/lhapply/apply/wt/wrtanc/selectWrtancInfo.do?aisTpCd=26&ccrCnntSysDsCd=03&mi=1026&panId=2015122300020717&uppAisTpCd=13",
+      "publishedAt": "2026-09-10",
+      "point": null,
+      "moveIn": null,
+      "moveInNote": "",
+      "priceNote": "지역·주택별 보증금과 월 임대료는 LH 모집공고문을 확인하세요.",
+      "locationUrl": null,
+      "locationImageUrl": null,
+      "events": [
+        {
+          "label": "청년주택 접수 시작",
+          "date": "2026-09-21",
+          "type": "open",
+          "time": "10:00"
+        },
+        {
+          "label": "청년주택 접수 마감",
+          "date": "2026-09-23",
+          "type": "close",
+          "time": "16:00"
+        },
+        {
+          "label": "당첨자 발표",
+          "date": "2026-12-04",
+          "type": "result",
+          "time": null
+        }
+      ],
+      "units": [
+        {
+          "id": "overview",
+          "name": "모집 주택 전체",
+          "area": null,
+          "rooms": null,
+          "price": null,
+          "monthlyRent": null,
+          "floorPlanUrl": null,
+          "floorPlanImageUrl": null,
+          "payments": []
+        }
+      ],
+      "rules": [],
+      "requirements": {
+        "accountRequired": null,
+        "accountMonths": null,
+        "accountDeposit": null,
+        "homelessRequired": null
+      },
+      "nearby": [],
+      "comparable": null,
+      "reviewedAt": null,
+      "changeNote": "LH 공식 공고 페이지의 게시일·접수일을 수집했습니다. 신청 자격·임대료·세부 위치는 원문에서 확인하세요."
+    },
+    {
+      "id": "seoul-youth-6658",
+      "title": "[민간임대] 구산역 구산주택 추가모집공고",
+      "kind": "rent",
+      "audience": "youth",
+      "supplyType": "서울 청년안심주택 · 민간임대",
+      "address": "서울특별시 은평구 서오릉로 165",
+      "sourceUrl": "https://soco.seoul.go.kr/youth/bbs/BMSR00015/view.do?boardId=6658&menuNo=400008",
+      "applicationUrl": "https://soco.seoul.go.kr/youth/bbs/BMSR00015/view.do?boardId=6658&menuNo=400008",
+      "publishedAt": "2026-09-10",
+      "point": null,
+      "moveIn": null,
+      "moveInNote": "",
+      "priceNote": "보증금·월 임대료는 공급 유형과 주택형에 따라 다릅니다. 서울시 공고문을 확인하세요.",
+      "locationUrl": null,
+      "locationImageUrl": null,
+      "events": [
+        {
+          "label": "청약신청일",
+          "date": "2026-09-13",
+          "type": "open",
+          "time": null
+        }
+      ],
+      "units": [
+        {
+          "id": "overview",
+          "name": "모집 주택 전체",
+          "area": null,
+          "rooms": null,
+          "price": null,
+          "monthlyRent": null,
+          "floorPlanUrl": null,
+          "floorPlanImageUrl": null,
+          "payments": []
+        }
+      ],
+      "rules": [],
+      "requirements": {
+        "accountRequired": null,
+        "accountMonths": null,
+        "accountDeposit": null,
+        "homelessRequired": null
+      },
+      "nearby": [],
+      "comparable": null,
+      "reviewedAt": null,
+      "changeNote": "서울시 공식 목록의 청약신청일을 표시했습니다. 기간·시간·신청 링크·자격은 공고 상세와 첨부문서를 확인하세요."
+    },
+    {
+      "id": "seoul-youth-6659",
+      "title": "[민간임대] 우장산역 해링턴타워 추가모집공고",
+      "kind": "rent",
+      "audience": "youth",
+      "supplyType": "서울 청년안심주택 · 민간임대",
+      "address": "서울특별시 강서구 강서로 231",
+      "sourceUrl": "https://soco.seoul.go.kr/youth/bbs/BMSR00015/view.do?boardId=6659&menuNo=400008",
+      "applicationUrl": "https://soco.seoul.go.kr/youth/bbs/BMSR00015/view.do?boardId=6659&menuNo=400008",
+      "publishedAt": "2026-09-10",
+      "point": null,
+      "moveIn": null,
+      "moveInNote": "",
+      "priceNote": "보증금·월 임대료는 공급 유형과 주택형에 따라 다릅니다. 서울시 공고문을 확인하세요.",
+      "locationUrl": null,
+      "locationImageUrl": null,
+      "events": [
+        {
+          "label": "청약신청일",
+          "date": "2026-09-14",
+          "type": "open",
+          "time": null
+        }
+      ],
+      "units": [
+        {
+          "id": "overview",
+          "name": "모집 주택 전체",
+          "area": null,
+          "rooms": null,
+          "price": null,
+          "monthlyRent": null,
+          "floorPlanUrl": null,
+          "floorPlanImageUrl": null,
+          "payments": []
+        }
+      ],
+      "rules": [],
+      "requirements": {
+        "accountRequired": null,
+        "accountMonths": null,
+        "accountDeposit": null,
+        "homelessRequired": null
+      },
+      "nearby": [],
+      "comparable": null,
+      "reviewedAt": null,
+      "changeNote": "서울시 공식 목록의 청약신청일을 표시했습니다. 기간·시간·신청 링크·자격은 공고 상세와 첨부문서를 확인하세요."
+    },
+    {
+      "id": "seoul-youth-6660",
+      "title": "[민간임대] 쌍문역 인히어쌍문 추가모집공고",
+      "kind": "rent",
+      "audience": "youth",
+      "supplyType": "서울 청년안심주택 · 민간임대",
+      "address": "서울특별시 도봉구 쌍문동 103-6",
+      "sourceUrl": "https://soco.seoul.go.kr/youth/bbs/BMSR00015/view.do?boardId=6660&menuNo=400008",
+      "applicationUrl": "https://soco.seoul.go.kr/youth/bbs/BMSR00015/view.do?boardId=6660&menuNo=400008",
+      "publishedAt": "2026-09-10",
+      "point": null,
+      "moveIn": null,
+      "moveInNote": "",
+      "priceNote": "보증금·월 임대료는 공급 유형과 주택형에 따라 다릅니다. 서울시 공고문을 확인하세요.",
+      "locationUrl": null,
+      "locationImageUrl": null,
+      "events": [
+        {
+          "label": "청약신청일",
+          "date": "2026-09-16",
+          "type": "open",
+          "time": null
+        }
+      ],
+      "units": [
+        {
+          "id": "overview",
+          "name": "모집 주택 전체",
+          "area": null,
+          "rooms": null,
+          "price": null,
+          "monthlyRent": null,
+          "floorPlanUrl": null,
+          "floorPlanImageUrl": null,
+          "payments": []
+        }
+      ],
+      "rules": [],
+      "requirements": {
+        "accountRequired": null,
+        "accountMonths": null,
+        "accountDeposit": null,
+        "homelessRequired": null
+      },
+      "nearby": [],
+      "comparable": null,
+      "reviewedAt": null,
+      "changeNote": "서울시 공식 목록의 청약신청일을 표시했습니다. 기간·시간·신청 링크·자격은 공고 상세와 첨부문서를 확인하세요."
+    },
+    {
+      "id": "seoul-youth-6661",
+      "title": "[민간임대] 회기역 휘경제이스카이시티 추가모집공고",
+      "kind": "rent",
+      "audience": "youth",
+      "supplyType": "서울 청년안심주택 · 민간임대",
+      "address": "서울특별시 동대문구 휘경동 192-1",
+      "sourceUrl": "https://soco.seoul.go.kr/youth/bbs/BMSR00015/view.do?boardId=6661&menuNo=400008",
+      "applicationUrl": "https://soco.seoul.go.kr/youth/bbs/BMSR00015/view.do?boardId=6661&menuNo=400008",
+      "publishedAt": "2026-09-10",
+      "point": null,
+      "moveIn": null,
+      "moveInNote": "",
+      "priceNote": "보증금·월 임대료는 공급 유형과 주택형에 따라 다릅니다. 서울시 공고문을 확인하세요.",
+      "locationUrl": null,
+      "locationImageUrl": null,
+      "events": [
+        {
+          "label": "청약신청일",
+          "date": "2026-09-14",
+          "type": "open",
+          "time": null
+        }
+      ],
+      "units": [
+        {
+          "id": "overview",
+          "name": "모집 주택 전체",
+          "area": null,
+          "rooms": null,
+          "price": null,
+          "monthlyRent": null,
+          "floorPlanUrl": null,
+          "floorPlanImageUrl": null,
+          "payments": []
+        }
+      ],
+      "rules": [],
+      "requirements": {
+        "accountRequired": null,
+        "accountMonths": null,
+        "accountDeposit": null,
+        "homelessRequired": null
+      },
+      "nearby": [],
+      "comparable": null,
+      "reviewedAt": null,
+      "changeNote": "서울시 공식 목록의 청약신청일을 표시했습니다. 기간·시간·신청 링크·자격은 공고 상세와 첨부문서를 확인하세요."
+    },
+    {
+      "id": "seoul-youth-6662",
+      "title": "[민간임대] 청량리역 퀸즈W 청량리역 추가모집공고",
+      "kind": "rent",
+      "audience": "youth",
+      "supplyType": "서울 청년안심주택 · 민간임대",
+      "address": "서울특별시 동대문구 전농동 127-359",
+      "sourceUrl": "https://soco.seoul.go.kr/youth/bbs/BMSR00015/view.do?boardId=6662&menuNo=400008",
+      "applicationUrl": "https://soco.seoul.go.kr/youth/bbs/BMSR00015/view.do?boardId=6662&menuNo=400008",
+      "publishedAt": "2026-09-10",
+      "point": null,
+      "moveIn": null,
+      "moveInNote": "",
+      "priceNote": "보증금·월 임대료는 공급 유형과 주택형에 따라 다릅니다. 서울시 공고문을 확인하세요.",
+      "locationUrl": null,
+      "locationImageUrl": null,
+      "events": [
+        {
+          "label": "청약신청일",
+          "date": "2026-09-14",
+          "type": "open",
+          "time": null
+        }
+      ],
+      "units": [
+        {
+          "id": "overview",
+          "name": "모집 주택 전체",
+          "area": null,
+          "rooms": null,
+          "price": null,
+          "monthlyRent": null,
+          "floorPlanUrl": null,
+          "floorPlanImageUrl": null,
+          "payments": []
+        }
+      ],
+      "rules": [],
+      "requirements": {
+        "accountRequired": null,
+        "accountMonths": null,
+        "accountDeposit": null,
+        "homelessRequired": null
+      },
+      "nearby": [],
+      "comparable": null,
+      "reviewedAt": null,
+      "changeNote": "서울시 공식 목록의 청약신청일을 표시했습니다. 기간·시간·신청 링크·자격은 공고 상세와 첨부문서를 확인하세요."
+    },
+    {
+      "id": "seoul-youth-6663",
+      "title": "[민간임대] 장한평역 유니트125(UNIT125) 추가모집공고",
+      "kind": "rent",
+      "audience": "youth",
+      "supplyType": "서울 청년안심주택 · 민간임대",
+      "address": "서울특별시 동대문구 장안동 418-1번지",
+      "sourceUrl": "https://soco.seoul.go.kr/youth/bbs/BMSR00015/view.do?boardId=6663&menuNo=400008",
+      "applicationUrl": "https://soco.seoul.go.kr/youth/bbs/BMSR00015/view.do?boardId=6663&menuNo=400008",
+      "publishedAt": "2026-09-10",
+      "point": null,
+      "moveIn": null,
+      "moveInNote": "",
+      "priceNote": "보증금·월 임대료는 공급 유형과 주택형에 따라 다릅니다. 서울시 공고문을 확인하세요.",
+      "locationUrl": null,
+      "locationImageUrl": null,
+      "events": [
+        {
+          "label": "청약신청일",
+          "date": "2026-09-11",
+          "type": "open",
+          "time": null
+        }
+      ],
+      "units": [
+        {
+          "id": "overview",
+          "name": "모집 주택 전체",
+          "area": null,
+          "rooms": null,
+          "price": null,
+          "monthlyRent": null,
+          "floorPlanUrl": null,
+          "floorPlanImageUrl": null,
+          "payments": []
+        }
+      ],
+      "rules": [],
+      "requirements": {
+        "accountRequired": null,
+        "accountMonths": null,
+        "accountDeposit": null,
+        "homelessRequired": null
+      },
+      "nearby": [],
+      "comparable": null,
+      "reviewedAt": null,
+      "changeNote": "서울시 공식 목록의 청약신청일을 표시했습니다. 기간·시간·신청 링크·자격은 공고 상세와 첨부문서를 확인하세요."
+    },
+    {
+      "id": "seoul-youth-6664",
+      "title": "[민간임대] 상봉역 상봉생활 추가모집공고",
+      "kind": "rent",
+      "audience": "youth",
+      "supplyType": "서울 청년안심주택 · 민간임대",
+      "address": "서울특별시 중랑구 상봉동 116-49번지",
+      "sourceUrl": "https://soco.seoul.go.kr/youth/bbs/BMSR00015/view.do?boardId=6664&menuNo=400008",
+      "applicationUrl": "https://soco.seoul.go.kr/youth/bbs/BMSR00015/view.do?boardId=6664&menuNo=400008",
+      "publishedAt": "2026-09-10",
+      "point": null,
+      "moveIn": null,
+      "moveInNote": "",
+      "priceNote": "보증금·월 임대료는 공급 유형과 주택형에 따라 다릅니다. 서울시 공고문을 확인하세요.",
+      "locationUrl": null,
+      "locationImageUrl": null,
+      "events": [
+        {
+          "label": "청약신청일",
+          "date": "2026-09-13",
+          "type": "open",
+          "time": null
+        }
+      ],
+      "units": [
+        {
+          "id": "overview",
+          "name": "모집 주택 전체",
+          "area": null,
+          "rooms": null,
+          "price": null,
+          "monthlyRent": null,
+          "floorPlanUrl": null,
+          "floorPlanImageUrl": null,
+          "payments": []
+        }
+      ],
+      "rules": [],
+      "requirements": {
+        "accountRequired": null,
+        "accountMonths": null,
+        "accountDeposit": null,
+        "homelessRequired": null
+      },
+      "nearby": [],
+      "comparable": null,
+      "reviewedAt": null,
+      "changeNote": "서울시 공식 목록의 청약신청일을 표시했습니다. 기간·시간·신청 링크·자격은 공고 상세와 첨부문서를 확인하세요."
+    },
+    {
+      "id": "seoul-youth-6665",
+      "title": "[민간임대] 미아사거리역 미아 헤리츠타워 추가모집공고",
+      "kind": "rent",
+      "audience": "youth",
+      "supplyType": "서울 청년안심주택 · 민간임대",
+      "address": "서울특별시 성북구 월계로 38",
+      "sourceUrl": "https://soco.seoul.go.kr/youth/bbs/BMSR00015/view.do?boardId=6665&menuNo=400008",
+      "applicationUrl": "https://soco.seoul.go.kr/youth/bbs/BMSR00015/view.do?boardId=6665&menuNo=400008",
+      "publishedAt": "2026-09-10",
+      "point": null,
+      "moveIn": null,
+      "moveInNote": "",
+      "priceNote": "보증금·월 임대료는 공급 유형과 주택형에 따라 다릅니다. 서울시 공고문을 확인하세요.",
+      "locationUrl": null,
+      "locationImageUrl": null,
+      "events": [
+        {
+          "label": "청약신청일",
+          "date": "2026-09-10",
+          "type": "open",
+          "time": null
+        }
+      ],
+      "units": [
+        {
+          "id": "overview",
+          "name": "모집 주택 전체",
+          "area": null,
+          "rooms": null,
+          "price": null,
+          "monthlyRent": null,
+          "floorPlanUrl": null,
+          "floorPlanImageUrl": null,
+          "payments": []
+        }
+      ],
+      "rules": [],
+      "requirements": {
+        "accountRequired": null,
+        "accountMonths": null,
+        "accountDeposit": null,
+        "homelessRequired": null
+      },
+      "nearby": [],
+      "comparable": null,
+      "reviewedAt": null,
+      "changeNote": "서울시 공식 목록의 청약신청일을 표시했습니다. 기간·시간·신청 링크·자격은 공고 상세와 첨부문서를 확인하세요."
+    },
+    {
       "id": "2026000431",
       "title": "오남역 서희스타힐스 여의재 3단지 (조합원 취소분)",
       "kind": "sale",
@@ -2905,6 +4948,116 @@
       "comparable": null,
       "reviewedAt": null,
       "changeNote": "공공데이터에서 가져온 주택형별 최고 공급금액입니다. 전용면적·층별 가격·납부 일정·필수정보는 모집공고 원문 대조가 필요합니다."
+    },
+    {
+      "id": "seoul-youth-6654",
+      "title": "[민간임대] 홍대입구역 맹그로브창천 최초모집공고",
+      "kind": "rent",
+      "audience": "youth",
+      "supplyType": "서울 청년안심주택 · 민간임대",
+      "address": "서울특별시 서대문구 신촌로 35",
+      "sourceUrl": "https://soco.seoul.go.kr/youth/bbs/BMSR00015/view.do?boardId=6654&menuNo=400008",
+      "applicationUrl": "https://soco.seoul.go.kr/youth/bbs/BMSR00015/view.do?boardId=6654&menuNo=400008",
+      "publishedAt": "2026-09-08",
+      "point": null,
+      "moveIn": null,
+      "moveInNote": "",
+      "priceNote": "보증금·월 임대료는 공급 유형과 주택형에 따라 다릅니다. 서울시 공고문을 확인하세요.",
+      "locationUrl": null,
+      "locationImageUrl": null,
+      "events": [
+        {
+          "label": "청약신청일",
+          "date": "2026-09-17",
+          "type": "open",
+          "time": null
+        }
+      ],
+      "units": [
+        {
+          "id": "overview",
+          "name": "모집 주택 전체",
+          "area": null,
+          "rooms": null,
+          "price": null,
+          "monthlyRent": null,
+          "floorPlanUrl": null,
+          "floorPlanImageUrl": null,
+          "payments": []
+        }
+      ],
+      "rules": [],
+      "requirements": {
+        "accountRequired": null,
+        "accountMonths": null,
+        "accountDeposit": null,
+        "homelessRequired": null
+      },
+      "nearby": [],
+      "comparable": null,
+      "reviewedAt": null,
+      "changeNote": "서울시 공식 목록의 청약신청일을 표시했습니다. 기간·시간·신청 링크·자격은 공고 상세와 첨부문서를 확인하세요."
+    },
+    {
+      "id": "lh-youth-2015122300020699",
+      "title": "[경기남부] 용인시 청년 매입임대주택 예비입주자 모집공고",
+      "kind": "rent",
+      "audience": "youth",
+      "supplyType": "LH 청년주택 · 매입임대",
+      "address": "경기도",
+      "sourceUrl": "https://apply.lh.or.kr/lhapply/apply/wt/wrtanc/selectWrtancInfo.do?aisTpCd=26&ccrCnntSysDsCd=03&mi=1026&panId=2015122300020699&uppAisTpCd=13",
+      "applicationUrl": "https://apply.lh.or.kr/lhapply/apply/wt/wrtanc/selectWrtancInfo.do?aisTpCd=26&ccrCnntSysDsCd=03&mi=1026&panId=2015122300020699&uppAisTpCd=13",
+      "publishedAt": "2026-09-07",
+      "point": null,
+      "moveIn": null,
+      "moveInNote": "",
+      "priceNote": "지역·주택별 보증금과 월 임대료는 LH 모집공고문을 확인하세요.",
+      "locationUrl": null,
+      "locationImageUrl": null,
+      "events": [
+        {
+          "label": "청년주택 접수 시작",
+          "date": "2026-09-17",
+          "type": "open",
+          "time": "10:00"
+        },
+        {
+          "label": "청년주택 접수 마감",
+          "date": "2026-09-21",
+          "type": "close",
+          "time": "16:00"
+        },
+        {
+          "label": "당첨자 발표",
+          "date": "2026-12-09",
+          "type": "result",
+          "time": null
+        }
+      ],
+      "units": [
+        {
+          "id": "overview",
+          "name": "모집 주택 전체",
+          "area": null,
+          "rooms": null,
+          "price": null,
+          "monthlyRent": null,
+          "floorPlanUrl": null,
+          "floorPlanImageUrl": null,
+          "payments": []
+        }
+      ],
+      "rules": [],
+      "requirements": {
+        "accountRequired": null,
+        "accountMonths": null,
+        "accountDeposit": null,
+        "homelessRequired": null
+      },
+      "nearby": [],
+      "comparable": null,
+      "reviewedAt": null,
+      "changeNote": "LH 공식 공고 페이지의 게시일·접수일을 수집했습니다. 신청 자격·임대료·세부 위치는 원문에서 확인하세요."
     },
     {
       "id": "2026000393",
@@ -3842,6 +5995,189 @@
       "changeNote": "공공데이터에서 가져온 주택형별 최고 공급금액입니다. 전용면적·층별 가격·납부 일정·필수정보는 모집공고 원문 대조가 필요합니다."
     },
     {
+      "id": "lh-youth-2015122300020688",
+      "title": "[정정공고][경기남부] 26년 3차 청년 매입임대주택 예비입주자 모집공고",
+      "kind": "rent",
+      "audience": "youth",
+      "supplyType": "LH 청년주택 · 매입임대",
+      "address": "경기도",
+      "sourceUrl": "https://apply.lh.or.kr/lhapply/apply/wt/wrtanc/selectWrtancInfo.do?aisTpCd=26&ccrCnntSysDsCd=03&mi=1026&panId=2015122300020688&uppAisTpCd=13",
+      "applicationUrl": "https://apply.lh.or.kr/lhapply/apply/wt/wrtanc/selectWrtancInfo.do?aisTpCd=26&ccrCnntSysDsCd=03&mi=1026&panId=2015122300020688&uppAisTpCd=13",
+      "publishedAt": "2026-09-04",
+      "point": null,
+      "moveIn": null,
+      "moveInNote": "",
+      "priceNote": "지역·주택별 보증금과 월 임대료는 LH 모집공고문을 확인하세요.",
+      "locationUrl": null,
+      "locationImageUrl": null,
+      "events": [
+        {
+          "label": "청년주택 접수 시작",
+          "date": "2026-09-07",
+          "type": "open",
+          "time": "10:00"
+        },
+        {
+          "label": "청년주택 접수 마감",
+          "date": "2026-09-09",
+          "type": "close",
+          "time": "16:00"
+        },
+        {
+          "label": "당첨자 발표",
+          "date": "2026-11-27",
+          "type": "result",
+          "time": null
+        }
+      ],
+      "units": [
+        {
+          "id": "overview",
+          "name": "모집 주택 전체",
+          "area": null,
+          "rooms": null,
+          "price": null,
+          "monthlyRent": null,
+          "floorPlanUrl": null,
+          "floorPlanImageUrl": null,
+          "payments": []
+        }
+      ],
+      "rules": [],
+      "requirements": {
+        "accountRequired": null,
+        "accountMonths": null,
+        "accountDeposit": null,
+        "homelessRequired": null
+      },
+      "nearby": [],
+      "comparable": null,
+      "reviewedAt": null,
+      "changeNote": "LH 공식 공고 페이지의 게시일·접수일을 수집했습니다. 신청 자격·임대료·세부 위치는 원문에서 확인하세요."
+    },
+    {
+      "id": "lh-youth-2015122300020689",
+      "title": "[정정공고][경기 군포·안산·안성·화성시] 26년 2차 기숙사형 청년주택 예비입주자 모집공고",
+      "kind": "rent",
+      "audience": "youth",
+      "supplyType": "LH 청년주택 · 매입임대",
+      "address": "경기도",
+      "sourceUrl": "https://apply.lh.or.kr/lhapply/apply/wt/wrtanc/selectWrtancInfo.do?aisTpCd=26&ccrCnntSysDsCd=03&mi=1026&panId=2015122300020689&uppAisTpCd=13",
+      "applicationUrl": "https://apply.lh.or.kr/lhapply/apply/wt/wrtanc/selectWrtancInfo.do?aisTpCd=26&ccrCnntSysDsCd=03&mi=1026&panId=2015122300020689&uppAisTpCd=13",
+      "publishedAt": "2026-09-04",
+      "point": null,
+      "moveIn": null,
+      "moveInNote": "",
+      "priceNote": "지역·주택별 보증금과 월 임대료는 LH 모집공고문을 확인하세요.",
+      "locationUrl": null,
+      "locationImageUrl": null,
+      "events": [
+        {
+          "label": "청년주택 접수 시작",
+          "date": "2026-09-07",
+          "type": "open",
+          "time": "10:00"
+        },
+        {
+          "label": "청년주택 접수 마감",
+          "date": "2026-09-09",
+          "type": "close",
+          "time": "16:00"
+        },
+        {
+          "label": "당첨자 발표",
+          "date": "2026-10-30",
+          "type": "result",
+          "time": null
+        }
+      ],
+      "units": [
+        {
+          "id": "overview",
+          "name": "모집 주택 전체",
+          "area": null,
+          "rooms": null,
+          "price": null,
+          "monthlyRent": null,
+          "floorPlanUrl": null,
+          "floorPlanImageUrl": null,
+          "payments": []
+        }
+      ],
+      "rules": [],
+      "requirements": {
+        "accountRequired": null,
+        "accountMonths": null,
+        "accountDeposit": null,
+        "homelessRequired": null
+      },
+      "nearby": [],
+      "comparable": null,
+      "reviewedAt": null,
+      "changeNote": "LH 공식 공고 페이지의 게시일·접수일을 수집했습니다. 신청 자격·임대료·세부 위치는 원문에서 확인하세요."
+    },
+    {
+      "id": "lh-youth-2015122300020693",
+      "title": "[정정공고][인천지역본부] 26년 6차 청년 매입임대주택 예비입주자 모집공고(인천,부천)",
+      "kind": "rent",
+      "audience": "youth",
+      "supplyType": "LH 청년주택 · 매입임대",
+      "address": "인천광역시 외",
+      "sourceUrl": "https://apply.lh.or.kr/lhapply/apply/wt/wrtanc/selectWrtancInfo.do?aisTpCd=26&ccrCnntSysDsCd=03&mi=1026&panId=2015122300020693&uppAisTpCd=13",
+      "applicationUrl": "https://apply.lh.or.kr/lhapply/apply/wt/wrtanc/selectWrtancInfo.do?aisTpCd=26&ccrCnntSysDsCd=03&mi=1026&panId=2015122300020693&uppAisTpCd=13",
+      "publishedAt": "2026-09-04",
+      "point": null,
+      "moveIn": null,
+      "moveInNote": "",
+      "priceNote": "지역·주택별 보증금과 월 임대료는 LH 모집공고문을 확인하세요.",
+      "locationUrl": null,
+      "locationImageUrl": null,
+      "events": [
+        {
+          "label": "청년주택 접수 시작",
+          "date": "2026-09-07",
+          "type": "open",
+          "time": "10:00"
+        },
+        {
+          "label": "청년주택 접수 마감",
+          "date": "2026-09-09",
+          "type": "close",
+          "time": "16:00"
+        },
+        {
+          "label": "당첨자 발표",
+          "date": "2026-11-12",
+          "type": "result",
+          "time": null
+        }
+      ],
+      "units": [
+        {
+          "id": "overview",
+          "name": "모집 주택 전체",
+          "area": null,
+          "rooms": null,
+          "price": null,
+          "monthlyRent": null,
+          "floorPlanUrl": null,
+          "floorPlanImageUrl": null,
+          "payments": []
+        }
+      ],
+      "rules": [],
+      "requirements": {
+        "accountRequired": null,
+        "accountMonths": null,
+        "accountDeposit": null,
+        "homelessRequired": null
+      },
+      "nearby": [],
+      "comparable": null,
+      "reviewedAt": null,
+      "changeNote": "LH 공식 공고 페이지의 게시일·접수일을 수집했습니다. 신청 자격·임대료·세부 위치는 원문에서 확인하세요."
+    },
+    {
       "id": "2026000202",
       "title": "대전 경남아너스빌 센텀스카이",
       "kind": "sale",
@@ -4148,6 +6484,459 @@
       "comparable": null,
       "reviewedAt": null,
       "changeNote": "공공데이터에서 가져온 주택형별 최고 공급금액입니다. 전용면적·층별 가격·납부 일정·필수정보는 모집공고 원문 대조가 필요합니다."
+    },
+    {
+      "id": "lh-youth-2015122300020673",
+      "title": "[강원지역본부] 26년 3차 청년 매입임대주택 예비자 모집공고",
+      "kind": "rent",
+      "audience": "youth",
+      "supplyType": "LH 청년주택 · 매입임대",
+      "address": "강원특별자치도",
+      "sourceUrl": "https://apply.lh.or.kr/lhapply/apply/wt/wrtanc/selectWrtancInfo.do?aisTpCd=26&ccrCnntSysDsCd=03&mi=1026&panId=2015122300020673&uppAisTpCd=13",
+      "applicationUrl": "https://apply.lh.or.kr/lhapply/apply/wt/wrtanc/selectWrtancInfo.do?aisTpCd=26&ccrCnntSysDsCd=03&mi=1026&panId=2015122300020673&uppAisTpCd=13",
+      "publishedAt": "2026-09-03",
+      "point": null,
+      "moveIn": null,
+      "moveInNote": "",
+      "priceNote": "지역·주택별 보증금과 월 임대료는 LH 모집공고문을 확인하세요.",
+      "locationUrl": null,
+      "locationImageUrl": null,
+      "events": [
+        {
+          "label": "청년주택 접수 시작",
+          "date": "2026-09-14",
+          "type": "open",
+          "time": "10:00"
+        },
+        {
+          "label": "청년주택 접수 마감",
+          "date": "2026-09-16",
+          "type": "close",
+          "time": "16:00"
+        },
+        {
+          "label": "당첨자 발표",
+          "date": "2026-11-30",
+          "type": "result",
+          "time": null
+        }
+      ],
+      "units": [
+        {
+          "id": "overview",
+          "name": "모집 주택 전체",
+          "area": null,
+          "rooms": null,
+          "price": null,
+          "monthlyRent": null,
+          "floorPlanUrl": null,
+          "floorPlanImageUrl": null,
+          "payments": []
+        }
+      ],
+      "rules": [],
+      "requirements": {
+        "accountRequired": null,
+        "accountMonths": null,
+        "accountDeposit": null,
+        "homelessRequired": null
+      },
+      "nearby": [],
+      "comparable": null,
+      "reviewedAt": null,
+      "changeNote": "LH 공식 공고 페이지의 게시일·접수일을 수집했습니다. 신청 자격·임대료·세부 위치는 원문에서 확인하세요."
+    },
+    {
+      "id": "seoul-youth-6646",
+      "title": "[민간임대] 동묘앞역 청계로벤하임 추가모집공고",
+      "kind": "rent",
+      "audience": "youth",
+      "supplyType": "서울 청년안심주택 · 민간임대",
+      "address": "서울특별시 종로구 숭인동 240-1 외",
+      "sourceUrl": "https://soco.seoul.go.kr/youth/bbs/BMSR00015/view.do?boardId=6646&menuNo=400008",
+      "applicationUrl": "https://soco.seoul.go.kr/youth/bbs/BMSR00015/view.do?boardId=6646&menuNo=400008",
+      "publishedAt": "2026-09-03",
+      "point": null,
+      "moveIn": null,
+      "moveInNote": "",
+      "priceNote": "보증금·월 임대료는 공급 유형과 주택형에 따라 다릅니다. 서울시 공고문을 확인하세요.",
+      "locationUrl": null,
+      "locationImageUrl": null,
+      "events": [
+        {
+          "label": "청약신청일",
+          "date": "2026-09-07",
+          "type": "open",
+          "time": null
+        }
+      ],
+      "units": [
+        {
+          "id": "overview",
+          "name": "모집 주택 전체",
+          "area": null,
+          "rooms": null,
+          "price": null,
+          "monthlyRent": null,
+          "floorPlanUrl": null,
+          "floorPlanImageUrl": null,
+          "payments": []
+        }
+      ],
+      "rules": [],
+      "requirements": {
+        "accountRequired": null,
+        "accountMonths": null,
+        "accountDeposit": null,
+        "homelessRequired": null
+      },
+      "nearby": [],
+      "comparable": null,
+      "reviewedAt": null,
+      "changeNote": "서울시 공식 목록의 청약신청일을 표시했습니다. 기간·시간·신청 링크·자격은 공고 상세와 첨부문서를 확인하세요."
+    },
+    {
+      "id": "seoul-youth-6647",
+      "title": "[민간임대] 화랑대역 에이트플레이스 추가모집공고",
+      "kind": "rent",
+      "audience": "youth",
+      "supplyType": "서울 청년안심주택 · 민간임대",
+      "address": "서울특별시 중랑구 신내로 267",
+      "sourceUrl": "https://soco.seoul.go.kr/youth/bbs/BMSR00015/view.do?boardId=6647&menuNo=400008",
+      "applicationUrl": "https://soco.seoul.go.kr/youth/bbs/BMSR00015/view.do?boardId=6647&menuNo=400008",
+      "publishedAt": "2026-09-03",
+      "point": null,
+      "moveIn": null,
+      "moveInNote": "",
+      "priceNote": "보증금·월 임대료는 공급 유형과 주택형에 따라 다릅니다. 서울시 공고문을 확인하세요.",
+      "locationUrl": null,
+      "locationImageUrl": null,
+      "events": [
+        {
+          "label": "청약신청일",
+          "date": "2026-09-04",
+          "type": "open",
+          "time": null
+        }
+      ],
+      "units": [
+        {
+          "id": "overview",
+          "name": "모집 주택 전체",
+          "area": null,
+          "rooms": null,
+          "price": null,
+          "monthlyRent": null,
+          "floorPlanUrl": null,
+          "floorPlanImageUrl": null,
+          "payments": []
+        }
+      ],
+      "rules": [],
+      "requirements": {
+        "accountRequired": null,
+        "accountMonths": null,
+        "accountDeposit": null,
+        "homelessRequired": null
+      },
+      "nearby": [],
+      "comparable": null,
+      "reviewedAt": null,
+      "changeNote": "서울시 공식 목록의 청약신청일을 표시했습니다. 기간·시간·신청 링크·자격은 공고 상세와 첨부문서를 확인하세요."
+    },
+    {
+      "id": "seoul-youth-6648",
+      "title": "[민간임대] 왕십리역 라봄성동 추가모집공고",
+      "kind": "rent",
+      "audience": "youth",
+      "supplyType": "서울 청년안심주택 · 민간임대",
+      "address": "서울특별시 성동구 마장동 836일원",
+      "sourceUrl": "https://soco.seoul.go.kr/youth/bbs/BMSR00015/view.do?boardId=6648&menuNo=400008",
+      "applicationUrl": "https://soco.seoul.go.kr/youth/bbs/BMSR00015/view.do?boardId=6648&menuNo=400008",
+      "publishedAt": "2026-09-03",
+      "point": null,
+      "moveIn": null,
+      "moveInNote": "",
+      "priceNote": "보증금·월 임대료는 공급 유형과 주택형에 따라 다릅니다. 서울시 공고문을 확인하세요.",
+      "locationUrl": null,
+      "locationImageUrl": null,
+      "events": [
+        {
+          "label": "청약신청일",
+          "date": "2026-09-04",
+          "type": "open",
+          "time": null
+        }
+      ],
+      "units": [
+        {
+          "id": "overview",
+          "name": "모집 주택 전체",
+          "area": null,
+          "rooms": null,
+          "price": null,
+          "monthlyRent": null,
+          "floorPlanUrl": null,
+          "floorPlanImageUrl": null,
+          "payments": []
+        }
+      ],
+      "rules": [],
+      "requirements": {
+        "accountRequired": null,
+        "accountMonths": null,
+        "accountDeposit": null,
+        "homelessRequired": null
+      },
+      "nearby": [],
+      "comparable": null,
+      "reviewedAt": null,
+      "changeNote": "서울시 공식 목록의 청약신청일을 표시했습니다. 기간·시간·신청 링크·자격은 공고 상세와 첨부문서를 확인하세요."
+    },
+    {
+      "id": "seoul-youth-6649",
+      "title": "[민간임대] 신논현역 리스트강남 추가모집공고",
+      "kind": "rent",
+      "audience": "youth",
+      "supplyType": "서울 청년안심주택 · 민간임대",
+      "address": "서울특별시 강남구 논현동 202-7번지",
+      "sourceUrl": "https://soco.seoul.go.kr/youth/bbs/BMSR00015/view.do?boardId=6649&menuNo=400008",
+      "applicationUrl": "https://soco.seoul.go.kr/youth/bbs/BMSR00015/view.do?boardId=6649&menuNo=400008",
+      "publishedAt": "2026-09-03",
+      "point": null,
+      "moveIn": null,
+      "moveInNote": "",
+      "priceNote": "보증금·월 임대료는 공급 유형과 주택형에 따라 다릅니다. 서울시 공고문을 확인하세요.",
+      "locationUrl": null,
+      "locationImageUrl": null,
+      "events": [
+        {
+          "label": "청약신청일",
+          "date": "2026-09-07",
+          "type": "open",
+          "time": null
+        }
+      ],
+      "units": [
+        {
+          "id": "overview",
+          "name": "모집 주택 전체",
+          "area": null,
+          "rooms": null,
+          "price": null,
+          "monthlyRent": null,
+          "floorPlanUrl": null,
+          "floorPlanImageUrl": null,
+          "payments": []
+        }
+      ],
+      "rules": [],
+      "requirements": {
+        "accountRequired": null,
+        "accountMonths": null,
+        "accountDeposit": null,
+        "homelessRequired": null
+      },
+      "nearby": [],
+      "comparable": null,
+      "reviewedAt": null,
+      "changeNote": "서울시 공식 목록의 청약신청일을 표시했습니다. 기간·시간·신청 링크·자격은 공고 상세와 첨부문서를 확인하세요."
+    },
+    {
+      "id": "seoul-youth-6650",
+      "title": "[민간임대] 아차산역 백악관타워 추가모집공고",
+      "kind": "rent",
+      "audience": "youth",
+      "supplyType": "서울 청년안심주택 · 민간임대",
+      "address": "서울특별시 광진구 천호대로 643",
+      "sourceUrl": "https://soco.seoul.go.kr/youth/bbs/BMSR00015/view.do?boardId=6650&menuNo=400008",
+      "applicationUrl": "https://soco.seoul.go.kr/youth/bbs/BMSR00015/view.do?boardId=6650&menuNo=400008",
+      "publishedAt": "2026-09-03",
+      "point": null,
+      "moveIn": null,
+      "moveInNote": "",
+      "priceNote": "보증금·월 임대료는 공급 유형과 주택형에 따라 다릅니다. 서울시 공고문을 확인하세요.",
+      "locationUrl": null,
+      "locationImageUrl": null,
+      "events": [
+        {
+          "label": "청약신청일",
+          "date": "2026-09-05",
+          "type": "open",
+          "time": null
+        }
+      ],
+      "units": [
+        {
+          "id": "overview",
+          "name": "모집 주택 전체",
+          "area": null,
+          "rooms": null,
+          "price": null,
+          "monthlyRent": null,
+          "floorPlanUrl": null,
+          "floorPlanImageUrl": null,
+          "payments": []
+        }
+      ],
+      "rules": [],
+      "requirements": {
+        "accountRequired": null,
+        "accountMonths": null,
+        "accountDeposit": null,
+        "homelessRequired": null
+      },
+      "nearby": [],
+      "comparable": null,
+      "reviewedAt": null,
+      "changeNote": "서울시 공식 목록의 청약신청일을 표시했습니다. 기간·시간·신청 링크·자격은 공고 상세와 첨부문서를 확인하세요."
+    },
+    {
+      "id": "seoul-youth-6651",
+      "title": "[민간임대] 개봉역 세이지움 개봉 추가모집공고",
+      "kind": "rent",
+      "audience": "youth",
+      "supplyType": "서울 청년안심주택 · 민간임대",
+      "address": "서울특별시 구로구 개봉동 503",
+      "sourceUrl": "https://soco.seoul.go.kr/youth/bbs/BMSR00015/view.do?boardId=6651&menuNo=400008",
+      "applicationUrl": "https://soco.seoul.go.kr/youth/bbs/BMSR00015/view.do?boardId=6651&menuNo=400008",
+      "publishedAt": "2026-09-03",
+      "point": null,
+      "moveIn": null,
+      "moveInNote": "",
+      "priceNote": "보증금·월 임대료는 공급 유형과 주택형에 따라 다릅니다. 서울시 공고문을 확인하세요.",
+      "locationUrl": null,
+      "locationImageUrl": null,
+      "events": [
+        {
+          "label": "청약신청일",
+          "date": "2026-09-07",
+          "type": "open",
+          "time": null
+        }
+      ],
+      "units": [
+        {
+          "id": "overview",
+          "name": "모집 주택 전체",
+          "area": null,
+          "rooms": null,
+          "price": null,
+          "monthlyRent": null,
+          "floorPlanUrl": null,
+          "floorPlanImageUrl": null,
+          "payments": []
+        }
+      ],
+      "rules": [],
+      "requirements": {
+        "accountRequired": null,
+        "accountMonths": null,
+        "accountDeposit": null,
+        "homelessRequired": null
+      },
+      "nearby": [],
+      "comparable": null,
+      "reviewedAt": null,
+      "changeNote": "서울시 공식 목록의 청약신청일을 표시했습니다. 기간·시간·신청 링크·자격은 공고 상세와 첨부문서를 확인하세요."
+    },
+    {
+      "id": "seoul-youth-6652",
+      "title": "[민간임대] 등촌역 아르체움 등촌 추가모집공고",
+      "kind": "rent",
+      "audience": "youth",
+      "supplyType": "서울 청년안심주택 · 민간임대",
+      "address": "서울특별시 강서구 공항대로 553",
+      "sourceUrl": "https://soco.seoul.go.kr/youth/bbs/BMSR00015/view.do?boardId=6652&menuNo=400008",
+      "applicationUrl": "https://soco.seoul.go.kr/youth/bbs/BMSR00015/view.do?boardId=6652&menuNo=400008",
+      "publishedAt": "2026-09-03",
+      "point": null,
+      "moveIn": null,
+      "moveInNote": "",
+      "priceNote": "보증금·월 임대료는 공급 유형과 주택형에 따라 다릅니다. 서울시 공고문을 확인하세요.",
+      "locationUrl": null,
+      "locationImageUrl": null,
+      "events": [
+        {
+          "label": "청약신청일",
+          "date": "2026-09-07",
+          "type": "open",
+          "time": null
+        }
+      ],
+      "units": [
+        {
+          "id": "overview",
+          "name": "모집 주택 전체",
+          "area": null,
+          "rooms": null,
+          "price": null,
+          "monthlyRent": null,
+          "floorPlanUrl": null,
+          "floorPlanImageUrl": null,
+          "payments": []
+        }
+      ],
+      "rules": [],
+      "requirements": {
+        "accountRequired": null,
+        "accountMonths": null,
+        "accountDeposit": null,
+        "homelessRequired": null
+      },
+      "nearby": [],
+      "comparable": null,
+      "reviewedAt": null,
+      "changeNote": "서울시 공식 목록의 청약신청일을 표시했습니다. 기간·시간·신청 링크·자격은 공고 상세와 첨부문서를 확인하세요."
+    },
+    {
+      "id": "seoul-youth-6653",
+      "title": "[민간임대] 천호역 천호한강청년주택 추가모집공고",
+      "kind": "rent",
+      "audience": "youth",
+      "supplyType": "서울 청년안심주택 · 민간임대",
+      "address": "서울특별시 강동구 천호대로 989",
+      "sourceUrl": "https://soco.seoul.go.kr/youth/bbs/BMSR00015/view.do?boardId=6653&menuNo=400008",
+      "applicationUrl": "https://soco.seoul.go.kr/youth/bbs/BMSR00015/view.do?boardId=6653&menuNo=400008",
+      "publishedAt": "2026-09-03",
+      "point": null,
+      "moveIn": null,
+      "moveInNote": "",
+      "priceNote": "보증금·월 임대료는 공급 유형과 주택형에 따라 다릅니다. 서울시 공고문을 확인하세요.",
+      "locationUrl": null,
+      "locationImageUrl": null,
+      "events": [
+        {
+          "label": "청약신청일",
+          "date": "2026-09-07",
+          "type": "open",
+          "time": null
+        }
+      ],
+      "units": [
+        {
+          "id": "overview",
+          "name": "모집 주택 전체",
+          "area": null,
+          "rooms": null,
+          "price": null,
+          "monthlyRent": null,
+          "floorPlanUrl": null,
+          "floorPlanImageUrl": null,
+          "payments": []
+        }
+      ],
+      "rules": [],
+      "requirements": {
+        "accountRequired": null,
+        "accountMonths": null,
+        "accountDeposit": null,
+        "homelessRequired": null
+      },
+      "nearby": [],
+      "comparable": null,
+      "reviewedAt": null,
+      "changeNote": "서울시 공식 목록의 청약신청일을 표시했습니다. 기간·시간·신청 링크·자격은 공고 상세와 첨부문서를 확인하세요."
     },
     {
       "id": "2026000403",
@@ -4643,6 +7432,55 @@
       "comparable": null,
       "reviewedAt": null,
       "changeNote": "공공데이터에서 가져온 주택형별 최고 공급금액입니다. 전용면적·층별 가격·납부 일정·필수정보는 모집공고 원문 대조가 필요합니다."
+    },
+    {
+      "id": "seoul-youth-6645",
+      "title": "[민간임대] 태릉입구역 세이지움 태릉입구역 최초모집공고",
+      "kind": "rent",
+      "audience": "youth",
+      "supplyType": "서울 청년안심주택 · 민간임대",
+      "address": "서울특별시 중랑구 숙선옹주로 4",
+      "sourceUrl": "https://soco.seoul.go.kr/youth/bbs/BMSR00015/view.do?boardId=6645&menuNo=400008",
+      "applicationUrl": "https://soco.seoul.go.kr/youth/bbs/BMSR00015/view.do?boardId=6645&menuNo=400008",
+      "publishedAt": "2026-09-01",
+      "point": null,
+      "moveIn": null,
+      "moveInNote": "",
+      "priceNote": "보증금·월 임대료는 공급 유형과 주택형에 따라 다릅니다. 서울시 공고문을 확인하세요.",
+      "locationUrl": null,
+      "locationImageUrl": null,
+      "events": [
+        {
+          "label": "청약신청일",
+          "date": "2026-09-11",
+          "type": "open",
+          "time": null
+        }
+      ],
+      "units": [
+        {
+          "id": "overview",
+          "name": "모집 주택 전체",
+          "area": null,
+          "rooms": null,
+          "price": null,
+          "monthlyRent": null,
+          "floorPlanUrl": null,
+          "floorPlanImageUrl": null,
+          "payments": []
+        }
+      ],
+      "rules": [],
+      "requirements": {
+        "accountRequired": null,
+        "accountMonths": null,
+        "accountDeposit": null,
+        "homelessRequired": null
+      },
+      "nearby": [],
+      "comparable": null,
+      "reviewedAt": null,
+      "changeNote": "서울시 공식 목록의 청약신청일을 표시했습니다. 기간·시간·신청 링크·자격은 공고 상세와 첨부문서를 확인하세요."
     },
     {
       "id": "2026000414",
@@ -5536,6 +8374,238 @@
       "changeNote": "공공데이터에서 가져온 주택형별 최고 공급금액입니다. 전용면적·층별 가격·납부 일정·필수정보는 모집공고 원문 대조가 필요합니다."
     },
     {
+      "id": "lh-youth-2015122300020618",
+      "title": "[경기 안성시] 26년 2차 기숙사형 청년주택 예비입주자 모집공고",
+      "kind": "rent",
+      "audience": "youth",
+      "supplyType": "LH 청년주택 · 매입임대",
+      "address": "경기도",
+      "sourceUrl": "https://apply.lh.or.kr/lhapply/apply/wt/wrtanc/selectWrtancInfo.do?aisTpCd=26&ccrCnntSysDsCd=03&mi=1026&panId=2015122300020618&uppAisTpCd=13",
+      "applicationUrl": "https://apply.lh.or.kr/lhapply/apply/wt/wrtanc/selectWrtancInfo.do?aisTpCd=26&ccrCnntSysDsCd=03&mi=1026&panId=2015122300020618&uppAisTpCd=13",
+      "publishedAt": "2026-08-27",
+      "point": null,
+      "moveIn": null,
+      "moveInNote": "",
+      "priceNote": "지역·주택별 보증금과 월 임대료는 LH 모집공고문을 확인하세요.",
+      "locationUrl": null,
+      "locationImageUrl": null,
+      "events": [
+        {
+          "label": "청년주택 접수 시작",
+          "date": "2026-09-07",
+          "type": "open",
+          "time": "10:00"
+        },
+        {
+          "label": "청년주택 접수 마감",
+          "date": "2026-09-09",
+          "type": "close",
+          "time": "16:00"
+        },
+        {
+          "label": "당첨자 발표",
+          "date": "2026-10-30",
+          "type": "result",
+          "time": null
+        }
+      ],
+      "units": [
+        {
+          "id": "overview",
+          "name": "모집 주택 전체",
+          "area": null,
+          "rooms": null,
+          "price": null,
+          "monthlyRent": null,
+          "floorPlanUrl": null,
+          "floorPlanImageUrl": null,
+          "payments": []
+        }
+      ],
+      "rules": [],
+      "requirements": {
+        "accountRequired": null,
+        "accountMonths": null,
+        "accountDeposit": null,
+        "homelessRequired": null
+      },
+      "nearby": [],
+      "comparable": null,
+      "reviewedAt": null,
+      "changeNote": "LH 공식 공고 페이지의 게시일·접수일을 수집했습니다. 신청 자격·임대료·세부 위치는 원문에서 확인하세요."
+    },
+    {
+      "id": "lh-youth-2015122300020621",
+      "title": "[경기남부] 26년 3차 청년 매입임대주택 예비입주자 모집공고",
+      "kind": "rent",
+      "audience": "youth",
+      "supplyType": "LH 청년주택 · 매입임대",
+      "address": "경기도",
+      "sourceUrl": "https://apply.lh.or.kr/lhapply/apply/wt/wrtanc/selectWrtancInfo.do?aisTpCd=26&ccrCnntSysDsCd=03&mi=1026&panId=2015122300020621&uppAisTpCd=13",
+      "applicationUrl": "https://apply.lh.or.kr/lhapply/apply/wt/wrtanc/selectWrtancInfo.do?aisTpCd=26&ccrCnntSysDsCd=03&mi=1026&panId=2015122300020621&uppAisTpCd=13",
+      "publishedAt": "2026-08-27",
+      "point": null,
+      "moveIn": null,
+      "moveInNote": "",
+      "priceNote": "지역·주택별 보증금과 월 임대료는 LH 모집공고문을 확인하세요.",
+      "locationUrl": null,
+      "locationImageUrl": null,
+      "events": [
+        {
+          "label": "청년주택 접수 시작",
+          "date": "2026-09-07",
+          "type": "open",
+          "time": "10:00"
+        },
+        {
+          "label": "청년주택 접수 마감",
+          "date": "2026-09-09",
+          "type": "close",
+          "time": "16:00"
+        },
+        {
+          "label": "당첨자 발표",
+          "date": "2026-11-27",
+          "type": "result",
+          "time": null
+        }
+      ],
+      "units": [
+        {
+          "id": "overview",
+          "name": "모집 주택 전체",
+          "area": null,
+          "rooms": null,
+          "price": null,
+          "monthlyRent": null,
+          "floorPlanUrl": null,
+          "floorPlanImageUrl": null,
+          "payments": []
+        }
+      ],
+      "rules": [],
+      "requirements": {
+        "accountRequired": null,
+        "accountMonths": null,
+        "accountDeposit": null,
+        "homelessRequired": null
+      },
+      "nearby": [],
+      "comparable": null,
+      "reviewedAt": null,
+      "changeNote": "LH 공식 공고 페이지의 게시일·접수일을 수집했습니다. 신청 자격·임대료·세부 위치는 원문에서 확인하세요."
+    },
+    {
+      "id": "lh-youth-2015122300020630",
+      "title": "[인천지역본부] 26년 6차 청년 매입임대주택 예비입주자 모집공고(인천,부천)",
+      "kind": "rent",
+      "audience": "youth",
+      "supplyType": "LH 청년주택 · 매입임대",
+      "address": "인천광역시 외",
+      "sourceUrl": "https://apply.lh.or.kr/lhapply/apply/wt/wrtanc/selectWrtancInfo.do?aisTpCd=26&ccrCnntSysDsCd=03&mi=1026&panId=2015122300020630&uppAisTpCd=13",
+      "applicationUrl": "https://apply.lh.or.kr/lhapply/apply/wt/wrtanc/selectWrtancInfo.do?aisTpCd=26&ccrCnntSysDsCd=03&mi=1026&panId=2015122300020630&uppAisTpCd=13",
+      "publishedAt": "2026-08-27",
+      "point": null,
+      "moveIn": null,
+      "moveInNote": "",
+      "priceNote": "지역·주택별 보증금과 월 임대료는 LH 모집공고문을 확인하세요.",
+      "locationUrl": null,
+      "locationImageUrl": null,
+      "events": [
+        {
+          "label": "청년주택 접수 시작",
+          "date": "2026-09-07",
+          "type": "open",
+          "time": "10:00"
+        },
+        {
+          "label": "청년주택 접수 마감",
+          "date": "2026-09-09",
+          "type": "close",
+          "time": "16:00"
+        },
+        {
+          "label": "당첨자 발표",
+          "date": "2026-11-12",
+          "type": "result",
+          "time": null
+        }
+      ],
+      "units": [
+        {
+          "id": "overview",
+          "name": "모집 주택 전체",
+          "area": null,
+          "rooms": null,
+          "price": null,
+          "monthlyRent": null,
+          "floorPlanUrl": null,
+          "floorPlanImageUrl": null,
+          "payments": []
+        }
+      ],
+      "rules": [],
+      "requirements": {
+        "accountRequired": null,
+        "accountMonths": null,
+        "accountDeposit": null,
+        "homelessRequired": null
+      },
+      "nearby": [],
+      "comparable": null,
+      "reviewedAt": null,
+      "changeNote": "LH 공식 공고 페이지의 게시일·접수일을 수집했습니다. 신청 자격·임대료·세부 위치는 원문에서 확인하세요."
+    },
+    {
+      "id": "seoul-youth-6644",
+      "title": "[민간임대] 강변역 비바힐스강변 추가모집공고",
+      "kind": "rent",
+      "audience": "youth",
+      "supplyType": "서울 청년안심주택 · 민간임대",
+      "address": "서울특별시 광진구 구의동 593-11",
+      "sourceUrl": "https://soco.seoul.go.kr/youth/bbs/BMSR00015/view.do?boardId=6644&menuNo=400008",
+      "applicationUrl": "https://soco.seoul.go.kr/youth/bbs/BMSR00015/view.do?boardId=6644&menuNo=400008",
+      "publishedAt": "2026-08-27",
+      "point": null,
+      "moveIn": null,
+      "moveInNote": "",
+      "priceNote": "보증금·월 임대료는 공급 유형과 주택형에 따라 다릅니다. 서울시 공고문을 확인하세요.",
+      "locationUrl": null,
+      "locationImageUrl": null,
+      "events": [
+        {
+          "label": "청약신청일",
+          "date": "2026-08-31",
+          "type": "open",
+          "time": null
+        }
+      ],
+      "units": [
+        {
+          "id": "overview",
+          "name": "모집 주택 전체",
+          "area": null,
+          "rooms": null,
+          "price": null,
+          "monthlyRent": null,
+          "floorPlanUrl": null,
+          "floorPlanImageUrl": null,
+          "payments": []
+        }
+      ],
+      "rules": [],
+      "requirements": {
+        "accountRequired": null,
+        "accountMonths": null,
+        "accountDeposit": null,
+        "homelessRequired": null
+      },
+      "nearby": [],
+      "comparable": null,
+      "reviewedAt": null,
+      "changeNote": "서울시 공식 목록의 청약신청일을 표시했습니다. 기간·시간·신청 링크·자격은 공고 상세와 첨부문서를 확인하세요."
+    },
+    {
       "id": "2026000409",
       "title": "의정부우정 A2블록 공공분양주택(본청약)",
       "kind": "sale",
@@ -6083,6 +9153,202 @@
       "comparable": null,
       "reviewedAt": null,
       "changeNote": "공공데이터에서 가져온 주택형별 최고 공급금액입니다. 전용면적·층별 가격·납부 일정·필수정보는 모집공고 원문 대조가 필요합니다."
+    },
+    {
+      "id": "seoul-youth-6643",
+      "title": "[민간임대] 노량진역 더써밋타워 추가모집공고",
+      "kind": "rent",
+      "audience": "youth",
+      "supplyType": "서울 청년안심주택 · 민간임대",
+      "address": "서울특별시 동작구 장승배기로 174",
+      "sourceUrl": "https://soco.seoul.go.kr/youth/bbs/BMSR00015/view.do?boardId=6643&menuNo=400008",
+      "applicationUrl": "https://soco.seoul.go.kr/youth/bbs/BMSR00015/view.do?boardId=6643&menuNo=400008",
+      "publishedAt": "2026-08-20",
+      "point": null,
+      "moveIn": null,
+      "moveInNote": "",
+      "priceNote": "보증금·월 임대료는 공급 유형과 주택형에 따라 다릅니다. 서울시 공고문을 확인하세요.",
+      "locationUrl": null,
+      "locationImageUrl": null,
+      "events": [
+        {
+          "label": "청약신청일",
+          "date": "2026-08-24",
+          "type": "open",
+          "time": null
+        }
+      ],
+      "units": [
+        {
+          "id": "overview",
+          "name": "모집 주택 전체",
+          "area": null,
+          "rooms": null,
+          "price": null,
+          "monthlyRent": null,
+          "floorPlanUrl": null,
+          "floorPlanImageUrl": null,
+          "payments": []
+        }
+      ],
+      "rules": [],
+      "requirements": {
+        "accountRequired": null,
+        "accountMonths": null,
+        "accountDeposit": null,
+        "homelessRequired": null
+      },
+      "nearby": [],
+      "comparable": null,
+      "reviewedAt": null,
+      "changeNote": "서울시 공식 목록의 청약신청일을 표시했습니다. 기간·시간·신청 링크·자격은 공고 상세와 첨부문서를 확인하세요."
+    },
+    {
+      "id": "lh-youth-2015122300020513",
+      "title": "천안아산 대학생,청년 행복주택 자격완화 예비입주자 모집 (2026.08.18)",
+      "kind": "rent",
+      "audience": "youth",
+      "supplyType": "LH 청년주택 · 행복주택",
+      "address": "충청남도",
+      "sourceUrl": "https://apply.lh.or.kr/lhapply/apply/wt/wrtanc/selectWrtancInfo.do?aisTpCd=10&ccrCnntSysDsCd=03&mi=1026&panId=2015122300020513&uppAisTpCd=06",
+      "applicationUrl": "https://apply.lh.or.kr/lhapply/apply/wt/wrtanc/selectWrtancInfo.do?aisTpCd=10&ccrCnntSysDsCd=03&mi=1026&panId=2015122300020513&uppAisTpCd=06",
+      "publishedAt": "2026-08-18",
+      "point": null,
+      "moveIn": null,
+      "moveInNote": "",
+      "priceNote": "지역·주택별 보증금과 월 임대료는 LH 모집공고문을 확인하세요.",
+      "locationUrl": null,
+      "locationImageUrl": null,
+      "events": [
+        {
+          "label": "당첨자 발표",
+          "date": "2026-12-01",
+          "type": "result",
+          "time": null
+        }
+      ],
+      "units": [
+        {
+          "id": "overview",
+          "name": "모집 주택 전체",
+          "area": null,
+          "rooms": null,
+          "price": null,
+          "monthlyRent": null,
+          "floorPlanUrl": null,
+          "floorPlanImageUrl": null,
+          "payments": []
+        }
+      ],
+      "rules": [],
+      "requirements": {
+        "accountRequired": null,
+        "accountMonths": null,
+        "accountDeposit": null,
+        "homelessRequired": null
+      },
+      "nearby": [],
+      "comparable": null,
+      "reviewedAt": null,
+      "changeNote": "LH 공식 공고 페이지의 게시일·접수일을 수집했습니다. 신청 자격·임대료·세부 위치는 원문에서 확인하세요."
+    },
+    {
+      "id": "seoul-youth-6641",
+      "title": "[민간임대] 노량진역 한강더퍼스트타워 최초모집공고",
+      "kind": "rent",
+      "audience": "youth",
+      "supplyType": "서울 청년안심주택 · 민간임대",
+      "address": "서울특별시 동작구 노량진동 39-20번지",
+      "sourceUrl": "https://soco.seoul.go.kr/youth/bbs/BMSR00015/view.do?boardId=6641&menuNo=400008",
+      "applicationUrl": "https://soco.seoul.go.kr/youth/bbs/BMSR00015/view.do?boardId=6641&menuNo=400008",
+      "publishedAt": "2026-08-18",
+      "point": null,
+      "moveIn": null,
+      "moveInNote": "",
+      "priceNote": "보증금·월 임대료는 공급 유형과 주택형에 따라 다릅니다. 서울시 공고문을 확인하세요.",
+      "locationUrl": null,
+      "locationImageUrl": null,
+      "events": [
+        {
+          "label": "청약신청일",
+          "date": "2026-08-27",
+          "type": "open",
+          "time": null
+        }
+      ],
+      "units": [
+        {
+          "id": "overview",
+          "name": "모집 주택 전체",
+          "area": null,
+          "rooms": null,
+          "price": null,
+          "monthlyRent": null,
+          "floorPlanUrl": null,
+          "floorPlanImageUrl": null,
+          "payments": []
+        }
+      ],
+      "rules": [],
+      "requirements": {
+        "accountRequired": null,
+        "accountMonths": null,
+        "accountDeposit": null,
+        "homelessRequired": null
+      },
+      "nearby": [],
+      "comparable": null,
+      "reviewedAt": null,
+      "changeNote": "서울시 공식 목록의 청약신청일을 표시했습니다. 기간·시간·신청 링크·자격은 공고 상세와 첨부문서를 확인하세요."
+    },
+    {
+      "id": "seoul-youth-6642",
+      "title": "[민간임대] 신독산역 센트레빌 웨스트온 최초모집공고",
+      "kind": "rent",
+      "audience": "youth",
+      "supplyType": "서울 청년안심주택 · 민간임대",
+      "address": "서울특별시 금천구 시흥대로 377",
+      "sourceUrl": "https://soco.seoul.go.kr/youth/bbs/BMSR00015/view.do?boardId=6642&menuNo=400008",
+      "applicationUrl": "https://soco.seoul.go.kr/youth/bbs/BMSR00015/view.do?boardId=6642&menuNo=400008",
+      "publishedAt": "2026-08-18",
+      "point": null,
+      "moveIn": null,
+      "moveInNote": "",
+      "priceNote": "보증금·월 임대료는 공급 유형과 주택형에 따라 다릅니다. 서울시 공고문을 확인하세요.",
+      "locationUrl": null,
+      "locationImageUrl": null,
+      "events": [
+        {
+          "label": "청약신청일",
+          "date": "2026-08-28",
+          "type": "open",
+          "time": null
+        }
+      ],
+      "units": [
+        {
+          "id": "overview",
+          "name": "모집 주택 전체",
+          "area": null,
+          "rooms": null,
+          "price": null,
+          "monthlyRent": null,
+          "floorPlanUrl": null,
+          "floorPlanImageUrl": null,
+          "payments": []
+        }
+      ],
+      "rules": [],
+      "requirements": {
+        "accountRequired": null,
+        "accountMonths": null,
+        "accountDeposit": null,
+        "homelessRequired": null
+      },
+      "nearby": [],
+      "comparable": null,
+      "reviewedAt": null,
+      "changeNote": "서울시 공식 목록의 청약신청일을 표시했습니다. 기간·시간·신청 링크·자격은 공고 상세와 첨부문서를 확인하세요."
     },
     {
       "id": "2026000342",

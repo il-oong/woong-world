@@ -1,5 +1,6 @@
 import { fetchApplyhomePage, fromApplyhome, type ApplyhomeRow } from "./applyhome";
 import { dateSchema, type Notice, todayKst } from "./model";
+import { collectYouthHousing } from "./youth";
 
 type Page = { data: ApplyhomeRow[]; totalCount: number };
 type Reader = typeof fetchApplyhomePage;
@@ -42,4 +43,12 @@ export async function collectHousing(now = new Date(), read: Reader = fetchApply
   }
   if (new Set(notices.map((n) => n.id)).size !== notices.length) throw Error("공고번호 중복 확인 필요");
   return { updatedAt: now.toISOString(), notices: notices.sort((a, b) => b.publishedAt.localeCompare(a.publishedAt) || a.id.localeCompare(b.id)) };
+}
+
+export async function collectAllHousing(now = new Date()): Promise<{ updatedAt: string; notices: Notice[] }> {
+  const [sales, youth] = await Promise.all([collectHousing(now), collectYouthHousing(now)]);
+  return {
+    updatedAt: now.toISOString(),
+    notices: [...sales.notices, ...youth].sort((a, b) => b.publishedAt.localeCompare(a.publishedAt) || a.id.localeCompare(b.id)),
+  };
 }

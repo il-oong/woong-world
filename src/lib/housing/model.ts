@@ -132,6 +132,7 @@ export const noticeSchema = z
     id: z.string().regex(/^[a-zA-Z0-9_-]{1,80}$/),
     title: z.string().trim().min(1).max(200),
     kind: z.enum(["sale", "rent"]),
+    audience: z.enum(["general", "youth"]).default("general"),
     supplyType: z.string().min(1).max(100),
     address: z.string().max(300),
     sourceUrl: httpsUrl,
@@ -148,7 +149,7 @@ export const noticeSchema = z
         z.object({
           label: z.string().min(1).max(100),
           date: dateSchema,
-          type: z.enum(["open", "close", "result", "contract"]),
+          type: z.enum(["notice", "open", "close", "result", "contract"]),
           time: z
             .string()
             .regex(/^([01]\d|2[0-3]):[0-5]\d$/)
@@ -276,7 +277,12 @@ export function applicationStatus(n: Notice, now = new Date()) {
     .map((e) => `${e.date}T${e.time ?? "00:00"}:00+09:00`)
     .sort();
   if (!starts.length) return "접수 일정 확인";
+  if (!n.events.some((e) => e.type === "close") &&
+    starts.every((start) => now.getTime() > Date.parse(start.slice(0, 10) + "T23:59:59+09:00")))
+    return "접수일 경과 · 기간 원문 확인";
   return now.getTime() < Date.parse(starts[0])
     ? "접수 예정"
-    : "접수 기간 · 유형별 일정 확인";
+    : n.events.some((e) => e.type === "close")
+      ? "접수 기간 · 유형별 일정 확인"
+      : "접수일 · 시간 원문 확인";
 }
