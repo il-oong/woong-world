@@ -13,6 +13,7 @@ import { rankNotices } from "@/lib/housing/scoring";
 import { eventsThroughNextMonth, scheduleWindow } from "@/lib/housing/schedule";
 import { Bars, button, HousingHeader, panel, request } from "./shared";
 const eventStyle = {
+  notice: "bg-sky-300/15 text-sky-200",
   open: "bg-teal-300/15 text-teal-200",
   close: "bg-rose-400/15 text-rose-200",
   result: "bg-violet-400/15 text-violet-200",
@@ -20,6 +21,7 @@ const eventStyle = {
 };
 type EventType = Notice["events"][number]["type"];
 const eventTypes: { type: EventType; label: string }[] = [
+  { type: "notice", label: "공고 게시" },
   { type: "open", label: "접수 시작" },
   { type: "close", label: "접수 마감" },
   { type: "result", label: "당첨 발표" },
@@ -35,6 +37,7 @@ export function Dashboard({
   const [month, setMonth] = useState(today.slice(0, 7)),
     [day, setDay] = useState<string | null>(null),
     [filter, setFilter] = useState("all"),
+    [housingType, setHousingType] = useState<"all" | "sale" | "youth">("all"),
     [enabledTypes, setEnabledTypes] = useState<EventType[]>(eventTypes.map((e) => e.type)),
     [favorites, setFavorites] = useState(data.favorites),
     [message, setMessage] = useState(""),
@@ -54,11 +57,12 @@ export function Dashboard({
       .map((r, i) => [r.notice.id, i + 1]),
   );
   const visible = data.notices.filter((n) =>
-    filter === "favorites"
+    (housingType === "all" || (housingType === "youth" ? n.audience === "youth" : n.kind === "sale")) &&
+    (filter === "favorites"
       ? favorites.includes(n.id)
       : filter === "recommended"
         ? rankMap.has(n.id)
-        : true,
+        : true),
   );
   const visibleIds = new Set(visible.map((n) => n.id));
   const showEvent = (type: EventType) => enabledTypes.includes(type);
@@ -94,7 +98,7 @@ export function Dashboard({
     setMessage("");
     let success = 0,
       failed = 0;
-    for (const n of data.notices.filter((n) => !isClosed(n)).slice(0, 20)) {
+    for (const n of visible.filter((n) => !isClosed(n) && n.point).slice(0, 20)) {
       try {
         const r = await request<{ commute: Commute }>(
           "/api/housing/commute",
@@ -129,8 +133,8 @@ export function Dashboard({
       </HousingHeader>
       <p className="mb-5 text-xs text-slate-400">
         {data.feedUpdatedAt
-          ? `공식 청약홈 기본정보 갱신: ${new Date(data.feedUpdatedAt).toLocaleDateString("ko-KR", { timeZone: "Asia/Seoul" })} · 자격과 전매제한은 공고문 확인 여부를 별도 표시합니다.`
-          : "공식 청약홈 자동 갱신 준비 중 · 확인된 공고부터 표시합니다."}
+          ? `청약홈·LH·서울시 공고 갱신: ${new Date(data.feedUpdatedAt).toLocaleDateString("ko-KR", { timeZone: "Asia/Seoul" })} · 자격과 임대조건은 공고문 확인 여부를 별도 표시합니다.`
+          : "공식 청약 공고 자동 갱신 준비 중 · 확인된 공고부터 표시합니다."}
       </p>
       {data.error && (
         <p role="alert" className={`${panel} mb-5 text-amber-200`}>
@@ -149,6 +153,15 @@ export function Dashboard({
         </div>
       )}
       <section className={`${panel} !p-3 sm:!p-6`} aria-label="청약 일정 달력">
+        <div className="mb-4 flex flex-wrap gap-2" role="group" aria-label="주택 종류 필터">
+          {([["all", "전체 주택"], ["sale", "분양"], ["youth", "청년주택"]] as const).map(([value, label]) => (
+            <button key={value} type="button" aria-pressed={housingType === value}
+              onClick={() => { setHousingType(value); setDay(null); }}
+              className={`rounded-lg border px-3 py-1.5 text-sm ${housingType === value ? "border-teal-300 bg-teal-300 text-slate-950" : "border-white/10 text-slate-300 hover:bg-white/5"}`}>
+              {label}
+            </button>
+          ))}
+        </div>
         <div className="mb-5 flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <button
@@ -317,7 +330,7 @@ export function Dashboard({
                 ? `${day} 청약 일정`
                 : data.profile
                   ? "나에게 맞는 추천 청약"
-                  : "분양가·면적 예비 비교"}
+                  : housingType === "youth" ? "청년주택 일정·조건" : "분양가·면적 예비 비교"}
             </h2>
             <p className="mt-2 text-xs text-slate-400">
               확인된 항목과 추정값의 가중평균 순 · 항목별 추정 근거는 상세에서 확인 · 실제 당첨 순위와 다릅니다.
@@ -357,11 +370,11 @@ export function Dashboard({
             </p>
             <a
               className={`${button} mt-5`}
-              href="https://www.applyhome.co.kr"
+              href={housingType === "youth" ? "https://soco.seoul.go.kr/youth/bbs/BMSR00015/list.do?menuNo=400008" : "https://www.applyhome.co.kr"}
               target="_blank"
               rel="noopener noreferrer"
             >
-              청약홈 확인 ↗
+              {housingType === "youth" ? "서울 청년안심주택 공고 확인 ↗" : "청약홈 확인 ↗"}
             </a>
           </div>
         )}
@@ -391,7 +404,7 @@ export function Dashboard({
                   <div>
                     <h3 className="text-xl font-semibold">{n.title}</h3>
                     <p className="mt-2 text-xs text-slate-400">
-                      {n.supplyType} · {unit.name} · {won(unit.price)}
+                      {n.supplyType} · {unit.name} · {n.kind === "rent" ? `보증금 ${won(unit.price)}` : won(unit.price)}
                     </p>
                   </div>
                   <div className="shrink-0 text-right">

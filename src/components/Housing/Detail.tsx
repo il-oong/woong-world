@@ -102,7 +102,7 @@ export function Detail({
       </div>
       {n.changeNote && (
         <p className="mb-5 rounded-xl border border-amber-300/20 bg-amber-300/5 p-4 text-sm text-amber-100">
-          정정·변경 안내: {n.changeNote}
+          자료 안내: {n.changeNote}
         </p>
       )}
       <section className={`${panel} mb-6`}>
@@ -112,7 +112,7 @@ export function Detail({
           확인하세요. 자료가 없으면 제한 없음으로 판단하지 않습니다.
         </p>
         {!n.rules.length && <p className="mt-5 rounded-xl border border-amber-300/20 bg-amber-300/5 p-4 text-sm leading-6 text-amber-100">
-          이 공고는 아직 모집공고문을 분석하지 않았습니다. 아래 일정·가격은 청약홈 API 기본정보이며, 자격·제한은 확인되지 않았습니다. <a href={n.sourceUrl} target="_blank" rel="noopener noreferrer" className="underline">공식 공고 보기 ↗</a>
+          이 공고는 아직 모집공고문을 분석하지 않았습니다. 표시된 일정은 공식 목록·상세 페이지에서 확인한 범위이며, 자격·임대료·제한은 확인되지 않았습니다. <a href={n.sourceUrl} target="_blank" rel="noopener noreferrer" className="underline">공식 공고 보기 ↗</a>
         </p>}
         {!!n.rules.length && <dl className="mt-5 grid gap-4 md:grid-cols-2">
           {ruleKeys.map((key) => {
@@ -181,7 +181,7 @@ export function Detail({
       <section className={`${panel} mb-6`}>
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
-            <h2 className="text-xl font-semibold">{data.profile ? "나와의 궁합" : "분양가·면적 예비 비교"}</h2>
+            <h2 className="text-xl font-semibold">{data.profile ? "나와의 궁합" : n.kind === "rent" ? "임대조건 예비 비교" : "분양가·면적 예비 비교"}</h2>
             <p className="mt-2 text-sm text-slate-400">
               {rank
                 ? `공고 예비 추천 ${rank}위 (대표 주택형 기준)`

@@ -22,6 +22,7 @@ function blank(): Notice {
     id: "",
     title: "",
     kind: "sale",
+    audience: "general",
     supplyType: "",
     address: "",
     sourceUrl: "",
@@ -250,6 +251,14 @@ export function NoticeManager({ notices }: { notices: Notice[] }) {
               >
                 <option value="sale">분양</option>
                 <option value="rent">임대</option>
+              </select>
+            </label>
+            <label className="text-xs">
+              대상 분류
+              <select className={input} value={draft.audience}
+                onChange={(e) => edit("audience", e.target.value as Notice["audience"])}>
+                <option value="general">일반</option>
+                <option value="youth">청년주택</option>
               </select>
             </label>
           </div>
