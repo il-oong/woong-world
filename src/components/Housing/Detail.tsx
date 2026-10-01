@@ -19,6 +19,7 @@ import {
   rankNotices,
 } from "@/lib/housing/scoring";
 import { isClosed } from "@/lib/housing/model";
+import { mapProviderQuery, mapSearchQuery, mapSearchUrl } from "@/lib/housing/map-search";
 import {
   Bars,
   button,
@@ -222,6 +223,11 @@ export function Detail({
           <p className="my-3 text-sm text-slate-400">
             {n.address || "실제 공급 주소 확인 필요"}
           </p>
+          {n.address && !n.locationUrl && (
+            <p className="mb-3 text-xs text-teal-200">
+              공급 위치 요약: {mapSearchQuery(n.address, n.title)}
+            </p>
+          )}
           {n.point ? (
             <iframe
               title={`${n.title} 위치 지도`}
@@ -238,15 +244,15 @@ export function Detail({
             </div>
           ) : (
             <div className="grid h-56 place-items-center rounded-xl bg-white/5 p-5 text-center text-sm text-slate-400">
-              검증된 단지 좌표가 없어 지도 표시를 기다리고 있습니다.
+              <p>정확한 공급 블록 좌표는 아직 확인되지 않았습니다.<br />지도에서 ‘{mapProviderQuery(n.address, n.title)}’을 검색해보세요.</p>
             </div>
           )}
           <div className="mt-4 flex flex-wrap gap-2">
             {n.address && (
               <External
-                href={n.locationUrl ?? `https://map.kakao.com/link/search/${encodeURIComponent(n.address)}`}
+                href={mapSearchUrl(n)}
               >
-                지도·길찾기
+                {n.locationUrl ? "지도·길찾기" : "지도에서 검색"}
               </External>
             )}
             <button
@@ -264,6 +270,7 @@ export function Detail({
             {a.metrics.transport.reason}
           </p>
           <p className="mt-2 text-xs text-slate-500">
+            {n.point === null && !n.locationUrl && "검색 결과가 실제 공급 블록인지 공고 원문과 대조해주세요. "}
             교통 조회는 일반 경로 예상치입니다. 출근 시간의 혼잡·실시간 지연은
             반영하지 않습니다.
           </p>

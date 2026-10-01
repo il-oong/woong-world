@@ -16,7 +16,20 @@ import {
 } from "../src/lib/housing/model";
 import { fromApplyhome } from "../src/lib/housing/applyhome";
 import { catalog, mergeCatalog } from "../src/lib/housing/catalog";
+import { mapProviderQuery, mapSearchQuery, mapSearchUrl } from "../src/lib/housing/map-search";
+import feed from "../src/data/housing-feed.json";
 const today = "2026-09-30";
+test("a multi-city supply address searches the actual project block", () => {
+  const a6 = feed.notices.find((n) => n.title.includes("인천계양지구 A6블록"));
+  const a17 = feed.notices.find((n) => n.title.includes("인천계양 A17블록"));
+  assert.ok(a6 && a17);
+  assert.equal(mapSearchQuery(a6.address, a6.title), "인천계양 테크노밸리 공공주택지구 A6블록");
+  assert.equal(mapSearchQuery(a17.address, a17.title), "인천계양 테크노밸리 공공주택지구 A17블록");
+  assert.equal(mapProviderQuery(a6.address, a6.title), "인천계양 A6");
+  assert.equal(mapProviderQuery(a17.address, a17.title), "인천계양 A17");
+  assert.equal(decodeURIComponent(mapSearchUrl(a6).split("/search/")[1]), "인천계양 A6");
+  assert.equal(mapSearchUrl(catalog[0]), catalog[0].locationUrl);
+});
 test("verified public notice survives missing Redis, while deletion and corrections override it", () => {
   const notice = catalog[0];
   assert.equal(mergeCatalog().find((n) => n.id === "2026000453")?.title, "광명 시티프라디움 에듀하임");
