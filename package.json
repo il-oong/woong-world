@@ -8,7 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "vault-sync": "node vault-sync-daemon.mjs",
-    "test:housing": "tsx --test tests/housing.test.ts tests/housing-sync.test.ts",
+    "test:housing": "tsx --test tests/housing.test.ts tests/housing-sync.test.ts tests/housing-estimates.test.ts",
     "sync:housing": "tsx scripts/sync-housing.ts"
   },
   "dependencies": {

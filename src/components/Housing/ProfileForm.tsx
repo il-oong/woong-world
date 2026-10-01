@@ -151,6 +151,13 @@ export function ProfileForm({
                 placeholder="예: 서울특별시 중구 세종대로 110"
               />
             </label>
+            <label className="text-sm">
+              살고 싶은 선호 지역 (예비 입지 비교)
+              <input className={input} maxLength={100} value={form.preferredRegion}
+                onChange={(e) => change("preferredRegion", e.target.value)}
+                placeholder="예: 경기도 광명시 또는 인천광역시 계양구" />
+              <span className="mt-2 block text-xs text-slate-400">현재 거주 지역과 별도로 저장합니다. 시설 거리 자료가 없을 때 지역 일치도를 비교합니다.</span>
+            </label>
             {(
               [
                 ["maxCommute", "최대 통근시간 (분)", 240],

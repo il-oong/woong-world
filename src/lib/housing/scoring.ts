@@ -7,11 +7,15 @@ import {
   type Unit,
   todayKst,
 } from "./model";
-export type Metric = { value: number | null; reason: string };
+import { approximateAssessment } from "./estimates";
+export type Metric = { value: number | null; reason: string; estimated?: boolean; missingLabel?: string };
 export type Assessment = {
   metrics: Record<Dimension, Metric>;
   total: number | null;
   coverage: number;
+  provisional?: boolean;
+  measuredCount?: number;
+  verifiedCoverage?: number;
   blockers: string[];
   checks: {
     label: string;
@@ -267,21 +271,24 @@ export function rankNotices(
   p: Profile | null,
   commutes: Record<string, Commute | null> = {},
   now = new Date(),
+  peers: Notice[] = notices,
 ) {
   return notices
     .map((notice) => {
       const options = notice.units.map((unit) => ({
         unit,
-        assessment: assess(
+        assessment: roughAssess(
           notice,
           unit,
           p,
           commutes[notice.id] ?? null,
           todayKst(now),
+          peers,
         ),
       }));
       options.sort(
         (a, b) =>
+          (b.assessment.verifiedCoverage ?? b.assessment.coverage) - (a.assessment.verifiedCoverage ?? a.assessment.coverage) ||
           b.assessment.coverage - a.assessment.coverage ||
           Number(a.assessment.blockers.length > 0) -
             Number(b.assessment.blockers.length > 0) ||
@@ -296,4 +303,11 @@ export function rankNotices(
         (b.assessment.total ?? -1) - (a.assessment.total ?? -1) ||
         a.notice.id.localeCompare(b.notice.id),
     );
+}
+
+export function roughAssess(
+  n: Notice, u: Unit, p: Profile | null, commute: Commute | null = null,
+  today = todayKst(), peers: Notice[] = [n],
+): Assessment {
+  return approximateAssessment(assess(n, u, p, commute, today), n, u, p, peers, today);
 }
