@@ -26,7 +26,7 @@ test("daily collection validates detail and model pages before publishing", asyn
   assert.deepEqual(calls, ["getAPTLttotPblancDetail:1", "getAPTLttotPblancMdl:1"]);
   assert.equal(result.notices[0].units[0].price, 800000000);
   assert.equal(result.notices[0].reviewedAt, null);
-  assert.equal(mergeCatalog({}, result.notices).length, 2);
+  assert.equal(mergeCatalog({}, result.notices).length, catalog.length + 1);
 });
 
 test("official API uses filtered matchCount rather than all-time totalCount", async () => {
