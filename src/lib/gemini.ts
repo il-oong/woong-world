@@ -374,7 +374,7 @@ function summarizeWorkspace(workspace: WorkspaceContext): string {
   const memos = workspace.memos.slice(0, 30);
   lines.push(
     memos.length
-      ? `Memos: ${memos.map((memo) => `${memo.id}=${memo.title ? `[${memo.title}] ` : ""}${memo.text.replace(/\s+/g, " ").slice(0, 60)}${memo.pinned ? " (pinned)" : ""}`).join(" | ")}`
+      ? `Memos: ${memos.map((memo) => `${memo.id}=${memo.title ? `[${memo.title}] ` : ""}${memo.text.replace(/\s+/g, " ").slice(0, 60)}${memo.pinned ? " (starred)" : ""}`).join(" | ")}`
       : "Memos: none",
   );
   lines.push(
@@ -536,7 +536,7 @@ async function callChatGemini(
 
 const JARVIS_WORKSPACE_INSTRUCTIONS = `
 Jarvis workspace controls:
-- When the user clearly asks to create, update, complete, or remove a task, write/edit/pin/delete a memo (메모), manage a subscription, edit the stock watchlist, run VaultSync, or make an Obsidian backup, propose exactly one or more typed actions below. Never claim that a change happened until the user approves it.
+- When the user clearly asks to create, update, complete, or remove a task, write/edit/star/delete a memo (메모; 별표/star = patch.pinned, starred memos always show on top), manage a subscription, edit the stock watchlist, run VaultSync, or make an Obsidian backup, propose exactly one or more typed actions below. Never claim that a change happened until the user approves it.
 - Use IDs provided in [Workspace controls] for updates or removals. If no unambiguous ID is available, ask a short follow-up question instead of guessing.
 - Actions are always subject to the approval button. VaultSync actions additionally require the signed-in administrator.
 <action>{"type":"manage_workspace","params":{"operation":"add_todo","text":"Prepare PR review","scope":"day"}}</action>

@@ -329,15 +329,16 @@ export function MemoApp() {
                           type="button"
                           onClick={() => void togglePin(memo)}
                           disabled={pendingId === memo.id}
-                          aria-label={memo.pinned ? "고정 해제" : "고정"}
-                          title={memo.pinned ? "고정 해제" : "상단 고정"}
-                          className={`rounded p-1 transition disabled:opacity-40 ${
+                          aria-label={memo.pinned ? "별표 해제" : "별표"}
+                          aria-pressed={memo.pinned}
+                          title={memo.pinned ? "별표 해제" : "별표 (항상 위에 표시)"}
+                          className={`rounded p-1 text-base leading-none transition disabled:opacity-40 ${
                             memo.pinned
-                              ? "text-[var(--accent)]"
-                              : "text-[var(--muted)] hover:text-foreground"
+                              ? "text-amber-400"
+                              : "text-[var(--muted)] hover:text-amber-300"
                           }`}
                         >
-                          📌
+                          {memo.pinned ? "★" : "☆"}
                         </button>
                         <button
                           type="button"
