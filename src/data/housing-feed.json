@@ -1,6 +1,67 @@
 {
-  "updatedAt": "2026-10-01T08:54:39.741Z",
+  "updatedAt": "2026-10-02T08:30:17.929Z",
   "notices": [
+    {
+      "id": "lh-youth-2015122300020842",
+      "title": "[제주지역본부-제주시] 청년 매입임대주택 예비입주자 모집 공고",
+      "kind": "rent",
+      "audience": "youth",
+      "supplyType": "LH 청년주택 · 매입임대",
+      "address": "제주특별자치도",
+      "sourceUrl": "https://apply.lh.or.kr/lhapply/apply/wt/wrtanc/selectWrtancInfo.do?aisTpCd=26&ccrCnntSysDsCd=03&mi=1026&panId=2015122300020842&uppAisTpCd=13",
+      "applicationUrl": "https://apply.lh.or.kr/lhapply/apply/wt/wrtanc/selectWrtancInfo.do?aisTpCd=26&ccrCnntSysDsCd=03&mi=1026&panId=2015122300020842&uppAisTpCd=13",
+      "publishedAt": "2026-10-02",
+      "point": null,
+      "moveIn": null,
+      "moveInNote": "",
+      "priceNote": "지역·주택별 보증금과 월 임대료는 LH 모집공고문을 확인하세요.",
+      "locationUrl": null,
+      "locationImageUrl": null,
+      "events": [
+        {
+          "label": "청년주택 접수 시작",
+          "date": "2026-10-14",
+          "type": "open",
+          "time": "10:00"
+        },
+        {
+          "label": "청년주택 접수 마감",
+          "date": "2026-10-15",
+          "type": "close",
+          "time": "16:00"
+        },
+        {
+          "label": "당첨자 발표",
+          "date": "2026-12-14",
+          "type": "result",
+          "time": null
+        }
+      ],
+      "units": [
+        {
+          "id": "overview",
+          "name": "모집 주택 전체",
+          "area": null,
+          "rooms": null,
+          "price": null,
+          "monthlyRent": null,
+          "floorPlanUrl": null,
+          "floorPlanImageUrl": null,
+          "payments": []
+        }
+      ],
+      "rules": [],
+      "requirements": {
+        "accountRequired": null,
+        "accountMonths": null,
+        "accountDeposit": null,
+        "homelessRequired": null
+      },
+      "nearby": [],
+      "comparable": null,
+      "reviewedAt": null,
+      "changeNote": "LH 공식 공고 페이지의 게시일·접수일을 수집했습니다. 신청 자격·임대료·세부 위치는 원문에서 확인하세요."
+    },
     {
       "id": "seoul-youth-6680",
       "title": "[민간임대] 건대입구역 더포디엄830 추가모집공고",
