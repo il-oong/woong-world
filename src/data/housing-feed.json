@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-10-04T08:25:57.641Z",
+  "updatedAt": "2026-10-06T08:57:51.806Z",
   "notices": [
     {
       "id": "2026000386",
@@ -10331,55 +10331,6 @@
       "comparable": null,
       "reviewedAt": null,
       "changeNote": "공공데이터에서 가져온 주택형별 최고 공급금액입니다. 전용면적·층별 가격·납부 일정·필수정보는 모집공고 원문 대조가 필요합니다."
-    },
-    {
-      "id": "seoul-youth-6643",
-      "title": "[민간임대] 노량진역 더써밋타워 추가모집공고",
-      "kind": "rent",
-      "audience": "youth",
-      "supplyType": "서울 청년안심주택 · 민간임대",
-      "address": "서울특별시 동작구 장승배기로 174",
-      "sourceUrl": "https://soco.seoul.go.kr/youth/bbs/BMSR00015/view.do?boardId=6643&menuNo=400008",
-      "applicationUrl": "https://soco.seoul.go.kr/youth/bbs/BMSR00015/view.do?boardId=6643&menuNo=400008",
-      "publishedAt": "2026-08-20",
-      "point": null,
-      "moveIn": null,
-      "moveInNote": "",
-      "priceNote": "보증금·월 임대료는 공급 유형과 주택형에 따라 다릅니다. 서울시 공고문을 확인하세요.",
-      "locationUrl": null,
-      "locationImageUrl": null,
-      "events": [
-        {
-          "label": "청약신청일",
-          "date": "2026-08-24",
-          "type": "open",
-          "time": null
-        }
-      ],
-      "units": [
-        {
-          "id": "overview",
-          "name": "모집 주택 전체",
-          "area": null,
-          "rooms": null,
-          "price": null,
-          "monthlyRent": null,
-          "floorPlanUrl": null,
-          "floorPlanImageUrl": null,
-          "payments": []
-        }
-      ],
-      "rules": [],
-      "requirements": {
-        "accountRequired": null,
-        "accountMonths": null,
-        "accountDeposit": null,
-        "homelessRequired": null
-      },
-      "nearby": [],
-      "comparable": null,
-      "reviewedAt": null,
-      "changeNote": "서울시 공식 목록의 청약신청일을 표시했습니다. 기간·시간·신청 링크·자격은 공고 상세와 첨부문서를 확인하세요."
     },
     {
       "id": "2026000342",
