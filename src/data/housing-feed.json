@@ -1,6 +1,496 @@
 {
-  "updatedAt": "2026-10-07T08:37:32.561Z",
+  "updatedAt": "2026-10-08T08:56:37.566Z",
   "notices": [
+    {
+      "id": "seoul-youth-6686",
+      "title": "[민간임대] 노량진역 더클래식 동작 추가모집공고",
+      "kind": "rent",
+      "audience": "youth",
+      "supplyType": "서울 청년안심주택 · 민간임대",
+      "address": "서울특별시 동작구 노량진동 37-1",
+      "sourceUrl": "https://soco.seoul.go.kr/youth/bbs/BMSR00015/view.do?boardId=6686&menuNo=400008",
+      "applicationUrl": "https://soco.seoul.go.kr/youth/bbs/BMSR00015/view.do?boardId=6686&menuNo=400008",
+      "publishedAt": "2026-10-08",
+      "point": null,
+      "moveIn": null,
+      "moveInNote": "",
+      "priceNote": "보증금·월 임대료는 공급 유형과 주택형에 따라 다릅니다. 서울시 공고문을 확인하세요.",
+      "locationUrl": null,
+      "locationImageUrl": null,
+      "events": [
+        {
+          "label": "청약신청일",
+          "date": "2026-10-12",
+          "type": "open",
+          "time": null
+        }
+      ],
+      "units": [
+        {
+          "id": "overview",
+          "name": "모집 주택 전체",
+          "area": null,
+          "rooms": null,
+          "price": null,
+          "monthlyRent": null,
+          "floorPlanUrl": null,
+          "floorPlanImageUrl": null,
+          "payments": []
+        }
+      ],
+      "rules": [],
+      "requirements": {
+        "accountRequired": null,
+        "accountMonths": null,
+        "accountDeposit": null,
+        "homelessRequired": null
+      },
+      "nearby": [],
+      "comparable": null,
+      "reviewedAt": null,
+      "changeNote": "서울시 공식 목록의 청약신청일을 표시했습니다. 기간·시간·신청 링크·자격은 공고 상세와 첨부문서를 확인하세요."
+    },
+    {
+      "id": "seoul-youth-6687",
+      "title": "[민간임대] 미아사거리역 미아 헤리츠타워 추가모집공고",
+      "kind": "rent",
+      "audience": "youth",
+      "supplyType": "서울 청년안심주택 · 민간임대",
+      "address": "서울특별시 성북구 월계로 38",
+      "sourceUrl": "https://soco.seoul.go.kr/youth/bbs/BMSR00015/view.do?boardId=6687&menuNo=400008",
+      "applicationUrl": "https://soco.seoul.go.kr/youth/bbs/BMSR00015/view.do?boardId=6687&menuNo=400008",
+      "publishedAt": "2026-10-08",
+      "point": null,
+      "moveIn": null,
+      "moveInNote": "",
+      "priceNote": "보증금·월 임대료는 공급 유형과 주택형에 따라 다릅니다. 서울시 공고문을 확인하세요.",
+      "locationUrl": null,
+      "locationImageUrl": null,
+      "events": [
+        {
+          "label": "청약신청일",
+          "date": "2026-10-12",
+          "type": "open",
+          "time": null
+        }
+      ],
+      "units": [
+        {
+          "id": "overview",
+          "name": "모집 주택 전체",
+          "area": null,
+          "rooms": null,
+          "price": null,
+          "monthlyRent": null,
+          "floorPlanUrl": null,
+          "floorPlanImageUrl": null,
+          "payments": []
+        }
+      ],
+      "rules": [],
+      "requirements": {
+        "accountRequired": null,
+        "accountMonths": null,
+        "accountDeposit": null,
+        "homelessRequired": null
+      },
+      "nearby": [],
+      "comparable": null,
+      "reviewedAt": null,
+      "changeNote": "서울시 공식 목록의 청약신청일을 표시했습니다. 기간·시간·신청 링크·자격은 공고 상세와 첨부문서를 확인하세요."
+    },
+    {
+      "id": "seoul-youth-6688",
+      "title": "[민간임대] 서초역 서초꽃마을 주얼리 추가모집공고",
+      "kind": "rent",
+      "audience": "youth",
+      "supplyType": "서울 청년안심주택 · 민간임대",
+      "address": "서울특별시 서초구 반포대로 27길 13",
+      "sourceUrl": "https://soco.seoul.go.kr/youth/bbs/BMSR00015/view.do?boardId=6688&menuNo=400008",
+      "applicationUrl": "https://soco.seoul.go.kr/youth/bbs/BMSR00015/view.do?boardId=6688&menuNo=400008",
+      "publishedAt": "2026-10-08",
+      "point": null,
+      "moveIn": null,
+      "moveInNote": "",
+      "priceNote": "보증금·월 임대료는 공급 유형과 주택형에 따라 다릅니다. 서울시 공고문을 확인하세요.",
+      "locationUrl": null,
+      "locationImageUrl": null,
+      "events": [
+        {
+          "label": "청약신청일",
+          "date": "2026-10-12",
+          "type": "open",
+          "time": null
+        }
+      ],
+      "units": [
+        {
+          "id": "overview",
+          "name": "모집 주택 전체",
+          "area": null,
+          "rooms": null,
+          "price": null,
+          "monthlyRent": null,
+          "floorPlanUrl": null,
+          "floorPlanImageUrl": null,
+          "payments": []
+        }
+      ],
+      "rules": [],
+      "requirements": {
+        "accountRequired": null,
+        "accountMonths": null,
+        "accountDeposit": null,
+        "homelessRequired": null
+      },
+      "nearby": [],
+      "comparable": null,
+      "reviewedAt": null,
+      "changeNote": "서울시 공식 목록의 청약신청일을 표시했습니다. 기간·시간·신청 링크·자격은 공고 상세와 첨부문서를 확인하세요."
+    },
+    {
+      "id": "seoul-youth-6689",
+      "title": "[민간임대] 서울대벤처타운역 센터스퀘어 서울대점 추가모집공고",
+      "kind": "rent",
+      "audience": "youth",
+      "supplyType": "서울 청년안심주택 · 민간임대",
+      "address": "서울특별시 관악구 신림동 1747",
+      "sourceUrl": "https://soco.seoul.go.kr/youth/bbs/BMSR00015/view.do?boardId=6689&menuNo=400008",
+      "applicationUrl": "https://soco.seoul.go.kr/youth/bbs/BMSR00015/view.do?boardId=6689&menuNo=400008",
+      "publishedAt": "2026-10-08",
+      "point": null,
+      "moveIn": null,
+      "moveInNote": "",
+      "priceNote": "보증금·월 임대료는 공급 유형과 주택형에 따라 다릅니다. 서울시 공고문을 확인하세요.",
+      "locationUrl": null,
+      "locationImageUrl": null,
+      "events": [
+        {
+          "label": "청약신청일",
+          "date": "2026-10-12",
+          "type": "open",
+          "time": null
+        }
+      ],
+      "units": [
+        {
+          "id": "overview",
+          "name": "모집 주택 전체",
+          "area": null,
+          "rooms": null,
+          "price": null,
+          "monthlyRent": null,
+          "floorPlanUrl": null,
+          "floorPlanImageUrl": null,
+          "payments": []
+        }
+      ],
+      "rules": [],
+      "requirements": {
+        "accountRequired": null,
+        "accountMonths": null,
+        "accountDeposit": null,
+        "homelessRequired": null
+      },
+      "nearby": [],
+      "comparable": null,
+      "reviewedAt": null,
+      "changeNote": "서울시 공식 목록의 청약신청일을 표시했습니다. 기간·시간·신청 링크·자격은 공고 상세와 첨부문서를 확인하세요."
+    },
+    {
+      "id": "seoul-youth-6690",
+      "title": "[민간임대] 상봉역 와이센트럴시티 상봉 추가모집공고",
+      "kind": "rent",
+      "audience": "youth",
+      "supplyType": "서울 청년안심주택 · 민간임대",
+      "address": "서울특별시 중랑구 망우로 313",
+      "sourceUrl": "https://soco.seoul.go.kr/youth/bbs/BMSR00015/view.do?boardId=6690&menuNo=400008",
+      "applicationUrl": "https://soco.seoul.go.kr/youth/bbs/BMSR00015/view.do?boardId=6690&menuNo=400008",
+      "publishedAt": "2026-10-08",
+      "point": null,
+      "moveIn": null,
+      "moveInNote": "",
+      "priceNote": "보증금·월 임대료는 공급 유형과 주택형에 따라 다릅니다. 서울시 공고문을 확인하세요.",
+      "locationUrl": null,
+      "locationImageUrl": null,
+      "events": [
+        {
+          "label": "청약신청일",
+          "date": "2026-10-12",
+          "type": "open",
+          "time": null
+        }
+      ],
+      "units": [
+        {
+          "id": "overview",
+          "name": "모집 주택 전체",
+          "area": null,
+          "rooms": null,
+          "price": null,
+          "monthlyRent": null,
+          "floorPlanUrl": null,
+          "floorPlanImageUrl": null,
+          "payments": []
+        }
+      ],
+      "rules": [],
+      "requirements": {
+        "accountRequired": null,
+        "accountMonths": null,
+        "accountDeposit": null,
+        "homelessRequired": null
+      },
+      "nearby": [],
+      "comparable": null,
+      "reviewedAt": null,
+      "changeNote": "서울시 공식 목록의 청약신청일을 표시했습니다. 기간·시간·신청 링크·자격은 공고 상세와 첨부문서를 확인하세요."
+    },
+    {
+      "id": "seoul-youth-6691",
+      "title": "[민간임대] 구로디지털단지역 유벤투스 240 추가모집공고",
+      "kind": "rent",
+      "audience": "youth",
+      "supplyType": "서울 청년안심주택 · 민간임대",
+      "address": "서울특별시 관악구 신림동 1644-3",
+      "sourceUrl": "https://soco.seoul.go.kr/youth/bbs/BMSR00015/view.do?boardId=6691&menuNo=400008",
+      "applicationUrl": "https://soco.seoul.go.kr/youth/bbs/BMSR00015/view.do?boardId=6691&menuNo=400008",
+      "publishedAt": "2026-10-08",
+      "point": null,
+      "moveIn": null,
+      "moveInNote": "",
+      "priceNote": "보증금·월 임대료는 공급 유형과 주택형에 따라 다릅니다. 서울시 공고문을 확인하세요.",
+      "locationUrl": null,
+      "locationImageUrl": null,
+      "events": [
+        {
+          "label": "청약신청일",
+          "date": "2026-10-12",
+          "type": "open",
+          "time": null
+        }
+      ],
+      "units": [
+        {
+          "id": "overview",
+          "name": "모집 주택 전체",
+          "area": null,
+          "rooms": null,
+          "price": null,
+          "monthlyRent": null,
+          "floorPlanUrl": null,
+          "floorPlanImageUrl": null,
+          "payments": []
+        }
+      ],
+      "rules": [],
+      "requirements": {
+        "accountRequired": null,
+        "accountMonths": null,
+        "accountDeposit": null,
+        "homelessRequired": null
+      },
+      "nearby": [],
+      "comparable": null,
+      "reviewedAt": null,
+      "changeNote": "서울시 공식 목록의 청약신청일을 표시했습니다. 기간·시간·신청 링크·자격은 공고 상세와 첨부문서를 확인하세요."
+    },
+    {
+      "id": "seoul-youth-6692",
+      "title": "[민간임대] 화곡역 포르투나블루 추가모집공고",
+      "kind": "rent",
+      "audience": "youth",
+      "supplyType": "서울 청년안심주택 · 민간임대",
+      "address": "서울특별시 강서구 화곡로 146",
+      "sourceUrl": "https://soco.seoul.go.kr/youth/bbs/BMSR00015/view.do?boardId=6692&menuNo=400008",
+      "applicationUrl": "https://soco.seoul.go.kr/youth/bbs/BMSR00015/view.do?boardId=6692&menuNo=400008",
+      "publishedAt": "2026-10-08",
+      "point": null,
+      "moveIn": null,
+      "moveInNote": "",
+      "priceNote": "보증금·월 임대료는 공급 유형과 주택형에 따라 다릅니다. 서울시 공고문을 확인하세요.",
+      "locationUrl": null,
+      "locationImageUrl": null,
+      "events": [
+        {
+          "label": "청약신청일",
+          "date": "2026-10-09",
+          "type": "open",
+          "time": null
+        }
+      ],
+      "units": [
+        {
+          "id": "overview",
+          "name": "모집 주택 전체",
+          "area": null,
+          "rooms": null,
+          "price": null,
+          "monthlyRent": null,
+          "floorPlanUrl": null,
+          "floorPlanImageUrl": null,
+          "payments": []
+        }
+      ],
+      "rules": [],
+      "requirements": {
+        "accountRequired": null,
+        "accountMonths": null,
+        "accountDeposit": null,
+        "homelessRequired": null
+      },
+      "nearby": [],
+      "comparable": null,
+      "reviewedAt": null,
+      "changeNote": "서울시 공식 목록의 청약신청일을 표시했습니다. 기간·시간·신청 링크·자격은 공고 상세와 첨부문서를 확인하세요."
+    },
+    {
+      "id": "seoul-youth-6693",
+      "title": "[민간임대] 개봉역 세이지움 개봉 추가모집공고",
+      "kind": "rent",
+      "audience": "youth",
+      "supplyType": "서울 청년안심주택 · 민간임대",
+      "address": "서울특별시 구로구 개봉동 503",
+      "sourceUrl": "https://soco.seoul.go.kr/youth/bbs/BMSR00015/view.do?boardId=6693&menuNo=400008",
+      "applicationUrl": "https://soco.seoul.go.kr/youth/bbs/BMSR00015/view.do?boardId=6693&menuNo=400008",
+      "publishedAt": "2026-10-08",
+      "point": null,
+      "moveIn": null,
+      "moveInNote": "",
+      "priceNote": "보증금·월 임대료는 공급 유형과 주택형에 따라 다릅니다. 서울시 공고문을 확인하세요.",
+      "locationUrl": null,
+      "locationImageUrl": null,
+      "events": [
+        {
+          "label": "청약신청일",
+          "date": "2026-10-12",
+          "type": "open",
+          "time": null
+        }
+      ],
+      "units": [
+        {
+          "id": "overview",
+          "name": "모집 주택 전체",
+          "area": null,
+          "rooms": null,
+          "price": null,
+          "monthlyRent": null,
+          "floorPlanUrl": null,
+          "floorPlanImageUrl": null,
+          "payments": []
+        }
+      ],
+      "rules": [],
+      "requirements": {
+        "accountRequired": null,
+        "accountMonths": null,
+        "accountDeposit": null,
+        "homelessRequired": null
+      },
+      "nearby": [],
+      "comparable": null,
+      "reviewedAt": null,
+      "changeNote": "서울시 공식 목록의 청약신청일을 표시했습니다. 기간·시간·신청 링크·자격은 공고 상세와 첨부문서를 확인하세요."
+    },
+    {
+      "id": "seoul-youth-6694",
+      "title": "[민간임대] 노원역 해링턴플레이스 노원 센트럴 추가모집공고",
+      "kind": "rent",
+      "audience": "youth",
+      "supplyType": "서울 청년안심주택 · 민간임대",
+      "address": "서울특별시 노원구 노원로 495",
+      "sourceUrl": "https://soco.seoul.go.kr/youth/bbs/BMSR00015/view.do?boardId=6694&menuNo=400008",
+      "applicationUrl": "https://soco.seoul.go.kr/youth/bbs/BMSR00015/view.do?boardId=6694&menuNo=400008",
+      "publishedAt": "2026-10-08",
+      "point": null,
+      "moveIn": null,
+      "moveInNote": "",
+      "priceNote": "보증금·월 임대료는 공급 유형과 주택형에 따라 다릅니다. 서울시 공고문을 확인하세요.",
+      "locationUrl": null,
+      "locationImageUrl": null,
+      "events": [
+        {
+          "label": "청약신청일",
+          "date": "2026-10-11",
+          "type": "open",
+          "time": null
+        }
+      ],
+      "units": [
+        {
+          "id": "overview",
+          "name": "모집 주택 전체",
+          "area": null,
+          "rooms": null,
+          "price": null,
+          "monthlyRent": null,
+          "floorPlanUrl": null,
+          "floorPlanImageUrl": null,
+          "payments": []
+        }
+      ],
+      "rules": [],
+      "requirements": {
+        "accountRequired": null,
+        "accountMonths": null,
+        "accountDeposit": null,
+        "homelessRequired": null
+      },
+      "nearby": [],
+      "comparable": null,
+      "reviewedAt": null,
+      "changeNote": "서울시 공식 목록의 청약신청일을 표시했습니다. 기간·시간·신청 링크·자격은 공고 상세와 첨부문서를 확인하세요."
+    },
+    {
+      "id": "seoul-youth-6695",
+      "title": "[민간임대] 신독산역 센트레빌 웨스트온 추가모집공고",
+      "kind": "rent",
+      "audience": "youth",
+      "supplyType": "서울 청년안심주택 · 민간임대",
+      "address": "서울특별시 금천구 시흥대로 377",
+      "sourceUrl": "https://soco.seoul.go.kr/youth/bbs/BMSR00015/view.do?boardId=6695&menuNo=400008",
+      "applicationUrl": "https://soco.seoul.go.kr/youth/bbs/BMSR00015/view.do?boardId=6695&menuNo=400008",
+      "publishedAt": "2026-10-08",
+      "point": null,
+      "moveIn": null,
+      "moveInNote": "",
+      "priceNote": "보증금·월 임대료는 공급 유형과 주택형에 따라 다릅니다. 서울시 공고문을 확인하세요.",
+      "locationUrl": null,
+      "locationImageUrl": null,
+      "events": [
+        {
+          "label": "청약신청일",
+          "date": "2026-10-11",
+          "type": "open",
+          "time": null
+        }
+      ],
+      "units": [
+        {
+          "id": "overview",
+          "name": "모집 주택 전체",
+          "area": null,
+          "rooms": null,
+          "price": null,
+          "monthlyRent": null,
+          "floorPlanUrl": null,
+          "floorPlanImageUrl": null,
+          "payments": []
+        }
+      ],
+      "rules": [],
+      "requirements": {
+        "accountRequired": null,
+        "accountMonths": null,
+        "accountDeposit": null,
+        "homelessRequired": null
+      },
+      "nearby": [],
+      "comparable": null,
+      "reviewedAt": null,
+      "changeNote": "서울시 공식 목록의 청약신청일을 표시했습니다. 기간·시간·신청 링크·자격은 공고 상세와 첨부문서를 확인하세요."
+    },
     {
       "id": "2026000386",
       "title": "용인 양지 서희스타힐스 하이뷰 (조합원 취소분)",
