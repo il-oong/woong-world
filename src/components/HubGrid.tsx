@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import type { Plugin, PluginStatus } from "@/lib/plugins";
 import { askAssistant } from "./AssistantWidget";
+import { CliPanel } from "./CliPanel";
 import { PluginTree, buildHubSubtitle } from "./PluginTree";
 
 type Response = { plugins: Plugin[]; statuses: PluginStatus[] };
@@ -10,6 +11,7 @@ type Response = { plugins: Plugin[]; statuses: PluginStatus[] };
 export function HubGrid() {
   const [data, setData] = useState<Response | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [cliPlugin, setCliPlugin] = useState<Plugin | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -67,20 +69,37 @@ export function HubGrid() {
         rootSubtitle={buildHubSubtitle(data.plugins, statusMap)}
         asLinks
         cardFooter={(plugin) => (
-          <button
-            type="button"
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              askAssistant(buildAskPrompt(plugin, statusMap.get(plugin.id)));
-            }}
-            className="w-full rounded-md border border-[var(--border)] bg-[var(--card)]/80 px-2 py-1 text-[10px] hover:border-[var(--accent)]/40 hover:text-foreground"
-            title="비서에게 이 플러그인에 대해 묻기"
-          >
-            비서에게 묻기
-          </button>
+          <div className="flex gap-1">
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                askAssistant(buildAskPrompt(plugin, statusMap.get(plugin.id)));
+              }}
+              className="flex-1 rounded-md border border-[var(--border)] bg-[var(--card)]/80 px-2 py-1 text-[10px] hover:border-[var(--accent)]/40 hover:text-foreground"
+              title="비서에게 이 플러그인에 대해 묻기"
+            >
+              비서에게 묻기
+            </button>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setCliPlugin(plugin);
+              }}
+              className="rounded-md border border-[var(--border)] bg-[var(--card)]/80 px-2 py-1 font-mono text-[10px] hover:border-[var(--accent)]/40 hover:text-foreground"
+              title={`${plugin.repo} 레포에 연결된 CLI 열기`}
+            >
+              CLI
+            </button>
+          </div>
         )}
       />
+      {cliPlugin && (
+        <CliPanel plugin={cliPlugin} onClose={() => setCliPlugin(null)} />
+      )}
     </section>
   );
 }
