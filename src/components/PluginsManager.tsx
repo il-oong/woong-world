@@ -8,6 +8,7 @@ import {
   type Plugin,
   type PluginStatus,
 } from "@/lib/plugins";
+import { CliPanel } from "./CliPanel";
 import { PluginTree, TreeAddCard, buildHubSubtitle } from "./PluginTree";
 
 type StatusResponse = { plugins: Plugin[]; statuses: PluginStatus[] };
@@ -20,6 +21,7 @@ export function PluginsManager() {
   const [adding, setAdding] = useState(false);
   const [editingPlugin, setEditingPlugin] = useState<Plugin | null>(null);
   const [pendingId, setPendingId] = useState<string | null>(null);
+  const [cliPlugin, setCliPlugin] = useState<Plugin | null>(null);
 
   const refresh = async () => {
     try {
@@ -96,7 +98,7 @@ export function PluginsManager() {
         }
         cardFooter={(p) => (
           <div className="flex flex-col gap-1.5">
-            <div className="grid grid-cols-3 gap-1">
+            <div className="grid grid-cols-4 gap-1">
               <Link
                 href={`/plugins/${p.id}/manage`}
                 className="rounded-md border border-[var(--border)] px-1.5 py-1 text-center text-[10px] text-[var(--muted)] hover:border-emerald-400/40 hover:text-emerald-200"
@@ -118,6 +120,14 @@ export function PluginsManager() {
                 title="이름·설명·URL·태그 등 플러그인 정보 수정"
               >
                 정보수정
+              </button>
+              <button
+                type="button"
+                onClick={() => setCliPlugin(p)}
+                className="rounded-md border border-[var(--border)] px-1.5 py-1 font-mono text-[10px] text-[var(--muted)] hover:border-sky-400/40 hover:text-sky-200"
+                title={`${p.repo} 레포에 연결된 CLI 열기 (로컬 전용)`}
+              >
+                CLI
               </button>
             </div>
             <button
@@ -154,6 +164,10 @@ export function PluginsManager() {
             await refresh();
           }}
         />
+      )}
+
+      {cliPlugin && (
+        <CliPanel plugin={cliPlugin} onClose={() => setCliPlugin(null)} />
       )}
     </div>
   );
