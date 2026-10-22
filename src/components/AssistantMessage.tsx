@@ -133,6 +133,15 @@ function ActionCard({
             {action.type === "manage_workspace" && (
               <WorkspaceActionBody params={action.params} />
             )}
+            {action.type === "dev_task" && (
+              <div className="space-y-1">
+                <p className="font-medium text-foreground">{action.params.title}</p>
+                <p className="whitespace-pre-wrap text-[var(--muted)]">{action.params.request}</p>
+                <p className="text-[10px] text-[var(--muted)]">
+                  승인하면 GitHub 이슈가 열리고 클라우드 에이전트가 PR까지 만든다. 머지는 직접 한다.
+                </p>
+              </div>
+            )}
           </div>
 
           {action.status === "pending" && action.type === "suggest_command" && (
@@ -154,7 +163,7 @@ function ActionCard({
               >
                 거절
               </button>
-              {action.type !== "manage_workspace" && (
+              {action.type !== "manage_workspace" && action.type !== "dev_task" && (
                 <button
                   type="button"
                   onClick={() => setEditing(true)}
@@ -738,6 +747,8 @@ function labelForType(type: ProposedAction["type"]): string {
       return "+ 루틴 추가";
     case "manage_workspace":
       return "JARVIS workspace control";
+    case "dev_task":
+      return "⚙ 클라우드 개발 요청";
   }
 }
 
