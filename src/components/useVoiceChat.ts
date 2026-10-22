@@ -58,14 +58,20 @@ export function useVoiceChat(handle: (utterance: string) => Promise<string | nul
   const rec = useRef<Recognition | null>(null);
   const audio = useRef<HTMLAudioElement | null>(null);
   const silent = useRef(0);
-  const listenRef = useRef<() => void>(() => {});
+  // Bumped on every start/stop so work from an earlier session can tell it is stale.
+  const session = useRef(0);
+  const ctrl = useRef<AbortController | null>(null);
+  const listenRef = useRef<(sid: number) => void>(() => {});
   const handleRef = useRef(handle);
   useEffect(() => {
     handleRef.current = handle;
   }, [handle]);
 
   const stop = useCallback(() => {
+    session.current += 1;
     active.current = false;
+    ctrl.current?.abort();
+    ctrl.current = null;
     rec.current?.abort();
     rec.current = null;
     audio.current?.pause();
@@ -86,16 +92,21 @@ export function useVoiceChat(handle: (utterance: string) => Promise<string | nul
       synth.speak(u);
     });
 
-  const speak = useCallback(async (text: string) => {
+  const speak = useCallback(async (text: string, sid: number) => {
     setState("speaking");
+    const ac = new AbortController();
+    ctrl.current = ac;
     try {
       const res = await fetch("/api/assistant/speak", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ text }),
+        signal: ac.signal,
       });
       if (!res.ok) throw new Error("tts_failed");
-      const url = URL.createObjectURL(await res.blob());
+      const blob = await res.blob();
+      if (sid !== session.current) return;
+      const url = URL.createObjectURL(blob);
       const el = new Audio(url);
       audio.current = el;
       await new Promise<void>((resolve, reject) => {
@@ -105,15 +116,16 @@ export function useVoiceChat(handle: (utterance: string) => Promise<string | nul
       });
       URL.revokeObjectURL(url);
     } catch {
-      if (active.current) await speakWithBrowser(text);
+      if (sid === session.current) await speakWithBrowser(text);
     } finally {
+      if (ctrl.current === ac) ctrl.current = null;
       audio.current = null;
     }
   }, []);
 
-  const listen = useCallback(() => {
+  const listen = useCallback((sid: number) => {
     const Ctor = recognitionCtor();
-    if (!active.current || !Ctor) return;
+    if (sid !== session.current || !Ctor) return;
     const r = new Ctor();
     rec.current = r;
     r.lang = "ko-KR";
@@ -132,6 +144,7 @@ export function useVoiceChat(handle: (utterance: string) => Promise<string | nul
       setInterim(finalText + live);
     };
     r.onerror = (e) => {
+      if (sid !== session.current) return;
       if (e.error === "no-speech" || e.error === "aborted") return;
       if (e.error === "not-allowed" || e.error === "service-not-allowed") {
         setError("마이크 권한을 허용해 주세요.");
@@ -141,13 +154,13 @@ export function useVoiceChat(handle: (utterance: string) => Promise<string | nul
       stop();
     };
     r.onend = () => {
-      if (!active.current) return;
+      if (sid !== session.current) return;
       const utterance = finalText.trim();
       setInterim("");
       if (!utterance) {
         silent.current += 1;
         if (silent.current >= MAX_SILENT_ROUNDS) stop();
-        else listenRef.current();
+        else listenRef.current(sid);
         return;
       }
       silent.current = 0;
@@ -163,9 +176,9 @@ export function useVoiceChat(handle: (utterance: string) => Promise<string | nul
         } catch {
           setError("응답을 받지 못했습니다.");
         }
-        if (!active.current) return;
-        if (reply) await speak(reply);
-        if (active.current) listenRef.current();
+        if (sid !== session.current) return;
+        if (reply) await speak(reply, sid);
+        if (sid === session.current) listenRef.current(sid);
       })();
     };
     r.start();
@@ -178,8 +191,9 @@ export function useVoiceChat(handle: (utterance: string) => Promise<string | nul
     if (active.current || !recognitionCtor()) return;
     setError(null);
     silent.current = 0;
+    session.current += 1;
     active.current = true;
-    listenRef.current();
+    listenRef.current(session.current);
   }, []);
 
   useEffect(() => stop, [stop]);
