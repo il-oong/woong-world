@@ -1,7 +1,7 @@
 import { type NextRequest } from "next/server";
 import { getValidSession } from "@/lib/google";
 import { consumeUserRateLimit } from "@/lib/assistant";
-import { getProfile } from "@/lib/secretary";
+import { FEMALE_VOICES, getProfile } from "@/lib/secretary";
 import { isTtsConfigured, synthesize } from "@/lib/tts";
 
 export const dynamic = "force-dynamic";
@@ -31,7 +31,9 @@ export async function POST(req: NextRequest) {
       return Response.json({ error: "rate_limited" }, { status: 429 });
     }
     const profile = await getProfile(session.email).catch(() => null);
-    const audio = await synthesize(text, profile?.voiceId ?? "ko-KR-Wavenet-A");
+    // Voice mode always speaks with a female voice: keep the saved one only if it is female.
+    const voice = profile && FEMALE_VOICES.has(profile.voiceId) ? profile.voiceId : "ko-KR-Wavenet-A";
+    const audio = await synthesize(text, voice);
     return new Response(new Uint8Array(audio), {
       headers: { "Content-Type": "audio/mpeg", "Cache-Control": "no-store" },
     });

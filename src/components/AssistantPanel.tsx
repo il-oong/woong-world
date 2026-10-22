@@ -308,7 +308,8 @@ export function AssistantPanel({
           <span className="truncate text-foreground">
             {voice.state === "listening" && (voice.interim || "듣고 있어요, 말씀하세요")}
             {voice.state === "thinking" && "생각 중"}
-            {voice.state === "speaking" && "말하는 중"}
+            {voice.state === "speaking" &&
+              (voice.interim ? `🎤 ${voice.interim}` : "말하는 중 · 🎤 듣는 중 (\"중단\"이라고 말하면 멈춰요)")}
             <span aria-hidden className="ml-0.5 inline-flex gap-0.5">
               {[0, 1, 2].map((i) => (
                 <span key={i} className="animate-pulse" style={{ animationDelay: `${i * 250}ms` }}>

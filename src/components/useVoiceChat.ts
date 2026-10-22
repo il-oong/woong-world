@@ -22,6 +22,10 @@ type RecognitionCtor = new () => Recognition;
 
 const MAX_SILENT_ROUNDS = 3;
 const STOP_WORDS = /^(그만|종료|끝|대화 종료|음성 종료)[.!? ]*$/;
+// Said while the assistant is talking: cut the speech off, or end voice mode entirely.
+const INTERRUPT_WORDS = /(중단|그만|멈춰|스톱|정지)/;
+const END_WORDS = /(대화 ?종료|음성 ?종료)/;
+const BARGE_MAX_RESTARTS = 40;
 
 function recognitionCtor(): RecognitionCtor | null {
   if (typeof window === "undefined") return null;
@@ -30,6 +34,16 @@ function recognitionCtor(): RecognitionCtor | null {
     webkitSpeechRecognition?: RecognitionCtor;
   };
   return w.SpeechRecognition ?? w.webkitSpeechRecognition ?? null;
+}
+
+/** What the user said while the assistant was talking: cut speech off, end voice mode, or nothing. */
+export function detectInterrupt(heard: string, spoken: string): "stop" | "end" | null {
+  // Ignore words the assistant itself is saying (speaker echo).
+  const end = END_WORDS.exec(heard);
+  if (end && !spoken.includes(end[0])) return "end";
+  const hit = INTERRUPT_WORDS.exec(heard);
+  if (hit && !spoken.includes(hit[0])) return "stop";
+  return null;
 }
 
 /** Strips markup so the reply reads naturally out loud. */
@@ -62,6 +76,7 @@ export function useVoiceChat(handle: (utterance: string) => Promise<string | nul
   const session = useRef(0);
   const ctrl = useRef<AbortController | null>(null);
   const listenRef = useRef<(sid: number) => void>(() => {});
+  const interruptPlay = useRef<(() => void) | null>(null);
   const handleRef = useRef(handle);
   useEffect(() => {
     handleRef.current = handle;
@@ -72,6 +87,8 @@ export function useVoiceChat(handle: (utterance: string) => Promise<string | nul
     active.current = false;
     ctrl.current?.abort();
     ctrl.current = null;
+    interruptPlay.current?.();
+    interruptPlay.current = null;
     rec.current?.abort();
     rec.current = null;
     audio.current?.pause();
@@ -87,41 +104,107 @@ export function useVoiceChat(handle: (utterance: string) => Promise<string | nul
       if (!synth) return resolve();
       const u = new SpeechSynthesisUtterance(text);
       u.lang = "ko-KR";
+      const ko = synth.getVoices().filter((v) => v.lang.toLowerCase().startsWith("ko"));
+      const female = ko.find((v) => /female|yuna|sun-?hi|heami|유나|선희|혜미|여성/i.test(v.name));
+      const voice = female ?? ko[0];
+      if (voice) u.voice = voice;
       u.onend = () => resolve();
       u.onerror = () => resolve();
       synth.speak(u);
     });
 
-  const speak = useCallback(async (text: string, sid: number) => {
-    setState("speaking");
-    const ac = new AbortController();
-    ctrl.current = ac;
-    try {
-      const res = await fetch("/api/assistant/speak", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text }),
-        signal: ac.signal,
+  /** Keeps the mic open while the assistant talks so "중단" can cut it off. Returns a stopper. */
+  const startBarge = useCallback(
+    (sid: number, spoken: string, onHit: (kind: "stop" | "end") => void) => {
+      const Ctor = recognitionCtor();
+      if (!Ctor) return () => {};
+      let alive = true;
+      let restarts = 0;
+      let current: Recognition | null = null;
+      const begin = () => {
+        if (!alive || sid !== session.current || restarts++ > BARGE_MAX_RESTARTS) return;
+        const r = new Ctor();
+        current = r;
+        r.lang = "ko-KR";
+        r.interimResults = true;
+        r.continuous = true;
+        r.onresult = (e) => {
+          let heard = "";
+          for (let i = e.resultIndex; i < e.results.length; i++) heard += e.results[i][0].transcript;
+          setInterim(heard);
+          const kind = detectInterrupt(heard, spoken);
+          if (kind) onHit(kind);
+        };
+        r.onerror = (e) => {
+          if (e.error === "not-allowed" || e.error === "service-not-allowed") alive = false;
+        };
+        r.onend = () => {
+          if (alive) setTimeout(begin, 250);
+        };
+        try {
+          r.start();
+        } catch {
+          alive = false;
+        }
+      };
+      begin();
+      return () => {
+        alive = false;
+        current?.abort();
+        setInterim("");
+      };
+    },
+    [],
+  );
+
+  const speak = useCallback(
+    async (text: string, sid: number) => {
+      setState("speaking");
+      const ac = new AbortController();
+      ctrl.current = ac;
+      let interrupted = false;
+      const interrupt = () => {
+        interrupted = true;
+        ac.abort();
+        audio.current?.pause();
+        window.speechSynthesis?.cancel();
+        interruptPlay.current?.();
+      };
+      const stopBarge = startBarge(sid, text, (kind) => {
+        interrupt();
+        if (kind === "end") stop();
       });
-      if (!res.ok) throw new Error("tts_failed");
-      const blob = await res.blob();
-      if (sid !== session.current) return;
-      const url = URL.createObjectURL(blob);
-      const el = new Audio(url);
-      audio.current = el;
-      await new Promise<void>((resolve, reject) => {
-        el.onended = () => resolve();
-        el.onerror = () => reject(new Error("audio_failed"));
-        el.play().catch(reject);
-      });
-      URL.revokeObjectURL(url);
-    } catch {
-      if (sid === session.current) await speakWithBrowser(text);
-    } finally {
-      if (ctrl.current === ac) ctrl.current = null;
-      audio.current = null;
-    }
-  }, []);
+      try {
+        const res = await fetch("/api/assistant/speak", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text }),
+          signal: ac.signal,
+        });
+        if (!res.ok) throw new Error("tts_failed");
+        const blob = await res.blob();
+        if (sid !== session.current || interrupted) return;
+        const url = URL.createObjectURL(blob);
+        const el = new Audio(url);
+        audio.current = el;
+        await new Promise<void>((resolve, reject) => {
+          interruptPlay.current = resolve;
+          el.onended = () => resolve();
+          el.onerror = () => reject(new Error("audio_failed"));
+          el.play().catch(reject);
+        });
+        URL.revokeObjectURL(url);
+      } catch {
+        if (sid === session.current && !interrupted) await speakWithBrowser(text);
+      } finally {
+        interruptPlay.current = null;
+        stopBarge();
+        if (ctrl.current === ac) ctrl.current = null;
+        audio.current = null;
+      }
+    },
+    [startBarge, stop],
+  );
 
   const listen = useCallback((sid: number) => {
     const Ctor = recognitionCtor();
