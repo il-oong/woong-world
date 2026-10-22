@@ -12,7 +12,8 @@
 1. GitHub 레포에 Claude GitHub App 설치 (https://github.com/apps/claude)
 2. 레포 Secrets: `ANTHROPIC_API_KEY`
 3. 서버 환경변수 (Vercel/Railway): `JARVIS_GITHUB_TOKEN` (없으면 `GITHUB_TOKEN`) — Issues read/write, Pull requests read. 대상 레포는 `JARVIS_DEV_REPO` (기본 `il-oong/woong-world`)
-4. 이슈 라벨 `jarvis-dev` 는 첫 이슈 생성 시 자동으로 만들어진다.
+4. 레포 Settings → Actions → General → "Allow GitHub Actions to create and approve pull requests" 를 켠다 (워크플로가 PR을 연다).
+5. 이슈 라벨 `jarvis-dev` 는 첫 요청 때 서버가 먼저 만들고, 이슈에 붙었는지 확인한다.
 
 ## 안전장치
 - 관리자(`isAdminSession`)만 승인 가능, 승인 전에는 아무것도 실행되지 않는다.

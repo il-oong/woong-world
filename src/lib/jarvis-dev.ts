@@ -25,11 +25,28 @@ function headers(): HeadersInit {
   };
 }
 
+/** The workflow only watches this label, so make sure it exists first. 422 = already there. */
+async function ensureLabel(): Promise<void> {
+  const res = await fetch(`${GH_API}/repos/${repo()}/labels`, {
+    method: "POST",
+    headers: headers(),
+    body: JSON.stringify({
+      name: DEV_TASK_LABEL,
+      color: "5319e7",
+      description: "웅허브 JARVIS 클라우드 개발 요청",
+    }),
+  });
+  if (!res.ok && res.status !== 422) {
+    throw new Error(`github_label_failed_${res.status}`);
+  }
+}
+
 /** Opens the issue that triggers .github/workflows/jarvis-dev.yml. */
 export async function createDevTaskIssue(input: {
   title: string;
   request: string;
 }): Promise<{ number: number; url: string }> {
+  await ensureLabel();
   const res = await fetch(`${GH_API}/repos/${repo()}/issues`, {
     method: "POST",
     headers: headers(),
@@ -42,7 +59,14 @@ export async function createDevTaskIssue(input: {
   if (!res.ok) {
     throw new Error(`github_issue_failed_${res.status}`);
   }
-  const data = (await res.json()) as { number: number; html_url: string };
+  const data = (await res.json()) as {
+    number: number;
+    html_url: string;
+    labels?: { name?: string }[];
+  };
+  if (!data.labels?.some((l) => l.name === DEV_TASK_LABEL)) {
+    throw new Error("github_label_not_attached");
+  }
   return { number: data.number, url: data.html_url };
 }
 
