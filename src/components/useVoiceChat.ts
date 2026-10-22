@@ -37,13 +37,33 @@ function recognitionCtor(): RecognitionCtor | null {
 }
 
 /** What the user said while the assistant was talking: cut speech off, end voice mode, or nothing. */
+const squash = (t: string) => t.replace(/[\s.,!?~…]/g, "");
+const ECHO_MIN_CHARS = 6;
+
 export function detectInterrupt(heard: string, spoken: string): "stop" | "end" | null {
-  // Ignore words the assistant itself is saying (speaker echo).
-  const end = END_WORDS.exec(heard);
-  if (end && !spoken.includes(end[0])) return "end";
-  const hit = INTERRUPT_WORDS.exec(heard);
-  if (hit && !spoken.includes(hit[0])) return "stop";
+  // A longer phrase that appears in the reply is the assistant's own voice coming back through
+  // the mic. A short command ("중단") is always honored, even if the reply happens to contain it.
+  const h = squash(heard);
+  if (h.length > ECHO_MIN_CHARS && squash(spoken).includes(h)) return null;
+  if (END_WORDS.test(heard)) return "end";
+  if (INTERRUPT_WORDS.test(heard)) return "stop";
   return null;
+}
+
+/** Chrome fills the voice list asynchronously, so wait for it (up to 1s) before choosing. */
+function loadVoices(): Promise<SpeechSynthesisVoice[]> {
+  const synth = window.speechSynthesis;
+  const now = synth.getVoices();
+  if (now.length) return Promise.resolve(now);
+  return new Promise((resolve) => {
+    const done = () => {
+      synth.removeEventListener("voiceschanged", done);
+      clearTimeout(timer);
+      resolve(synth.getVoices());
+    };
+    const timer = setTimeout(done, 1_000);
+    synth.addEventListener("voiceschanged", done);
+  });
 }
 
 /** Strips markup so the reply reads naturally out loud. */
@@ -98,20 +118,22 @@ export function useVoiceChat(handle: (utterance: string) => Promise<string | nul
     setState("off");
   }, []);
 
-  const speakWithBrowser = (text: string) =>
-    new Promise<void>((resolve) => {
-      const synth = window.speechSynthesis;
-      if (!synth) return resolve();
-      const u = new SpeechSynthesisUtterance(text);
-      u.lang = "ko-KR";
-      const ko = synth.getVoices().filter((v) => v.lang.toLowerCase().startsWith("ko"));
-      const female = ko.find((v) => /female|yuna|sun-?hi|heami|유나|선희|혜미|여성/i.test(v.name));
-      const voice = female ?? ko[0];
-      if (voice) u.voice = voice;
+  const speakWithBrowser = async (text: string, isStale: () => boolean) => {
+    const synth = window.speechSynthesis;
+    if (!synth) return;
+    const ko = (await loadVoices()).filter((v) => v.lang.toLowerCase().startsWith("ko"));
+    if (isStale()) return;
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = "ko-KR";
+    const female = ko.find((v) => /female|yuna|sun-?hi|heami|유나|선희|혜미|여성/i.test(v.name));
+    const voice = female ?? ko[0];
+    if (voice) u.voice = voice;
+    await new Promise<void>((resolve) => {
       u.onend = () => resolve();
       u.onerror = () => resolve();
       synth.speak(u);
     });
+  };
 
   /** Keeps the mic open while the assistant talks so "중단" can cut it off. Returns a stopper. */
   const startBarge = useCallback(
@@ -195,7 +217,7 @@ export function useVoiceChat(handle: (utterance: string) => Promise<string | nul
         });
         URL.revokeObjectURL(url);
       } catch {
-        if (sid === session.current && !interrupted) await speakWithBrowser(text);
+        await speakWithBrowser(text, () => sid !== session.current || interrupted);
       } finally {
         interruptPlay.current = null;
         stopBarge();

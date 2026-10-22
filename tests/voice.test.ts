@@ -25,6 +25,14 @@ test("interrupt words cut speech off, end words end voice mode", () => {
   assert.equal(detectInterrupt("네 알겠어요", "오늘 일정은 세 개예요"), null);
 });
 
-test("words the assistant is saying itself do not interrupt", () => {
+test("a longer phrase from the reply is echo and does not interrupt", () => {
   assert.equal(detectInterrupt("작업을 중단했어요", "작업을 중단했어요 다시 시작할까요"), null);
+  assert.equal(detectInterrupt("중단하는 방법은", "작업을 중단하는 방법은 이렇습니다"), null);
+});
+
+test("a short command still works when the reply contains the word", () => {
+  const reply = "작업을 중단하는 방법은 이렇습니다. 대화 종료도 가능합니다.";
+  assert.equal(detectInterrupt("중단", reply), "stop");
+  assert.equal(detectInterrupt("아 중단해줘", reply), "stop");
+  assert.equal(detectInterrupt("대화 종료", reply), "end");
 });
