@@ -550,7 +550,11 @@ Jarvis workspace controls:
 <action>{"type":"manage_workspace","params":{"operation":"add_watch_item","ticker":"NVDA","name":"NVIDIA","market":"US","memo":"AI watchlist"}}</action>
 <action>{"type":"manage_workspace","params":{"operation":"remove_watch_item","id":"a_..."}}</action>
 <action>{"type":"manage_workspace","params":{"operation":"sync_vault"}}</action>
-<action>{"type":"manage_workspace","params":{"operation":"create_vault_backup"}}</action>`;
+<action>{"type":"manage_workspace","params":{"operation":"create_vault_backup"}}</action>
+
+Cloud development (administrator only):
+- When the administrator clearly asks to build, fix, or change something in the woong-world app, propose one dev_task. "request" must be a self-contained spec (goal, acceptance criteria, constraints) because a cloud agent works from it alone. Approval opens a GitHub issue; the agent then implements it and opens a pull request. Merging stays with the user. Never claim work started before approval.
+<action>{"type":"dev_task","params":{"title":"Add dark/light toggle to TopNav","request":"Goal: ...\nAcceptance: ...\nConstraints: ..."}}</action>`;
 
 export async function chatWithAssistant(input: {
   history: ChatMessage[];

@@ -99,6 +99,16 @@ export type ProposedAction =
       type: "manage_workspace";
       status: ActionStatus;
       params: WorkspaceOperation;
+    }
+  | {
+      id: string;
+      // Hands a development request to the cloud agent (GitHub issue -> Claude -> PR).
+      type: "dev_task";
+      status: ActionStatus;
+      params: {
+        title: string;
+        request: string;
+      };
     };
 
 export type ChatAttachment = {
@@ -483,6 +493,12 @@ export function validateActionParams(
     return parseWorkspaceOperation(value);
   }
 
+  if (type === "dev_task") {
+    const title = text(value.title, 120);
+    const request = text(value.request, 6_000);
+    return title && request ? { title, request } : null;
+  }
+
   const cmd = text(value.cmd, 1_000);
   const explanation = text(value.explanation, 2_000);
   const cwd = optionalText(value.cwd, 300);
@@ -502,6 +518,7 @@ export function parseProposedAction(value: unknown): ProposedAction | null {
     type !== "update_plan" &&
     type !== "create_routine" &&
     type !== "manage_workspace" &&
+    type !== "dev_task" &&
     type !== "suggest_command"
   ) {
     return null;

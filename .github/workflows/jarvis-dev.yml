@@ -1,0 +1,51 @@
+name: JARVIS 클라우드 개발
+# 웅허브에서 승인된 개발 요청(jarvis-dev 라벨 이슈)을 Claude가 구현하고 PR만 연다. 머지는 사람이 한다.
+on:
+  issues:
+    types: [labeled]
+jobs:
+  implement:
+    if: github.event.label.name == 'jarvis-dev'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          prompt: |
+            Issue #${{ github.event.issue.number }}: ${{ github.event.issue.title }}
+
+            ${{ github.event.issue.body }}
+
+            위 요청을 구현해라. CLAUDE.md/AGENTS.md 지침을 따르고, 새 브랜치 claude/issue-${{ github.event.issue.number }} 에 커밋한 뒤
+            `npm run lint` 와 `npm run build` 가 통과하는지 확인하고 push해라. PR은 워크플로가 연다. main에 직접 push하거나 머지하지 마라.
+          claude_args: >-
+            --max-turns 40
+            --allowedTools "Bash(npm run lint:*),Bash(npm run build:*),Bash(npm run test:*),Bash(git add:*),Bash(git commit:*),Bash(git push origin claude/issue-${{ github.event.issue.number }}),Bash(git checkout -b claude/issue-${{ github.event.issue.number }})"
+      - name: PR 생성
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ISSUE: ${{ github.event.issue.number }}
+          ISSUE_TITLE: ${{ github.event.issue.title }}
+          BASE: ${{ github.event.repository.default_branch }}
+        run: |
+          BRANCH="claude/issue-${ISSUE}"
+          if ! git ls-remote --exit-code --heads origin "$BRANCH" >/dev/null; then
+            gh issue comment "$ISSUE" --body "에이전트가 $BRANCH 브랜치를 push하지 않아 PR을 만들지 못했습니다. Actions 로그를 확인하세요."
+            exit 1
+          fi
+          if [ -n "$(gh pr list --head "$BRANCH" --state all --json number --jq '.[].number')" ]; then exit 0; fi
+          gh pr create --base "$BASE" --head "$BRANCH" \
+            --title "$ISSUE_TITLE" \
+            --body "Closes #${ISSUE}"$'\n\n'"웅허브 JARVIS가 요청한 작업입니다. 머지는 직접 결정하세요."

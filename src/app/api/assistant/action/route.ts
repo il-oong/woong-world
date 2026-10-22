@@ -7,6 +7,7 @@ import { addMemo, removeMemo, updateMemo } from "@/lib/memos";
 import { addSubscription, removeSubscription } from "@/lib/subscriptions";
 import { addWatchItem, deleteWatchItem } from "@/lib/alpha";
 import { isAdminSession } from "@/lib/admin";
+import { createDevTaskIssue } from "@/lib/jarvis-dev";
 import { engineCreateBackup, engineSync } from "@/lib/vault-sync/engine";
 import {
   appendAssistantActionAudit,
@@ -207,6 +208,9 @@ export async function POST(req: NextRequest) {
             ? { state: await engineSync("assistant-approved") }
             : await engineCreateBackup();
       }
+    } else if (action.type === "dev_task") {
+      if (!(await isAdminSession())) throw new Error("admin_required");
+      result = { issue: await createDevTaskIssue(action.params) };
     }
     // suggest_command is intentionally only acknowledged. It never reaches a shell.
 
