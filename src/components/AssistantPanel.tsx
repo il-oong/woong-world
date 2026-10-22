@@ -309,7 +309,11 @@ export function AssistantPanel({
             {voice.state === "listening" && (voice.interim || "듣고 있어요, 말씀하세요")}
             {voice.state === "thinking" && "생각 중"}
             {voice.state === "speaking" &&
-              (voice.interim ? `🎤 ${voice.interim}` : "말하는 중 · 🎤 듣는 중 (\"중단\"이라고 말하면 멈춰요)")}
+              (!voice.bargeIn
+                ? "말하는 중"
+                : voice.interim
+                  ? `🎤 ${voice.interim}`
+                  : "말하는 중 · 🎤 듣는 중 (\"중단\"이라고 말하면 멈춰요)")}
             <span aria-hidden className="ml-0.5 inline-flex gap-0.5">
               {[0, 1, 2].map((i) => (
                 <span key={i} className="animate-pulse" style={{ animationDelay: `${i * 250}ms` }}>
@@ -318,13 +322,28 @@ export function AssistantPanel({
               ))}
             </span>
           </span>
-          <button
-            type="button"
-            onClick={voice.stop}
-            className="shrink-0 rounded-md border border-[var(--border)] px-2 py-1 text-[var(--muted)] hover:bg-white/5"
-          >
-            대화 종료
-          </button>
+          <div className="flex shrink-0 items-center gap-1.5">
+            <button
+              type="button"
+              onClick={() => voice.setBargeIn(!voice.bargeIn)}
+              aria-pressed={voice.bargeIn}
+              title="말하는 중에도 듣기. 노트북 스피커에서는 어시스턴트 소리를 잘못 알아듣기 쉬우니 이어폰을 쓸 때만 켜세요."
+              className={`rounded-md border px-2 py-1 ${
+                voice.bargeIn
+                  ? "border-[var(--accent)] text-[var(--accent)]"
+                  : "border-[var(--border)] text-[var(--muted)] hover:bg-white/5"
+              }`}
+            >
+              🎧 끼어들기 {voice.bargeIn ? "켬" : "끔"}
+            </button>
+            <button
+              type="button"
+              onClick={voice.stop}
+              className="rounded-md border border-[var(--border)] px-2 py-1 text-[var(--muted)] hover:bg-white/5"
+            >
+              대화 종료
+            </button>
+          </div>
         </div>
       )}
       {voice.error && (

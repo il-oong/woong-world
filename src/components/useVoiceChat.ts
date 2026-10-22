@@ -26,6 +26,17 @@ const STOP_WORDS = /^(그만|종료|끝|대화 종료|음성 종료)[.!? ]*$/;
 const INTERRUPT_WORDS = /(중단|그만|멈춰|스톱|정지)/;
 const END_WORDS = /(대화 ?종료|음성 ?종료)/;
 const BARGE_MAX_RESTARTS = 40;
+// Right after the assistant stops talking its voice is still fading through the mic.
+const TAIL_GUARD_MS = 700;
+const BARGE_KEY = "jarvis.voice.bargeIn";
+
+function readBargePref(): boolean {
+  try {
+    return localStorage.getItem(BARGE_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
 
 function recognitionCtor(): RecognitionCtor | null {
   if (typeof window === "undefined") return null;
@@ -87,6 +98,19 @@ export function useVoiceChat(handle: (utterance: string) => Promise<string | nul
   const [interim, setInterim] = useState("");
   const [error, setError] = useState<string | null>(null);
   const supported = recognitionCtor() !== null;
+  // Listening while the assistant talks picks up its own voice on laptop speakers, so it is opt-in.
+  const [bargeIn, setBargeInState] = useState(readBargePref);
+  const bargeRef = useRef(bargeIn);
+  const lastSpoken = useRef("");
+  const setBargeIn = useCallback((on: boolean) => {
+    bargeRef.current = on;
+    setBargeInState(on);
+    try {
+      localStorage.setItem(BARGE_KEY, on ? "1" : "0");
+    } catch {
+      // Preference just won't persist.
+    }
+  }, []);
 
   const active = useRef(false);
   const rec = useRef<Recognition | null>(null);
@@ -192,10 +216,12 @@ export function useVoiceChat(handle: (utterance: string) => Promise<string | nul
         window.speechSynthesis?.cancel();
         interruptPlay.current?.();
       };
-      const stopBarge = startBarge(sid, text, (kind) => {
-        interrupt();
-        if (kind === "end") stop();
-      });
+      const stopBarge = bargeRef.current
+        ? startBarge(sid, text, (kind) => {
+            interrupt();
+            if (kind === "end") stop();
+          })
+        : () => {};
       try {
         const res = await fetch("/api/assistant/speak", {
           method: "POST",
@@ -268,6 +294,12 @@ export function useVoiceChat(handle: (utterance: string) => Promise<string | nul
         else listenRef.current(sid);
         return;
       }
+      // Our own voice leaking into the mic right after speaking: drop it instead of sending it.
+      const heard = squash(utterance);
+      if (heard.length > ECHO_MIN_CHARS && squash(lastSpoken.current).includes(heard)) {
+        listenRef.current(sid);
+        return;
+      }
       silent.current = 0;
       if (STOP_WORDS.test(utterance)) {
         stop();
@@ -282,7 +314,11 @@ export function useVoiceChat(handle: (utterance: string) => Promise<string | nul
           setError("응답을 받지 못했습니다.");
         }
         if (sid !== session.current) return;
-        if (reply) await speak(reply, sid);
+        if (reply) {
+          lastSpoken.current = reply;
+          await speak(reply, sid);
+          await new Promise((resolve) => setTimeout(resolve, TAIL_GUARD_MS));
+        }
         if (sid === session.current) listenRef.current(sid);
       })();
     };
@@ -303,5 +339,5 @@ export function useVoiceChat(handle: (utterance: string) => Promise<string | nul
 
   useEffect(() => stop, [stop]);
 
-  return { state, interim, error, supported, start, stop };
+  return { state, interim, error, supported, bargeIn, setBargeIn, start, stop };
 }
