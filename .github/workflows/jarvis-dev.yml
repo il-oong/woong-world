@@ -32,7 +32,7 @@ jobs:
             `npm run lint` 와 `npm run build` 가 통과하는지 확인하고 push해라. PR은 워크플로가 연다. main에 직접 push하거나 머지하지 마라.
           claude_args: >-
             --max-turns 40
-            --allowedTools "Bash(npm run lint:*),Bash(npm run build:*),Bash(npm run test:*),Bash(git add:*),Bash(git commit:*),Bash(git push origin claude/issue-${{ github.event.issue.number }}),Bash(git checkout -b claude/issue-${{ github.event.issue.number }})"
+            --allowedTools "Read,Write,Edit,MultiEdit,Glob,Grep,LS,Bash(npm run lint:*),Bash(npm run build:*),Bash(npm run test:*),Bash(npx tsc:*),Bash(git status:*),Bash(git diff:*),Bash(git log:*),Bash(git add:*),Bash(git commit:*),Bash(git push origin claude/issue-${{ github.event.issue.number }}),Bash(git checkout -b claude/issue-${{ github.event.issue.number }})"
       - name: PR 생성
         env:
           GH_TOKEN: ${{ github.token }}

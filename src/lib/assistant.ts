@@ -108,6 +108,8 @@ export type ProposedAction =
       params: {
         title: string;
         request: string;
+        /** GitHub issue number, set after approval so the card can track progress. */
+        issue?: number;
       };
     };
 

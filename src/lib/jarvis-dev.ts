@@ -1,13 +1,25 @@
 const GH_API = "https://api.github.com";
 export const DEV_TASK_LABEL = "jarvis-dev";
 
+export type DevTaskPhase = "queued" | "working" | "pr_open" | "merged" | "failed" | "closed";
+
 export type DevTaskStatus = {
   number: number;
   title: string;
   url: string;
   state: "open" | "closed";
+  phase: DevTaskPhase;
   createdAt: string;
-  pr?: { number: number; url: string; state: "open" | "closed" | "merged"; draft: boolean };
+  runUrl?: string;
+  pr?: {
+    number: number;
+    url: string;
+    state: "open" | "closed" | "merged";
+    draft: boolean;
+    additions?: number;
+    deletions?: number;
+    changedFiles?: number;
+  };
 };
 
 function repo(): string {
@@ -77,6 +89,7 @@ type Issue = {
   state: "open" | "closed";
   created_at: string;
   pull_request?: unknown;
+  labels?: { name?: string }[];
 };
 type Pull = {
   number: number;
@@ -87,42 +100,118 @@ type Pull = {
   title: string;
   body: string | null;
   head: { ref: string };
+  base: { ref: string };
+  mergeable?: boolean | null;
+  additions?: number;
+  deletions?: number;
+  changed_files?: number;
+};
+type Run = {
+  display_title: string;
+  status: string;
+  conclusion: string | null;
+  html_url: string;
+  created_at: string;
 };
 
-/** Recent dev tasks with the pull request the agent opened for each. */
-export async function listDevTasks(limit = 20): Promise<DevTaskStatus[]> {
-  const h = headers();
-  const [issuesRes, pullsRes] = await Promise.all([
-    fetch(
-      `${GH_API}/repos/${repo()}/issues?labels=${DEV_TASK_LABEL}&state=all&per_page=${limit}`,
-      { headers: h, cache: "no-store" },
-    ),
-    fetch(`${GH_API}/repos/${repo()}/pulls?state=all&per_page=50&sort=created&direction=desc`, {
-      headers: h,
-      cache: "no-store",
-    }),
-  ]);
-  if (!issuesRes.ok) throw new Error(`github_issues_failed_${issuesRes.status}`);
-  const issues = ((await issuesRes.json()) as Issue[]).filter((i) => !i.pull_request);
-  const pulls = pullsRes.ok ? ((await pullsRes.json()) as Pull[]) : [];
-
-  return issues.map((issue) => {
-    const ref = new RegExp(`(^|[^\\d])#${issue.number}(?!\\d)|issue-${issue.number}(?!\\d)`);
-    const pull = pulls.find((p) => ref.test(`${p.title}\n${p.body ?? ""}\n${p.head.ref}`));
-    return {
-      number: issue.number,
-      title: issue.title,
-      url: issue.html_url,
-      state: issue.state,
-      createdAt: issue.created_at,
-      pr: pull
-        ? {
-            number: pull.number,
-            url: pull.html_url,
-            state: pull.merged_at ? "merged" : pull.state,
-            draft: pull.draft,
-          }
-        : undefined,
-    };
+async function gh<T>(path: string): Promise<T | null> {
+  const res = await fetch(`${GH_API}/repos/${repo()}${path}`, {
+    headers: headers(),
+    cache: "no-store",
   });
+  return res.ok ? ((await res.json()) as T) : null;
+}
+
+function buildStatus(issue: Issue, pulls: Pull[], runs: Run[]): DevTaskStatus {
+  const ref = new RegExp(`(^|[^\\d])#${issue.number}(?!\\d)|issue-${issue.number}(?!\\d)`);
+  const pull = pulls.find((p) => ref.test(`${p.title}\n${p.body ?? ""}\n${p.head.ref}`));
+  const created = Date.parse(issue.created_at) - 5_000;
+  const run = runs
+    .filter((r) => r.display_title === issue.title && Date.parse(r.created_at) >= created)
+    .sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at))[0];
+
+  let phase: DevTaskPhase = "queued";
+  if (pull?.merged_at) phase = "merged";
+  else if (pull?.state === "open") phase = "pr_open";
+  else if (pull) phase = "closed";
+  else if (run && run.status === "completed" && run.conclusion !== "success") phase = "failed";
+  else if (run && run.status !== "queued") phase = "working";
+  else if (issue.state === "closed") phase = "closed";
+
+  return {
+    number: issue.number,
+    title: issue.title,
+    url: issue.html_url,
+    state: issue.state,
+    phase,
+    createdAt: issue.created_at,
+    runUrl: run?.html_url,
+    pr: pull
+      ? {
+          number: pull.number,
+          url: pull.html_url,
+          state: pull.merged_at ? "merged" : pull.state,
+          draft: pull.draft,
+          additions: pull.additions,
+          deletions: pull.deletions,
+          changedFiles: pull.changed_files,
+        }
+      : undefined,
+  };
+}
+
+async function loadContext() {
+  const [pulls, runs] = await Promise.all([
+    gh<Pull[]>("/pulls?state=all&per_page=50&sort=created&direction=desc"),
+    gh<{ workflow_runs: Run[] }>("/actions/workflows/jarvis-dev.yml/runs?per_page=30"),
+  ]);
+  return { pulls: pulls ?? [], runs: runs?.workflow_runs ?? [] };
+}
+
+/** Recent dev tasks with phase (queued/working/pr_open/merged/failed) and the PR the agent opened. */
+export async function listDevTasks(limit = 20): Promise<DevTaskStatus[]> {
+  const issues = await gh<Issue[]>(`/issues?labels=${DEV_TASK_LABEL}&state=all&per_page=${limit}`);
+  if (!issues) throw new Error("github_issues_failed");
+  const { pulls, runs } = await loadContext();
+  return issues.filter((i) => !i.pull_request).map((i) => buildStatus(i, pulls, runs));
+}
+
+/** One task, with diff stats on its PR for the completion report. */
+export async function getDevTask(number: number): Promise<DevTaskStatus | null> {
+  const issue = await gh<Issue>(`/issues/${number}`);
+  if (!issue || issue.pull_request) return null;
+  if (!issue.labels?.some((l) => l.name === DEV_TASK_LABEL)) return null;
+  const { pulls, runs } = await loadContext();
+  const status = buildStatus(issue, pulls, runs);
+  if (status.pr) {
+    const detail = await gh<Pull>(`/pulls/${status.pr.number}`);
+    if (detail) {
+      status.pr.additions = detail.additions;
+      status.pr.deletions = detail.deletions;
+      status.pr.changedFiles = detail.changed_files;
+    }
+  }
+  return status;
+}
+
+/** Merges a PR the JARVIS agent opened. Only claude/issue-N branches of jarvis-dev issues qualify. */
+export async function mergeDevTaskPr(prNumber: number): Promise<{ sha: string }> {
+  const pr = await gh<Pull>(`/pulls/${prNumber}`);
+  if (!pr) throw new Error("pr_not_found");
+  const m = /^claude\/issue-(\d+)$/.exec(pr.head.ref);
+  if (!m) throw new Error("not_a_jarvis_pr");
+  const issue = await gh<Issue>(`/issues/${m[1]}`);
+  if (!issue?.labels?.some((l) => l.name === DEV_TASK_LABEL)) throw new Error("not_a_jarvis_pr");
+  if (pr.merged_at) throw new Error("already_merged");
+  if (pr.state !== "open") throw new Error("pr_closed");
+  if (pr.draft) throw new Error("pr_is_draft");
+  if (pr.mergeable === false) throw new Error("pr_not_mergeable");
+
+  const res = await fetch(`${GH_API}/repos/${repo()}/pulls/${prNumber}/merge`, {
+    method: "PUT",
+    headers: headers(),
+    body: JSON.stringify({ merge_method: "merge" }),
+  });
+  if (!res.ok) throw new Error(`github_merge_failed_${res.status}`);
+  return { sha: ((await res.json()) as { sha: string }).sha };
 }

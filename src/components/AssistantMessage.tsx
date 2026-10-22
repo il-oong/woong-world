@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import DevTaskProgress from "./DevTaskProgress";
 import { CATEGORIES, getCategory } from "@/lib/categories";
 import type {
   CategoryId,
@@ -134,13 +135,7 @@ function ActionCard({
               <WorkspaceActionBody params={action.params} />
             )}
             {action.type === "dev_task" && (
-              <div className="space-y-1">
-                <p className="font-medium text-foreground">{action.params.title}</p>
-                <p className="whitespace-pre-wrap text-[var(--muted)]">{action.params.request}</p>
-                <p className="text-[10px] text-[var(--muted)]">
-                  승인하면 GitHub 이슈가 열리고 클라우드 에이전트가 PR까지 만든다. 머지는 직접 한다.
-                </p>
-              </div>
+              <DevTaskBody params={action.params} approved={action.status === "approved"} />
             )}
           </div>
 
@@ -729,6 +724,37 @@ function WorkspaceActionBody({
     <div className="space-y-1">
       <p className="font-medium text-foreground">{summary}</p>
       <p className="text-[10px] text-[var(--muted)]">Approval is required before this is applied.</p>
+    </div>
+  );
+}
+
+function DevTaskBody({
+  params,
+  approved,
+}: {
+  params: Extract<ProposedAction, { type: "dev_task" }>["params"];
+  approved: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="space-y-1">
+      <p className="font-medium text-foreground">{params.title}</p>
+      <p
+        className={`whitespace-pre-wrap text-[var(--muted)] ${open ? "" : "line-clamp-2"}`}
+      >
+        {params.request}
+      </p>
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="text-[10px] text-[var(--accent)] hover:underline"
+      >
+        {open ? "접기" : "요청 내용 펼치기"}
+      </button>
+      <p className="text-[10px] text-[var(--muted)]">
+        승인하면 GitHub 이슈가 열리고 클라우드 에이전트가 PR까지 만든다. 머지는 직접 한다.
+      </p>
+      {approved && params.issue !== undefined && <DevTaskProgress issue={params.issue} />}
     </div>
   );
 }
