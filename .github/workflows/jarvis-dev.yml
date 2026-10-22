@@ -28,11 +28,40 @@ jobs:
 
             ${{ github.event.issue.body }}
 
-            위 요청을 구현해라. CLAUDE.md/AGENTS.md 지침을 따르고, 새 브랜치 claude/issue-${{ github.event.issue.number }} 에 커밋한 뒤
-            `npm run lint` 와 `npm run build` 가 통과하는지 확인하고 push해라. PR은 워크플로가 연다. main에 직접 push하거나 머지하지 마라.
+            위 요청을 구현해라. CLAUDE.md/AGENTS.md 지침을 따르고, 파일 수정과 `npm run lint`, `npm run build` 확인만 해라.
+            git 명령(브랜치, 커밋, push)과 PR 생성은 하지 마라. 워크플로가 대신 한다.
           claude_args: >-
             --max-turns 40
-            --allowedTools "Read,Write,Edit,MultiEdit,Glob,Grep,LS,Bash(npm run lint:*),Bash(npm run build:*),Bash(npm run test:*),Bash(npx tsc:*),Bash(git status:*),Bash(git diff:*),Bash(git log:*),Bash(git add:*),Bash(git commit:*),Bash(git push origin claude/issue-${{ github.event.issue.number }}),Bash(git checkout -b claude/issue-${{ github.event.issue.number }})"
+            --allowedTools "Read,Write,Edit,MultiEdit,Glob,Grep,LS,Bash(npm run lint:*),Bash(npm run build:*),Bash(npm run test:*),Bash(npx tsc:*),Bash(git status:*),Bash(git diff:*),Bash(git log:*)"
+      - name: 거부된 도구 요약 (디버깅)
+        if: always()
+        run: |
+          f=/home/runner/work/_temp/claude-execution-output.json
+          [ -f "$f" ] && jq -r '.. | objects | select(has("permission_denials")) | .permission_denials[]? | "거부: \(.tool_name) \((.tool_input.command // .tool_input.file_path // "") | tostring | .[0:100])"' "$f" || true
+      - name: 변경 커밋 및 push
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          ISSUE: ${{ github.event.issue.number }}
+          ISSUE_TITLE: ${{ github.event.issue.title }}
+          BASE: ${{ github.event.repository.default_branch }}
+        run: |
+          BRANCH="claude/issue-${ISSUE}"
+          # claude-code-action이 끝나며 앱 토큰을 폐기하므로 원격 인증을 다시 설정한다.
+          git remote set-url origin "https://x-access-token:${GH_TOKEN}@github.com/${REPO}.git"
+          git config user.name "claude[bot]"
+          git config user.email "41898282+claude[bot]@users.noreply.github.com"
+          git checkout -B "$BRANCH"
+          if [ -n "$(git status --porcelain)" ]; then
+            git add -A
+            git commit -m "$ISSUE_TITLE" -m "Closes #${ISSUE}"
+          fi
+          git fetch origin "$BASE"
+          if [ "$(git rev-list --count "origin/${BASE}..HEAD")" = "0" ]; then
+            gh issue comment "$ISSUE" --body "에이전트가 변경한 파일이 없어 PR을 만들지 못했습니다. Actions 로그를 확인하세요."
+            exit 1
+          fi
+          git push origin "$BRANCH"
       - name: PR 생성
         env:
           GH_TOKEN: ${{ github.token }}
