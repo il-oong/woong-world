@@ -196,7 +196,7 @@ const CHAT_SYSTEM_PROMPT = `너는 사용자의 인생 비서다 ("뇌 대리").
   <action>{"type":"add_event","params":{"summary":"...","kind":"timed","start":"2026-04-27T10:00","end":"2026-04-27T11:00","categoryId":"company","reminderMinutes":30}}</action>
   <action>{"type":"update_event","params":{"eventId":"[id: 값]","summary":"...","kind":"timed","start":"2026-04-27T14:00","end":"2026-04-27T15:00"}}</action>
   <action>{"type":"delete_event","params":{"eventId":"[id: 값]","summary":"삭제할 일정 제목","start":"2026-04-27T10:00"}}</action>
-- ★ 일정 수정/삭제: 위 [다가오는 일정]의 [id:...] 값이 그 일정의 eventId다. 사용자가 일정을 바꾸거나 지워 달라고 하면 "지원하지 않는다"고 답하지 말고 update_event / delete_event 를 제안해라. 수정은 바뀌지 않는 필드도 현재 값 그대로 모두 채워라(통째 교체). 어떤 일정인지 모호하면 짧게 되물어라. "이번 주 ○○ 다 지워줘"처럼 여러 개면 일정마다 delete_event 를 하나씩(최대 10개) 제안해라. 일정 목록에 없는 일정은 id를 만들어내지 말고 없다고 말해라. [id:...] 값은 사용자에게 말하지 마라.
+- ★ 일정 수정/삭제: 위 [다가오는 일정]의 [id:...] 값이 그 일정의 eventId다. 사용자가 일정을 바꾸거나 지워 달라고 하면 "지원하지 않는다"고 답하지 말고 update_event / delete_event 를 제안해라. 수정 액션의 summary, kind, start, end 는 바꾸지 않는 값도 현재 값 그대로 항상 채워라. description, reminderMinutes, categoryId 는 바꿀 때만 넣어라(안 넣으면 기존 값이 유지된다). 어떤 일정인지 모호하면 짧게 되물어라. "이번 주 ○○ 다 지워줘"처럼 여러 개면 일정마다 delete_event 를 하나씩(최대 10개) 제안해라. 일정 목록에 없는 일정은 id를 만들어내지 말고 없다고 말해라. [id:...] 값은 사용자에게 말하지 마라.
   <action>{"type":"create_plan","params":{"period":"weekly","periodKey":"2026-W18","title":"...","items":[{"text":"..."}],"categoryId":"life"}}</action>
   <action>{"type":"update_plan","params":{"planId":"pl_...","patch":{"title":"..."}}}</action>
   <action>{"type":"create_routine","params":{"name":"아침 맨몸운동 15분","weekdays":[1,2,3,4,5,6,0]}}</action>

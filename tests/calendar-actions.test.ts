@@ -1,6 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { parseProposedAction, validateActionParams } from "../src/lib/assistant";
+import { parseProposedAction, validateActionParams, type ProposedAction } from "../src/lib/assistant";
+import { normalizeEventActions } from "../src/lib/calendar-actions";
+import type { CalendarEvent } from "../src/lib/google";
 
 const base = { summary: "회의", kind: "timed", start: "2026-10-23T14:00", end: "2026-10-23T15:00" };
 
@@ -48,4 +50,45 @@ test("model output with the new action types becomes a pending action", () => {
   assert.equal(del?.type, "delete_event");
   assert.equal(del?.status, "pending");
   assert.equal(parseProposedAction({ type: "delete_event", params: { summary: "회의" } }), null);
+});
+
+const events: CalendarEvent[] = [
+  { id: "ev1", summary: "팀 회의", start: { dateTime: "2026-10-23T14:00:00+09:00" }, end: { dateTime: "2026-10-23T15:00:00+09:00" } },
+  { id: "ev2", summary: "치과", start: { date: "2026-10-24" }, end: { date: "2026-10-25" } },
+];
+const del = (eventId: string, summary: string, calendarId?: string) =>
+  parseProposedAction({ type: "delete_event", params: { eventId, summary, calendarId } }) as ProposedAction;
+
+test("delete cards show the real event, not the model's wording", () => {
+  const { actions, dropped } = normalizeEventActions([del("ev1", "다른 일정 이름")], events);
+  assert.equal(dropped, 0);
+  const a = actions[0];
+  assert.ok(a.type === "delete_event" && a.params.summary === "팀 회의");
+  assert.ok(a.type === "delete_event" && a.params.start === "2026-10-23T14:00:00+09:00");
+});
+
+test("all-day events use their date, untitled events get a placeholder", () => {
+  const { actions } = normalizeEventActions(
+    [del("ev2", "x"), del("ev3", "x")],
+    [...events, { id: "ev3", start: { date: "2026-11-01" }, end: { date: "2026-11-02" } }],
+  );
+  assert.ok(actions[0].type === "delete_event" && actions[0].params.start === "2026-10-24");
+  assert.ok(actions[1].type === "delete_event" && actions[1].params.summary === "(제목 없음)");
+});
+
+test("ids outside the visible calendar are dropped and counted", () => {
+  const upd = parseProposedAction({ type: "update_event", params: { eventId: "nope", ...base } }) as ProposedAction;
+  const { actions, dropped } = normalizeEventActions(
+    [del("ghost", "x"), upd, del("ev1", "x", "other@group.calendar.google.com"), del("ev1", "x")],
+    events,
+  );
+  assert.equal(dropped, 3);
+  assert.equal(actions.length, 1);
+});
+
+test("other action types pass through untouched", () => {
+  const add = parseProposedAction({ type: "add_event", params: base }) as ProposedAction;
+  const { actions, dropped } = normalizeEventActions([add], []);
+  assert.equal(dropped, 0);
+  assert.equal(actions[0], add);
 });
