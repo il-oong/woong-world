@@ -1,4 +1,5 @@
 import { CATEGORIES, getCategory } from "./categories";
+import type { DevTaskStatus } from "./jarvis-dev";
 import type { Plan } from "./plans";
 import type {
   ChatMessage,
@@ -252,6 +253,8 @@ export type AssistantContext = {
   /** Admin-only: plugin registry + their CI/PR status. */
   plugins?: { plugin: Plugin; status: PluginStatus }[];
   isAdmin?: boolean;
+  /** Admin-only: recent cloud dev tasks (GitHub issue -> agent -> PR) and their live phase. */
+  devTasks?: DevTaskStatus[];
   /** 투자/주식 컨텍스트 (있으면 주식 질문 위임·종합에 사용). */
   stock?: StockContext;
   workspace?: WorkspaceContext;
@@ -385,6 +388,26 @@ function summarizeWorkspace(workspace: WorkspaceContext): string {
   return lines.join("\n");
 }
 
+const DEV_PHASE_LABEL: Record<DevTaskStatus["phase"], string> = {
+  queued: "시작 대기 중",
+  working: "AI가 개발 중",
+  pr_open: "개발 완료, PR이 열림 (머지 대기)",
+  merged: "머지 완료",
+  failed: "실패",
+  closed: "닫힘",
+};
+
+function summarizeDevTasks(tasks: DevTaskStatus[]): string {
+  return tasks
+    .slice(0, 5)
+    .map((t) => {
+      const pr = t.pr ? `, PR #${t.pr.number} ${t.pr.url}` : "";
+      const run = t.phase === "failed" && t.runUrl ? `, 로그 ${t.runUrl}` : "";
+      return `  - 이슈 #${t.number} "${t.title}": ${DEV_PHASE_LABEL[t.phase]}${pr}${run}`;
+    })
+    .join("\n");
+}
+
 function buildContextBlock(ctx: AssistantContext): string {
   const cats = CATEGORIES.map((c) => `${c.id}=${c.label}`).join(", ");
   const blocks = [
@@ -406,6 +429,15 @@ function buildContextBlock(ctx: AssistantContext): string {
   }
   if (ctx.workspace) {
     blocks.push("", "[Workspace controls]", summarizeWorkspace(ctx.workspace));
+  }
+  if (ctx.isAdmin && ctx.devTasks) {
+    blocks.push(
+      "",
+      "[클라우드 개발 작업 (실시간 GitHub 상태)]",
+      ctx.devTasks.length ? summarizeDevTasks(ctx.devTasks) : "  (최근 개발 요청 없음)",
+      "",
+      "관리자가 개발 진행 상황을 묻거든 위 목록만 근거로 답해라. 이슈가 있다는 것은 이미 승인되어 시작됐다는 뜻이다. 목록에 없는 내용은 추측하지 말고 모른다고 말해라. 머지는 사용자가 카드의 머지 버튼을 눌러야 한다.",
+    );
   }
   if (ctx.isAdmin && ctx.plugins?.length) {
     blocks.push(

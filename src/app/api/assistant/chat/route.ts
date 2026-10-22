@@ -14,6 +14,7 @@ import {
 import { chatWithAssistant, isGeminiConfigured } from "@/lib/gemini";
 import { isAdminEmail } from "@/lib/admin";
 import { loadPlugins } from "@/lib/plugins-store";
+import { listDevTasks, type DevTaskStatus } from "@/lib/jarvis-dev";
 import { getAllPluginStatuses } from "@/lib/github-status";
 import {
   listHoldings,
@@ -119,6 +120,16 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  // Admin also gets live cloud-dev status so "개발 어디까지 됐어?" is answered from GitHub, not guessed.
+  let devTasks: DevTaskStatus[] | undefined;
+  if (isAdmin) {
+    try {
+      devTasks = await listDevTasks(5);
+    } catch {
+      // Best-effort: token may be missing or GitHub unreachable.
+    }
+  }
+
   // 주식/투자 컨텍스트 — 뇌 네트워크가 보유·관심·경제일정·설정을 인지하고,
   // 주식 질문이면 하위 에이전트에 위임할 수 있도록 주입한다 (best-effort).
   let stock:
@@ -155,6 +166,7 @@ export async function POST(req: NextRequest) {
         files: allFiles,
         isAdmin,
         plugins: pluginContext,
+      devTasks,
         stock,
         workspace: { todos, memos, subscriptions },
       },
