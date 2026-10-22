@@ -12,7 +12,8 @@
     "test:access": "tsx --test tests/access.test.ts",
     "test:security": "tsx --test tests/security.test.ts",
     "sync:housing": "tsx scripts/sync-housing.ts",
-    "test:voice": "tsx --test tests/voice.test.ts"
+    "test:voice": "tsx --test tests/voice.test.ts",
+    "test:calendar": "tsx --test tests/calendar-actions.test.ts"
   },
   "dependencies": {
     "@upstash/redis": "^1.37.0",

@@ -1,5 +1,5 @@
 import { type NextRequest } from "next/server";
-import { createEvent, getValidSession } from "@/lib/google";
+import { createEvent, deleteEvent, getValidSession, updateEvent } from "@/lib/google";
 import { createPlan, updatePlan } from "@/lib/plans";
 import { addRoutine } from "@/lib/routines";
 import { addTodo, removeTodo, updateTodo } from "@/lib/todos";
@@ -110,6 +110,12 @@ export async function POST(req: NextRequest) {
           reminderMinutes: action.params.reminderMinutes,
         }),
       };
+    } else if (action.type === "update_event") {
+      const { eventId, ...input } = action.params;
+      result = { event: await updateEvent(session, eventId, input) };
+    } else if (action.type === "delete_event") {
+      await deleteEvent(session, action.params.eventId, action.params.calendarId ?? "primary");
+      result = { deleted: action.params.eventId };
     } else if (action.type === "create_plan") {
       result = {
         plan: await createPlan(session.email, {

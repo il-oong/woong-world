@@ -134,6 +134,8 @@ function ActionCard({
             {action.type === "manage_workspace" && (
               <WorkspaceActionBody params={action.params} />
             )}
+            {action.type === "update_event" && <UpdateEventBody params={action.params} />}
+            {action.type === "delete_event" && <DeleteEventBody params={action.params} />}
             {action.type === "dev_task" && (
               <DevTaskBody params={action.params} approved={action.status === "approved"} />
             )}
@@ -158,7 +160,10 @@ function ActionCard({
               >
                 거절
               </button>
-              {action.type !== "manage_workspace" && action.type !== "dev_task" && (
+              {action.type !== "manage_workspace" &&
+                action.type !== "dev_task" &&
+                action.type !== "update_event" &&
+                action.type !== "delete_event" && (
                 <button
                   type="button"
                   onClick={() => setEditing(true)}
@@ -759,10 +764,48 @@ function DevTaskBody({
   );
 }
 
+function eventWhen(start?: string, end?: string): string {
+  if (!start) return "";
+  return end && end !== start ? `${start} ~ ${end}` : start;
+}
+
+function UpdateEventBody({
+  params,
+}: {
+  params: Extract<ProposedAction, { type: "update_event" }>["params"];
+}) {
+  return (
+    <div className="space-y-1">
+      <p className="font-medium text-foreground">{params.summary}</p>
+      <p className="text-[var(--muted)]">{eventWhen(params.start, params.end)}</p>
+      {params.description && <p className="text-[var(--muted)]">{params.description}</p>}
+      <p className="text-[10px] text-[var(--muted)]">승인하면 구글 캘린더의 이 일정이 위 내용으로 바뀝니다.</p>
+    </div>
+  );
+}
+
+function DeleteEventBody({
+  params,
+}: {
+  params: Extract<ProposedAction, { type: "delete_event" }>["params"];
+}) {
+  return (
+    <div className="space-y-1">
+      <p className="font-medium text-foreground">{params.summary}</p>
+      {params.start && <p className="text-[var(--muted)]">{params.start}</p>}
+      <p className="text-[10px] text-red-300/90">승인하면 구글 캘린더에서 이 일정이 삭제됩니다.</p>
+    </div>
+  );
+}
+
 function labelForType(type: ProposedAction["type"]): string {
   switch (type) {
     case "add_event":
       return "+ 일정 추가";
+    case "update_event":
+      return "✎ 일정 수정";
+    case "delete_event":
+      return "✕ 일정 삭제";
     case "create_plan":
       return "+ 계획 생성";
     case "update_plan":
