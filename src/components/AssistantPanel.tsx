@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { ChatMessage, UploadedFile } from "@/lib/assistant";
 import { AssistantMessage } from "./AssistantMessage";
 import { AssistantFiles } from "./AssistantFiles";
+import { toSpeakable, useVoiceChat } from "./useVoiceChat";
 
 type Status = {
   storage: boolean;
@@ -92,12 +93,13 @@ export function AssistantPanel({
     el.scrollTop = el.scrollHeight;
   }, [lastMessageId]);
 
-  const send = async () => {
-    const trimmed = text.trim();
-    if (!trimmed || sending) return;
+  /** Sends a message; returns the text worth reading aloud for voice mode. */
+  const send = async (override?: string): Promise<string | null> => {
+    const trimmed = (override ?? text).trim();
+    if (!trimmed || sending) return null;
     setSending(true);
     setError(null);
-    setText("");
+    if (override === undefined) setText("");
     try {
       const res = await fetch("/api/assistant/chat", {
         method: "POST",
@@ -115,12 +117,20 @@ export function AssistantPanel({
       }
       setMessages(data.messages);
       setSelectedFileIds(new Set());
+      const last = data.messages[data.messages.length - 1];
+      if (last?.role !== "assistant") return null;
+      const spoken = toSpeakable(last.text);
+      const pending = last.proposedActions?.some((a) => a.status === "pending");
+      return pending ? `${spoken} 승인이 필요한 항목이 화면에 있어요.` : spoken;
     } catch (e) {
       setError(e instanceof Error ? e.message : "chat_failed");
+      return null;
     } finally {
       setSending(false);
     }
   };
+
+  const voice = useVoiceChat(send);
 
   const handleAction = async (
     messageId: string,
@@ -293,6 +303,35 @@ export function AssistantPanel({
         </div>
       )}
 
+      {voice.state !== "off" && (
+        <div className="flex items-center justify-between gap-2 border-t border-[var(--accent)]/30 bg-[var(--accent)]/5 px-3 py-2 text-xs">
+          <span className="truncate text-foreground">
+            {voice.state === "listening" && (voice.interim || "듣고 있어요, 말씀하세요")}
+            {voice.state === "thinking" && "생각 중"}
+            {voice.state === "speaking" && "말하는 중"}
+            <span aria-hidden className="ml-0.5 inline-flex gap-0.5">
+              {[0, 1, 2].map((i) => (
+                <span key={i} className="animate-pulse" style={{ animationDelay: `${i * 250}ms` }}>
+                  .
+                </span>
+              ))}
+            </span>
+          </span>
+          <button
+            type="button"
+            onClick={voice.stop}
+            className="shrink-0 rounded-md border border-[var(--border)] px-2 py-1 text-[var(--muted)] hover:bg-white/5"
+          >
+            대화 종료
+          </button>
+        </div>
+      )}
+      {voice.error && (
+        <div className="border-t border-amber-500/20 bg-amber-500/5 px-3 py-2 text-xs text-amber-300/90">
+          {voice.error}
+        </div>
+      )}
+
       <div className="flex items-end gap-2 border-t border-[var(--border)] bg-[var(--card)] p-3">
         <textarea
           value={text}
@@ -307,6 +346,21 @@ export function AssistantPanel({
           rows={1}
           className="max-h-32 flex-1 resize-none rounded-md border border-[var(--border)] bg-black/30 px-3 py-2 text-sm focus:border-[var(--accent)]/50 focus:outline-none"
         />
+        {voice.supported && (
+          <button
+            type="button"
+            onClick={voice.state === "off" ? voice.start : voice.stop}
+            aria-label={voice.state === "off" ? "음성 대화 시작" : "음성 대화 종료"}
+            title="음성 대화"
+            className={`rounded-md border px-3 py-2 text-xs ${
+              voice.state === "off"
+                ? "border-[var(--border)] text-[var(--muted)] hover:bg-white/5"
+                : "border-[var(--accent)] bg-[var(--accent)]/10 text-[var(--accent)]"
+            }`}
+          >
+            🎤
+          </button>
+        )}
         <button
           type="button"
           onClick={() => void send()}

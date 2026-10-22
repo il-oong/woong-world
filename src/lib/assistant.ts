@@ -618,7 +618,7 @@ export async function appendAssistantActionAudit(
 /** Simple per-user server-side budget for expensive model requests. */
 export async function consumeUserRateLimit(
   email: string,
-  bucket: "assistant-chat" | "stock-analysis",
+  bucket: "assistant-chat" | "assistant-speak" | "stock-analysis",
   limit: number,
   windowSeconds = 60,
 ): Promise<boolean> {
