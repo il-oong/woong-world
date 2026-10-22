@@ -96,6 +96,7 @@ export async function POST(req: NextRequest) {
 
   try {
     let result: Record<string, unknown> | undefined;
+    let savedParams = action.params;
 
     if (action.type === "add_event") {
       result = {
@@ -210,7 +211,9 @@ export async function POST(req: NextRequest) {
       }
     } else if (action.type === "dev_task") {
       if (!(await isAdminSession())) throw new Error("admin_required");
-      result = { issue: await createDevTaskIssue(action.params) };
+      const issue = await createDevTaskIssue(action.params);
+      result = { issue };
+      savedParams = { ...action.params, issue: issue.number };
     }
     // suggest_command is intentionally only acknowledged. It never reaches a shell.
 
@@ -219,14 +222,14 @@ export async function POST(req: NextRequest) {
       body.messageId,
       body.actionId,
       "approved",
-      action.params,
+      savedParams,
     );
     await appendAssistantActionAudit(session.email, {
       messageId: body.messageId,
       actionId: body.actionId,
       actionType: action.type,
       status: "approved",
-      params: action.params,
+      params: savedParams,
     });
     return Response.json({ ok: true, status: "approved", result });
   } catch (error) {

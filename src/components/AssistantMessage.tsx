@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import DevTaskProgress from "./DevTaskProgress";
 import { CATEGORIES, getCategory } from "@/lib/categories";
 import type {
   CategoryId,
@@ -134,7 +135,7 @@ function ActionCard({
               <WorkspaceActionBody params={action.params} />
             )}
             {action.type === "dev_task" && (
-              <DevTaskBody params={action.params} />
+              <DevTaskBody params={action.params} approved={action.status === "approved"} />
             )}
           </div>
 
@@ -729,8 +730,10 @@ function WorkspaceActionBody({
 
 function DevTaskBody({
   params,
+  approved,
 }: {
   params: Extract<ProposedAction, { type: "dev_task" }>["params"];
+  approved: boolean;
 }) {
   const [open, setOpen] = useState(false);
   return (
@@ -751,6 +754,7 @@ function DevTaskBody({
       <p className="text-[10px] text-[var(--muted)]">
         승인하면 GitHub 이슈가 열리고 클라우드 에이전트가 PR까지 만든다. 머지는 직접 한다.
       </p>
+      {approved && params.issue !== undefined && <DevTaskProgress issue={params.issue} />}
     </div>
   );
 }
