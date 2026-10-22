@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { AssistantWidget } from "@/components/AssistantWidget";
+import { AppFooter } from "@/components/AppFooter";
 import { TopNav } from "@/components/TopNav";
 import { ServiceWorkerRegister } from "@/components/ServiceWorkerRegister";
 import { IosPwaPrompt } from "@/components/IosPwaPrompt";
@@ -37,6 +38,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <ServiceWorkerRegister />
         <TopNav />
         {children}
+        <AppFooter />
         <AssistantWidget />
         <IosPwaPrompt />
         <PwaInstallPrompt />

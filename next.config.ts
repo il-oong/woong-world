@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import pkg from "./package.json";
 
 const securityHeaders = [
   { key: "X-Frame-Options", value: "SAMEORIGIN" },
@@ -38,6 +39,9 @@ const nextConfig: NextConfig = {
     root: process.cwd(),
   },
   poweredByHeader: false,
+  env: {
+    NEXT_PUBLIC_APP_VERSION: pkg.version,
+  },
   async headers() {
     return [
       {
