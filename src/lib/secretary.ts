@@ -6,12 +6,18 @@ export type VoiceId =
   | "ko-KR-Wavenet-C"
   | "ko-KR-Wavenet-D";
 
+// Google ko-KR Wavenet genders: A, B are female; C, D are male.
 export const VOICES: { id: VoiceId; label: string }[] = [
   { id: "ko-KR-Wavenet-A", label: "여성 1" },
-  { id: "ko-KR-Wavenet-B", label: "남성 1" },
-  { id: "ko-KR-Wavenet-C", label: "남성 2" },
-  { id: "ko-KR-Wavenet-D", label: "여성 2" },
+  { id: "ko-KR-Wavenet-B", label: "여성 2" },
+  { id: "ko-KR-Wavenet-C", label: "남성 1" },
+  { id: "ko-KR-Wavenet-D", label: "남성 2" },
 ];
+
+export const FEMALE_VOICES: ReadonlySet<VoiceId> = new Set<VoiceId>([
+  "ko-KR-Wavenet-A",
+  "ko-KR-Wavenet-B",
+]);
 
 export type SecretaryProfile = {
   name: string;
