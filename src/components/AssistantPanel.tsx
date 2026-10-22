@@ -309,8 +309,10 @@ export function AssistantPanel({
             {voice.state === "listening" && (voice.interim || "듣고 있어요, 말씀하세요")}
             {voice.state === "thinking" && "생각 중"}
             {voice.state === "speaking" &&
-              (!voice.bargeIn
-                ? "말하는 중"
+              (!voice.bargeLive
+                ? voice.bargeIn
+                  ? "말하는 중 (끼어들기는 다음 답변부터)"
+                  : "말하는 중"
                 : voice.interim
                   ? `🎤 ${voice.interim}`
                   : "말하는 중 · 🎤 듣는 중 (\"중단\"이라고 말하면 멈춰요)")}
