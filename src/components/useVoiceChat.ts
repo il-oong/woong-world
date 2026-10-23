@@ -330,7 +330,8 @@ export function useVoiceChat(handle: (utterance: string) => Promise<string | nul
         if (sid !== session.current) return;
         if (reply) {
           await speak(reply, sid);
-          lastSpoken.current = { text: reply, at: Date.now() };
+          // Only remember the reply if this session is still the live one (stop() clears it).
+          if (sid === session.current) lastSpoken.current = { text: reply, at: Date.now() };
           await new Promise((resolve) => setTimeout(resolve, TAIL_GUARD_MS));
         }
         if (sid === session.current) listenRef.current(sid);
