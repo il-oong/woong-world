@@ -15,6 +15,7 @@ import { chatWithAssistant, isGeminiConfigured } from "@/lib/gemini";
 import { isAdminEmail } from "@/lib/admin";
 import { loadPlugins } from "@/lib/plugins-store";
 import { listDevTasks, type DevTaskStatus } from "@/lib/jarvis-dev";
+import { normalizeEventActions } from "@/lib/calendar-actions";
 import { getAllPluginStatuses } from "@/lib/github-status";
 import {
   listHoldings,
@@ -171,7 +172,14 @@ export async function POST(req: NextRequest) {
         workspace: { todos, memos, subscriptions },
       },
     });
-    result = { text: r.text, proposedActions: r.proposedActions };
+    // Event cards must describe the event that will really be changed, not the model's wording.
+    const { actions, dropped } = normalizeEventActions(r.proposedActions ?? [], upcomingEvents);
+    result = {
+      text: dropped
+        ? `${r.text}\n\n(일정 ${dropped}건은 목록에서 찾지 못해 카드를 만들지 못했어요.)`
+        : r.text,
+      proposedActions: actions,
+    };
   } catch (e) {
     return Response.json(
       { error: e instanceof Error ? e.message : "chat_failed" },

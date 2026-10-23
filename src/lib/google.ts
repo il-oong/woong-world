@@ -364,6 +364,71 @@ export async function updateEvent(
   return res.json();
 }
 
+/** Reads one event; null when it no longer exists. */
+export async function getEvent(
+  session: GoogleSession,
+  eventId: string,
+  calendarId = "primary",
+): Promise<CalendarEvent | null> {
+  const res = await fetch(
+    `${CALENDAR_API}/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(eventId)}`,
+    { headers: { Authorization: `Bearer ${session.accessToken}` }, cache: "no-store" },
+  );
+  if (res.status === 404 || res.status === 410) return null;
+  if (!res.ok) throw new Error(`Get failed: ${res.status}`);
+  return res.json();
+}
+
+/**
+ * Changes only the fields given (PATCH), so description, reminders, location, attendees and
+ * recurrence that the caller did not mention are left untouched.
+ */
+export async function patchEvent(
+  session: GoogleSession,
+  eventId: string,
+  input: CreateEventInput,
+): Promise<CalendarEvent> {
+  const body: Record<string, unknown> = { summary: input.summary };
+  if (input.description !== undefined) body.description = input.description;
+
+  if (input.kind === "timed") {
+    body.start = { dateTime: toRfc3339DateTime(input.start), timeZone: TZ };
+    body.end = { dateTime: toRfc3339DateTime(input.end), timeZone: TZ };
+  } else {
+    body.start = { date: input.start };
+    body.end = { date: addOneDay(input.end) };
+  }
+
+  if (input.reminderMinutes !== undefined) {
+    body.reminders = input.reminderMinutes === null
+      ? { useDefault: false, overrides: [] }
+      : { useDefault: false, overrides: [{ method: "popup", minutes: input.reminderMinutes }] };
+  }
+
+  if (input.categoryId) {
+    const category = getCategory(input.categoryId);
+    body.colorId = category.colorId;
+    body.extendedProperties = { private: { category: category.id } };
+  }
+
+  const calId = encodeURIComponent(input.calendarId ?? "primary");
+  const res = await fetch(
+    `${CALENDAR_API}/calendars/${calId}/events/${encodeURIComponent(eventId)}`,
+    {
+      method: "PATCH",
+      headers: {
+        Authorization: `Bearer ${session.accessToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(body),
+    },
+  );
+  if (!res.ok) {
+    throw new Error(`Update failed: ${res.status} ${await res.text()}`);
+  }
+  return res.json();
+}
+
 export async function deleteEvent(
   session: GoogleSession,
   eventId: string,

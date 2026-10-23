@@ -1,5 +1,5 @@
 import { type NextRequest } from "next/server";
-import { createEvent, getValidSession } from "@/lib/google";
+import { createEvent, deleteEvent, getEvent, getValidSession, patchEvent } from "@/lib/google";
 import { createPlan, updatePlan } from "@/lib/plans";
 import { addRoutine } from "@/lib/routines";
 import { addTodo, removeTodo, updateTodo } from "@/lib/todos";
@@ -110,6 +110,19 @@ export async function POST(req: NextRequest) {
           reminderMinutes: action.params.reminderMinutes,
         }),
       };
+    } else if (action.type === "update_event") {
+      const { eventId, ...input } = action.params;
+      if (!(await getEvent(session, eventId, input.calendarId))) throw new Error("event_not_found");
+      result = { event: await patchEvent(session, eventId, input) };
+    } else if (action.type === "delete_event") {
+      // Delete only if the event is still the one the card described.
+      const current = await getEvent(session, action.params.eventId, action.params.calendarId);
+      if (!current) throw new Error("event_not_found");
+      if ((current.summary?.trim() || "(제목 없음)") !== action.params.summary) {
+        throw new Error("event_changed");
+      }
+      await deleteEvent(session, action.params.eventId, action.params.calendarId ?? "primary");
+      result = { deleted: action.params.eventId };
     } else if (action.type === "create_plan") {
       result = {
         plan: await createPlan(session.email, {

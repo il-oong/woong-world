@@ -51,6 +51,35 @@ export type ProposedAction =
     }
   | {
       id: string;
+      // Full replacement of an existing Google Calendar event (same fields as add_event).
+      type: "update_event";
+      status: ActionStatus;
+      params: {
+        eventId: string;
+        calendarId?: string;
+        summary: string;
+        description?: string;
+        kind: "timed" | "allday" | "project";
+        start: string;
+        end: string;
+        categoryId?: CategoryId;
+        reminderMinutes?: number | null;
+      };
+    }
+  | {
+      id: string;
+      type: "delete_event";
+      status: ActionStatus;
+      params: {
+        eventId: string;
+        calendarId?: string;
+        /** Shown on the approval card so the user can see what will be deleted. */
+        summary: string;
+        start?: string;
+      };
+    }
+  | {
+      id: string;
       type: "create_plan";
       status: ActionStatus;
       params: {
@@ -249,6 +278,17 @@ function isId(value: unknown, prefix?: string): value is string {
   return prefix ? value.startsWith(prefix) : /^[a-zA-Z0-9_-]+$/.test(value);
 }
 
+/** Google event ids are base32hex plus "_" for recurring instances. */
+function isEventId(value: unknown): value is string {
+  return typeof value === "string" && /^[a-zA-Z0-9_-]{1,200}$/.test(value);
+}
+
+/** undefined = primary calendar, null = invalid. */
+function optionalCalendarId(value: unknown): string | undefined | null {
+  if (value === undefined) return undefined;
+  return typeof value === "string" && /^[\w.@#%+-]{1,200}$/.test(value) ? value : null;
+}
+
 function parsePlanPatch(value: unknown): UpdatePlanInput | null {
   if (!isRecord(value)) return null;
   const allowed = new Set(["title", "categoryId", "items", "notes"]);
@@ -435,6 +475,23 @@ export function validateActionParams(
     };
   }
 
+  if (type === "update_event") {
+    const base = validateActionParams("add_event", value) as
+      | Extract<ProposedAction, { type: "add_event" }>["params"]
+      | null;
+    const calendarId = optionalCalendarId(value.calendarId);
+    if (!base || !isEventId(value.eventId) || calendarId === null) return null;
+    return { eventId: value.eventId, calendarId, ...base };
+  }
+
+  if (type === "delete_event") {
+    const summary = text(value.summary, 300);
+    const calendarId = optionalCalendarId(value.calendarId);
+    const start = optionalText(value.start, 80);
+    if (!summary || !isEventId(value.eventId) || calendarId === null || start === null) return null;
+    return { eventId: value.eventId, calendarId, summary, start: start ?? undefined };
+  }
+
   if (type === "create_plan") {
     const title = text(value.title, 300);
     const categoryRaw = value.categoryId;
@@ -516,6 +573,8 @@ export function parseProposedAction(value: unknown): ProposedAction | null {
   const type = value.type;
   if (
     type !== "add_event" &&
+    type !== "update_event" &&
+    type !== "delete_event" &&
     type !== "create_plan" &&
     type !== "update_plan" &&
     type !== "create_routine" &&
