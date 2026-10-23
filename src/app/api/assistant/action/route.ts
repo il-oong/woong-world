@@ -1,5 +1,5 @@
 import { type NextRequest } from "next/server";
-import { createEvent, getValidSession } from "@/lib/google";
+import { createEvent, deleteEvent, getEvent, getValidSession, patchEvent } from "@/lib/google";
 import { createPlan, updatePlan } from "@/lib/plans";
 import { addRoutine } from "@/lib/routines";
 import { addTodo, removeTodo, updateTodo } from "@/lib/todos";
@@ -110,6 +110,13 @@ export async function POST(req: NextRequest) {
           reminderMinutes: action.params.reminderMinutes,
         }),
       };
+    } else if (action.type === "update_event") {
+      if (!(await getEvent(session, action.params.eventId))) throw new Error("event_not_found");
+      result = { event: await patchEvent(session, action.params.eventId, action.params.patch) };
+    } else if (action.type === "delete_event") {
+      if (!(await getEvent(session, action.params.eventId))) throw new Error("event_not_found");
+      await deleteEvent(session, action.params.eventId);
+      result = { removed: action.params.eventId };
     } else if (action.type === "create_plan") {
       result = {
         plan: await createPlan(session.email, {

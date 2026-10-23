@@ -364,6 +364,79 @@ export async function updateEvent(
   return res.json();
 }
 
+export type PatchEventInput = Partial<Omit<CreateEventInput, "calendarId" | "recurrence">>;
+
+/** 단일 이벤트 조회. 없으면 null. */
+export async function getEvent(
+  session: GoogleSession,
+  eventId: string,
+  calendarId = "primary",
+): Promise<CalendarEvent | null> {
+  const res = await fetch(
+    `${CALENDAR_API}/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(eventId)}`,
+    { headers: { Authorization: `Bearer ${session.accessToken}` }, cache: "no-store" },
+  );
+  if (res.status === 404 || res.status === 410) return null;
+  if (!res.ok) throw new Error(`Get failed: ${res.status}`);
+  const event = (await res.json()) as CalendarEvent & { status?: string };
+  return event.status === "cancelled" ? null : event;
+}
+
+/**
+ * 부분 수정(PATCH). 넘기지 않은 필드(카테고리 포함)는 그대로 유지된다.
+ * start/end를 바꿀 때는 kind가 함께 있어야 한다.
+ */
+export async function patchEvent(
+  session: GoogleSession,
+  eventId: string,
+  input: PatchEventInput,
+  calendarId = "primary",
+): Promise<CalendarEvent> {
+  const body: Record<string, unknown> = {};
+  if (input.summary !== undefined) body.summary = input.summary;
+  if (input.description !== undefined) body.description = input.description;
+
+  if (input.start !== undefined && input.end !== undefined && input.kind) {
+    if (input.kind === "timed") {
+      body.start = { dateTime: toRfc3339DateTime(input.start), timeZone: TZ };
+      body.end = { dateTime: toRfc3339DateTime(input.end), timeZone: TZ };
+    } else {
+      body.start = { date: input.start.slice(0, 10) };
+      body.end = { date: addOneDay(input.end.slice(0, 10)) };
+    }
+  }
+
+  if (input.reminderMinutes !== undefined) {
+    body.reminders =
+      input.reminderMinutes === null
+        ? { useDefault: false, overrides: [] }
+        : { useDefault: false, overrides: [{ method: "popup", minutes: input.reminderMinutes }] };
+  }
+
+  if (input.categoryId) {
+    const category = getCategory(input.categoryId);
+    body.colorId = category.colorId;
+    body.extendedProperties = { private: { category: category.id } };
+  }
+
+  const res = await fetch(
+    `${CALENDAR_API}/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(eventId)}`,
+    {
+      method: "PATCH",
+      headers: {
+        Authorization: `Bearer ${session.accessToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(body),
+    },
+  );
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Patch failed: ${res.status} ${text}`);
+  }
+  return res.json();
+}
+
 export async function deleteEvent(
   session: GoogleSession,
   eventId: string,

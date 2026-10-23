@@ -119,6 +119,12 @@ function ActionCard({
             {action.type === "add_event" && (
               <AddEventBody params={action.params} />
             )}
+            {action.type === "update_event" && (
+              <UpdateEventBody params={action.params} />
+            )}
+            {action.type === "delete_event" && (
+              <DeleteEventBody params={action.params} />
+            )}
             {action.type === "create_plan" && (
               <CreatePlanBody params={action.params} />
             )}
@@ -158,7 +164,10 @@ function ActionCard({
               >
                 거절
               </button>
-              {action.type !== "manage_workspace" && action.type !== "dev_task" && (
+              {action.type !== "manage_workspace" &&
+                action.type !== "dev_task" &&
+                action.type !== "update_event" &&
+                action.type !== "delete_event" && (
                 <button
                   type="button"
                   onClick={() => setEditing(true)}
@@ -244,6 +253,50 @@ function AddEventBody({
       {params.description && (
         <p className="mt-1 text-[var(--muted)]">{params.description}</p>
       )}
+    </div>
+  );
+}
+
+function UpdateEventBody({
+  params,
+}: {
+  params: Extract<ProposedAction, { type: "update_event" }>["params"];
+}) {
+  const { patch } = params;
+  const cat = patch.categoryId ? getCategory(patch.categoryId) : null;
+  return (
+    <div className="flex flex-col gap-1">
+      <span className="font-medium">{params.eventTitle ?? params.eventId}</span>
+      <ul className="flex flex-col gap-0.5 text-[var(--muted)]">
+        {patch.summary && <li>제목 → {patch.summary}</li>}
+        {patch.start && patch.end && (
+          <li className="font-mono text-[10px]">
+            시간 → {patch.start} ~ {patch.end}
+          </li>
+        )}
+        {cat && <li>카테고리 → {cat.label}</li>}
+        {patch.description !== undefined && <li>설명 → {patch.description || "(비움)"}</li>}
+        {patch.reminderMinutes !== undefined && (
+          <li>
+            알림 → {patch.reminderMinutes === null ? "없음" : `${patch.reminderMinutes}분 전`}
+          </li>
+        )}
+      </ul>
+    </div>
+  );
+}
+
+function DeleteEventBody({
+  params,
+}: {
+  params: Extract<ProposedAction, { type: "delete_event" }>["params"];
+}) {
+  return (
+    <div className="flex flex-col gap-1">
+      <span className="font-medium">{params.eventTitle ?? params.eventId}</span>
+      <span className="text-[10px] text-[var(--muted)]">
+        승인하면 캘린더에서 이 일정이 삭제된다.
+      </span>
     </div>
   );
 }
@@ -763,6 +816,10 @@ function labelForType(type: ProposedAction["type"]): string {
   switch (type) {
     case "add_event":
       return "+ 일정 추가";
+    case "update_event":
+      return "✎ 일정 수정";
+    case "delete_event":
+      return "🗑 일정 삭제";
     case "create_plan":
       return "+ 계획 생성";
     case "update_plan":

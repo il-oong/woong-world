@@ -51,6 +51,35 @@ export type ProposedAction =
     }
   | {
       id: string;
+      type: "update_event";
+      status: ActionStatus;
+      params: {
+        eventId: string;
+        /** 대상 일정의 현재 제목 (승인 카드 표시용) */
+        eventTitle?: string;
+        patch: {
+          summary?: string;
+          description?: string;
+          kind?: "timed" | "allday" | "project";
+          start?: string;
+          end?: string;
+          categoryId?: CategoryId;
+          reminderMinutes?: number | null;
+        };
+      };
+    }
+  | {
+      id: string;
+      type: "delete_event";
+      status: ActionStatus;
+      params: {
+        eventId: string;
+        /** 대상 일정의 현재 제목 (승인 카드 표시용) */
+        eventTitle?: string;
+      };
+    }
+  | {
+      id: string;
       type: "create_plan";
       status: ActionStatus;
       params: {
@@ -249,6 +278,62 @@ function isId(value: unknown, prefix?: string): value is string {
   return prefix ? value.startsWith(prefix) : /^[a-zA-Z0-9_-]+$/.test(value);
 }
 
+type EventPatch = Extract<ProposedAction, { type: "update_event" }>["params"]["patch"];
+
+function parseEventPatch(value: unknown): EventPatch | null {
+  if (!isRecord(value)) return null;
+  const allowed = new Set([
+    "summary",
+    "description",
+    "kind",
+    "start",
+    "end",
+    "categoryId",
+    "reminderMinutes",
+  ]);
+  if (Object.keys(value).some((key) => !allowed.has(key))) return null;
+  const patch: EventPatch = {};
+
+  if (value.summary !== undefined) {
+    const summary = text(value.summary, 300);
+    if (!summary) return null;
+    patch.summary = summary;
+  }
+  if (value.description !== undefined) {
+    if (typeof value.description !== "string" || value.description.length > 10_000) return null;
+    patch.description = value.description.trim();
+  }
+  if (value.categoryId !== undefined) {
+    const categoryId = text(value.categoryId, 100);
+    if (!categoryId) return null;
+    patch.categoryId = categoryId as CategoryId;
+  }
+  if (value.reminderMinutes !== undefined) {
+    const r = value.reminderMinutes;
+    if (r !== null && !(typeof r === "number" && Number.isInteger(r) && r >= 0 && r <= 10_080)) {
+      return null;
+    }
+    patch.reminderMinutes = r as number | null;
+  }
+
+  // 시간 변경은 kind·start·end를 모두 함께 받는다 (all-day ↔ timed 혼동 방지).
+  const hasTime = value.kind !== undefined || value.start !== undefined || value.end !== undefined;
+  if (hasTime) {
+    if (
+      !["timed", "allday", "project"].includes(String(value.kind)) ||
+      !isIsoDate(value.start) ||
+      !isIsoDate(value.end) ||
+      Date.parse(value.end) < Date.parse(value.start)
+    ) {
+      return null;
+    }
+    patch.kind = value.kind as "timed" | "allday" | "project";
+    patch.start = value.start;
+    patch.end = value.end;
+  }
+  return Object.keys(patch).length > 0 ? patch : null;
+}
+
 function parsePlanPatch(value: unknown): UpdatePlanInput | null {
   if (!isRecord(value)) return null;
   const allowed = new Set(["title", "categoryId", "items", "notes"]);
@@ -435,6 +520,17 @@ export function validateActionParams(
     };
   }
 
+  if (type === "update_event" || type === "delete_event") {
+    if (!isId(value.eventId)) return null;
+    const eventTitle = optionalText(value.eventTitle, 300);
+    if (eventTitle === null) return null;
+    if (type === "delete_event") {
+      return { eventId: value.eventId, eventTitle: eventTitle ?? undefined };
+    }
+    const patch = parseEventPatch(value.patch);
+    return patch ? { eventId: value.eventId, eventTitle: eventTitle ?? undefined, patch } : null;
+  }
+
   if (type === "create_plan") {
     const title = text(value.title, 300);
     const categoryRaw = value.categoryId;
@@ -516,6 +612,8 @@ export function parseProposedAction(value: unknown): ProposedAction | null {
   const type = value.type;
   if (
     type !== "add_event" &&
+    type !== "update_event" &&
+    type !== "delete_event" &&
     type !== "create_plan" &&
     type !== "update_plan" &&
     type !== "create_routine" &&

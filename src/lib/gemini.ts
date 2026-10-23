@@ -194,9 +194,13 @@ const CHAT_SYSTEM_PROMPT = `너는 사용자의 인생 비서다 ("뇌 대리").
 쓰기 액션:
 - 캘린더에 일정을 추가하거나 계획을 만들/수정해야 할 상황이면, 답변 안에 다음 형식의 액션 블록을 포함해라:
   <action>{"type":"add_event","params":{"summary":"...","kind":"timed","start":"2026-04-27T10:00","end":"2026-04-27T11:00","categoryId":"company","reminderMinutes":30}}</action>
+  <action>{"type":"update_event","params":{"eventId":"<일정 id>","eventTitle":"현재 제목","patch":{"summary":"...","kind":"timed","start":"2026-04-27T14:00","end":"2026-04-27T15:00","categoryId":"company"}}}</action>
+  <action>{"type":"delete_event","params":{"eventId":"<일정 id>","eventTitle":"현재 제목"}}</action>
   <action>{"type":"create_plan","params":{"period":"weekly","periodKey":"2026-W18","title":"...","items":[{"text":"..."}],"categoryId":"life"}}</action>
   <action>{"type":"update_plan","params":{"planId":"pl_...","patch":{"title":"..."}}}</action>
   <action>{"type":"create_routine","params":{"name":"아침 맨몸운동 15분","weekdays":[1,2,3,4,5,6,0]}}</action>
+- 일정 수정/삭제: eventId는 반드시 [다가오는 일정]에 표시된 [id=...] 값만 쓴다. 지칭이 모호해 후보가 둘 이상이면 액션을 만들지 말고 어느 일정인지 먼저 물어라. 목록에 없으면 찾지 못했다고 말하고 id를 지어내지 마라.
+- update_event의 patch에는 바꿀 필드만 넣는다. 날짜/시간을 바꿀 때는 kind·start·end를 모두 넣고(기존 값 포함), 카테고리는 사용자가 바꾸라고 할 때만 categoryId를 넣는다(생략하면 유지).
 - weekdays 배열: 0=일,1=월,2=화,3=수,4=목,5=금,6=토. 빈 배열이면 매일.
 - 액션은 최종적으로 사용자가 [승인] 버튼을 눌러야만 실행된다. 자유롭게 제안하되, 사용자 의도가 불분명하면 먼저 물어봐라.
 - categoryId는 다음 중 하나: "life"(인생), "company"(회사), "vfx"(VFX), "appdev"(앱개발), "jazz"(재즈)
@@ -271,7 +275,10 @@ function summarizeEvents(events: CalendarEvent[], today: string): string {
     if (onDay.length === 0) continue;
     lines.push(`  ${iso}:`);
     for (const ev of onDay.slice(0, 6)) {
-      lines.push(`    - ${ev.summary ?? "(제목 없음)"} (${formatTimeRange(ev)})`);
+      const cat = ev.extendedProperties?.private?.category;
+      lines.push(
+        `    - ${ev.summary ?? "(제목 없음)"} (${formatTimeRange(ev)}) [id=${ev.id}${cat ? `, category=${cat}` : ""}]`,
+      );
     }
   }
   return lines.length ? lines.join("\n") : "  (없음)";
