@@ -117,6 +117,36 @@ ${summaries}
 영역간 균형, 과부하/과소 영역, 일관성을 봐줘.`;
 }
 
+/** Single-shot Gemini call for background jobs (daily quote, memory summaries, improvement analysis). */
+export async function askGemini(opts: {
+  system: string;
+  prompt: string;
+  json?: boolean;
+  temperature?: number;
+}): Promise<string> {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) throw new Error("GEMINI_API_KEY not set");
+  const res = await fetch(`${ENDPOINT}?key=${apiKey}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      systemInstruction: { parts: [{ text: opts.system }] },
+      contents: [{ role: "user", parts: [{ text: opts.prompt }] }],
+      generationConfig: {
+        temperature: opts.temperature ?? 0.4,
+        ...(opts.json ? { responseMimeType: "application/json" } : {}),
+      },
+    }),
+  });
+  if (!res.ok) throw new Error(`Gemini ${res.status}: ${(await res.text()).slice(0, 300)}`);
+  const data = (await res.json()) as {
+    candidates?: { content?: { parts?: { text?: string }[] } }[];
+  };
+  const text = data.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+  if (!text) throw new Error("Gemini empty response");
+  return text;
+}
+
 async function callGemini(userPrompt: string): Promise<string> {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) throw new Error("GEMINI_API_KEY not set");
@@ -1520,6 +1550,7 @@ export async function generateBriefingScript(
   plans: Plan[],
   mode?: BriefingMode,
   performance?: BriefingPerformance,
+  opts?: { quote?: { text: string; author: string } },
 ): Promise<string> {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) throw new Error("GEMINI_API_KEY not set");
@@ -1616,18 +1647,27 @@ export async function generateBriefingScript(
     }
   }
 
+  // Spoken briefings should stay short: about a minute for a daily one.
+  const lengthTarget =
+    resolvedMode === "monthly" ? "1000자 안팎" : resolvedMode === "weekly" ? "800자 안팎" : "500자 안팎(1분 이내)";
+  const quote = opts?.quote;
+  const quoteRule = quote
+    ? `\n- 인사 바로 다음에 "오늘의 명언"으로 아래 문장을 한 글자도 바꾸지 말고 한 번만 읽어: "${quote.text}" — ${quote.author}\n  (명언 뒤에는 해설 없이 바로 본론으로 넘어가)`
+    : "";
+
   const systemPrompt = `너는 "${secretaryName}"이라는 이름의 AI 비서야.
 오늘의 ${modeLabel} 브리핑을 읽어줘.
 
 규칙:
-- "안녕하세요, 저는 ${secretaryName}입니다" 또는 "${secretaryName}예요"로 시작
-- 오늘 날짜와 요일 언급
-- 실적 피드백이 있으면 두 번째 단락에서 자연스럽게 전달 (수치 포함해서 구체적으로)
-  - 잘했으면: 진심 어린 칭찬 + 오늘도 이어가자는 동기부여
-  - 부진했으면: 솔직하고 따끔하게 야단 (너무 가혹하지 않되, 분명하게) + 오늘 다시 시작하자는 메시지
+- 첫 문장은 짧게 "${secretaryName}예요"처럼 인사만 하고 길게 소개하지 말 것${quoteRule}
+- 오늘 날짜와 요일을 한 번 언급
+- ★ 요약이 핵심이다. 전체 길이는 ${lengthTarget}으로 하고, 장황한 설명·반복·빈말은 빼라
+  - 일정은 오늘 가장 중요한 3개까지만 시간과 함께 짚고, 나머지는 "그 밖에 N건"처럼 한 마디로 묶어
+  - 주간·월간 내용은 핵심만 한두 문장씩
+  - 실적 피드백은 수치 한두 개와 한두 문장으로 (잘했으면 짧은 칭찬, 부진했으면 분명하되 짧게)
 - 제공된 일정/계획 데이터 순서대로 브리핑 (월간 → 주간 → 일간)
 - 각 섹션 자연스럽게 이어서 읽히도록 구성
-- 짧고 자연스러운 마무리 인사
+- 마무리는 한 문장
 - "주인님", "주인", "마스터" 같은 호칭은 절대 사용하지 말 것
 - 음성으로 읽기 좋게, JSON/마크다운/특수문자 없이 순수 텍스트${performanceInstruction}`;
 
