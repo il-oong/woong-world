@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { parseProposedAction, validateActionParams, type ProposedAction } from "../src/lib/assistant";
-import { normalizeEventActions } from "../src/lib/calendar-actions";
+import { isEventTypeRestriction, normalizeEventActions } from "../src/lib/calendar-actions";
 import type { CalendarEvent } from "../src/lib/google";
 
 const base = { summary: "회의", kind: "timed", start: "2026-10-23T14:00", end: "2026-10-23T15:00" };
@@ -91,4 +91,10 @@ test("other action types pass through untouched", () => {
   const { actions, dropped } = normalizeEventActions([add], []);
   assert.equal(dropped, 0);
   assert.equal(actions[0], add);
+});
+
+test("recognizes Google's event type restriction error", () => {
+  assert.ok(isEventTypeRestriction(new Error('Update failed: 400 {"reason":"eventTypeRestriction","message":"Event type cannot be changed."}')));
+  assert.ok(!isEventTypeRestriction(new Error("Update failed: 500")));
+  assert.ok(!isEventTypeRestriction("eventTypeRestriction"));
 });

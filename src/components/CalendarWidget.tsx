@@ -150,6 +150,8 @@ export function CalendarWidget() {
       const data = (await res.json().catch(() => ({}))) as { error?: string };
       throw new Error(data.error ?? `HTTP ${res.status}`);
     }
+    const saved = (await res.json().catch(() => ({}))) as { notice?: string };
+    if (saved.notice) alert(saved.notice);
     setEditingEvent(null);
     setRefreshTick((v) => v + 1);
   };

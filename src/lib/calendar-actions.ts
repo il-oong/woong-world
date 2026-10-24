@@ -1,6 +1,11 @@
 import type { ProposedAction } from "./assistant";
 import type { CalendarEvent } from "./google";
 
+/** Google refuses some edits on events it created itself (Gmail bookings, birthdays, ...). */
+export function isEventTypeRestriction(error: unknown): boolean {
+  return error instanceof Error && /eventTypeRestriction|Event type cannot be changed/i.test(error.message);
+}
+
 /**
  * The model names events by id, but the approval card must describe the event that will really be
  * touched. Keep only update/delete actions whose id is in the calendar context the user can see,

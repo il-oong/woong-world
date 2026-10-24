@@ -1,4 +1,5 @@
-import { deleteEvent, updateEvent, getValidSession, type CreateEventInput } from "@/lib/google";
+import { deleteEvent, getValidSession, patchEvent, patchEventMeta, type CreateEventInput } from "@/lib/google";
+import { isEventTypeRestriction } from "@/lib/calendar-actions";
 
 export async function PUT(
   req: Request,
@@ -26,9 +27,26 @@ export async function PUT(
     );
   }
   try {
-    const event = await updateEvent(session, id, body);
+    // PATCH, not a full replace: a replace drops fields the form does not know (attendees, location,
+    // recurrence, event type) and Google rejects it for events it created itself.
+    const event = await patchEvent(session, id, body);
     return Response.json({ event });
   } catch (e) {
+    if (isEventTypeRestriction(e)) {
+      try {
+        const event = await patchEventMeta(session, id, body);
+        return Response.json({
+          event,
+          notice:
+            "이 일정은 지메일 예약 등 구글이 자동으로 만든 일정이라 제목, 시간, 메모는 바꿀 수 없어요. 알림과 카테고리만 저장했어요.",
+        });
+      } catch {
+        return Response.json(
+          { error: "이 일정은 구글이 자동으로 만든 일정이라 수정할 수 없어요. 구글 캘린더에서 직접 바꿔 주세요." },
+          { status: 400 },
+        );
+      }
+    }
     return Response.json(
       { error: e instanceof Error ? e.message : "update_failed" },
       { status: 500 },
