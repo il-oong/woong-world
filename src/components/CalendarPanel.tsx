@@ -251,6 +251,8 @@ export function CalendarPanel({ variant = "full" }: { variant?: Variant }) {
       const data = (await res.json()) as { error?: string };
       throw new Error(data.error ?? `HTTP ${res.status}`);
     }
+    const saved = (await res.json().catch(() => ({}))) as { notice?: string };
+    if (saved.notice) alert(saved.notice);
     setEditingEvent(null);
     setRefresh((v) => v + 1);
   };

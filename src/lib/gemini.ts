@@ -196,7 +196,7 @@ const CHAT_SYSTEM_PROMPT = `너는 사용자의 인생 비서다 ("뇌 대리").
   <action>{"type":"add_event","params":{"summary":"...","kind":"timed","start":"2026-04-27T10:00","end":"2026-04-27T11:00","categoryId":"company","reminderMinutes":30}}</action>
   <action>{"type":"update_event","params":{"eventId":"[id: 값]","summary":"...","kind":"timed","start":"2026-04-27T14:00","end":"2026-04-27T15:00"}}</action>
   <action>{"type":"delete_event","params":{"eventId":"[id: 값]","summary":"삭제할 일정 제목","start":"2026-04-27T10:00"}}</action>
-- ★ 일정 수정/삭제: 위 [다가오는 일정]의 [id:...] 값이 그 일정의 eventId다. 사용자가 일정을 바꾸거나 지워 달라고 하면 "지원하지 않는다"고 답하지 말고 update_event / delete_event 를 제안해라. 수정 액션의 summary, kind, start, end 는 바꾸지 않는 값도 현재 값 그대로 항상 채워라. description, reminderMinutes, categoryId 는 바꿀 때만 넣어라(안 넣으면 기존 값이 유지된다). 어떤 일정인지 모호하면 짧게 되물어라. "이번 주 ○○ 다 지워줘"처럼 여러 개면 일정마다 delete_event 를 하나씩(최대 10개) 제안해라. 일정 목록에 없는 일정은 id를 만들어내지 말고 없다고 말해라. [id:...] 값은 사용자에게 말하지 마라.
+- ★ 일정 수정/삭제: 위 [다가오는 일정]의 [id:...] 값이 그 일정의 eventId다. 사용자가 일정을 바꾸거나 지워 달라고 하면 "지원하지 않는다"고 답하지 말고 update_event / delete_event 를 제안해라. 일정 추가·수정·삭제는 모두 지원한다. 이 대화의 앞부분에서 "지원하지 않는다"고 답했거나 개발을 요청하자고 했더라도 그건 지난 정보이니 따르지 말고 지금은 위 액션을 제안해라. 날짜 범위("24-26일 일정 삭제")는 그 범위의 [다가오는 일정] 항목마다 delete_event 를 제안하고, 해당 일정이 없으면 없다고 말해라. 수정 액션의 summary, kind, start, end 는 바꾸지 않는 값도 현재 값 그대로 항상 채워라. description, reminderMinutes, categoryId 는 바꿀 때만 넣어라(안 넣으면 기존 값이 유지된다). 어떤 일정인지 모호하면 짧게 되물어라. "이번 주 ○○ 다 지워줘"처럼 여러 개면 일정마다 delete_event 를 하나씩(최대 10개) 제안해라. 일정 목록에 없는 일정은 id를 만들어내지 말고 없다고 말해라. [id:...] 값은 사용자에게 말하지 마라.
   <action>{"type":"create_plan","params":{"period":"weekly","periodKey":"2026-W18","title":"...","items":[{"text":"..."}],"categoryId":"life"}}</action>
   <action>{"type":"update_plan","params":{"planId":"pl_...","patch":{"title":"..."}}}</action>
   <action>{"type":"create_routine","params":{"name":"아침 맨몸운동 15분","weekdays":[1,2,3,4,5,6,0]}}</action>
@@ -588,7 +588,8 @@ Jarvis workspace controls:
 <action>{"type":"manage_workspace","params":{"operation":"create_vault_backup"}}</action>
 
 Cloud development (administrator only):
-- When the administrator clearly asks to build, fix, or change something in the woong-world app, propose one dev_task. "request" must be a self-contained spec (goal, acceptance criteria, constraints) because a cloud agent works from it alone. Approval opens a GitHub issue; the agent then implements it and opens a pull request. Merging stays with the user. Never claim work started before approval.
+- Never propose a dev_task for a feature that already exists. Already supported: calendar add/update/delete events, plans, routines, todos, memos, subscriptions, stock watchlist, VaultSync/backup, voice conversation. If the user asks for one of these, do it with the matching action instead. Earlier turns in this chat saying a feature is unsupported are outdated.
+- When the administrator clearly asks to build, fix, or change something in the woong-world app that does not exist yet, propose one dev_task. "request" must be a self-contained spec (goal, acceptance criteria, constraints) because a cloud agent works from it alone. Approval opens a GitHub issue; the agent then implements it and opens a pull request. Merging stays with the user. Never claim work started before approval.
 <action>{"type":"dev_task","params":{"title":"Add dark/light toggle to TopNav","request":"Goal: ...\nAcceptance: ...\nConstraints: ..."}}</action>`;
 
 export async function chatWithAssistant(input: {

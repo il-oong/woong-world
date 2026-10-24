@@ -28,6 +28,8 @@ const END_WORDS = /(대화 ?종료|음성 ?종료)/;
 const BARGE_MAX_RESTARTS = 40;
 // Right after the assistant stops talking its voice is still fading through the mic.
 const TAIL_GUARD_MS = 700;
+// Own-voice echo only matters briefly after playback; later speech is the user's.
+const ECHO_WINDOW_MS = 6_000;
 const BARGE_KEY = "jarvis.voice.bargeIn";
 
 function readBargePref(): boolean {
@@ -101,7 +103,9 @@ export function useVoiceChat(handle: (utterance: string) => Promise<string | nul
   // Listening while the assistant talks picks up its own voice on laptop speakers, so it is opt-in.
   const [bargeIn, setBargeInState] = useState(readBargePref);
   const bargeRef = useRef(bargeIn);
-  const lastSpoken = useRef("");
+  const lastSpoken = useRef({ text: "", at: 0 });
+  // Whether the *current* reply is being heard with the mic open (the saved preference can change mid-reply).
+  const [bargeLive, setBargeLive] = useState(false);
   const setBargeIn = useCallback((on: boolean) => {
     bargeRef.current = on;
     setBargeInState(on);
@@ -133,6 +137,8 @@ export function useVoiceChat(handle: (utterance: string) => Promise<string | nul
     ctrl.current = null;
     interruptPlay.current?.();
     interruptPlay.current = null;
+    lastSpoken.current = { text: "", at: 0 };
+    setBargeLive(false);
     rec.current?.abort();
     rec.current = null;
     audio.current?.pause();
@@ -216,7 +222,9 @@ export function useVoiceChat(handle: (utterance: string) => Promise<string | nul
         window.speechSynthesis?.cancel();
         interruptPlay.current?.();
       };
-      const stopBarge = bargeRef.current
+      const useBarge = bargeRef.current;
+      setBargeLive(useBarge);
+      const stopBarge = useBarge
         ? startBarge(sid, text, (kind) => {
             interrupt();
             if (kind === "end") stop();
@@ -247,6 +255,7 @@ export function useVoiceChat(handle: (utterance: string) => Promise<string | nul
       } finally {
         interruptPlay.current = null;
         stopBarge();
+        setBargeLive(false);
         if (ctrl.current === ac) ctrl.current = null;
         audio.current = null;
       }
@@ -296,7 +305,12 @@ export function useVoiceChat(handle: (utterance: string) => Promise<string | nul
       }
       // Our own voice leaking into the mic right after speaking: drop it instead of sending it.
       const heard = squash(utterance);
-      if (heard.length > ECHO_MIN_CHARS && squash(lastSpoken.current).includes(heard)) {
+      const { text: spokenText, at } = lastSpoken.current;
+      if (
+        heard.length > ECHO_MIN_CHARS &&
+        Date.now() - at < ECHO_WINDOW_MS &&
+        squash(spokenText).includes(heard)
+      ) {
         listenRef.current(sid);
         return;
       }
@@ -315,8 +329,9 @@ export function useVoiceChat(handle: (utterance: string) => Promise<string | nul
         }
         if (sid !== session.current) return;
         if (reply) {
-          lastSpoken.current = reply;
           await speak(reply, sid);
+          // Only remember the reply if this session is still the live one (stop() clears it).
+          if (sid === session.current) lastSpoken.current = { text: reply, at: Date.now() };
           await new Promise((resolve) => setTimeout(resolve, TAIL_GUARD_MS));
         }
         if (sid === session.current) listenRef.current(sid);
@@ -339,5 +354,5 @@ export function useVoiceChat(handle: (utterance: string) => Promise<string | nul
 
   useEffect(() => stop, [stop]);
 
-  return { state, interim, error, supported, bargeIn, setBargeIn, start, stop };
+  return { state, interim, error, supported, bargeIn, bargeLive, setBargeIn, start, stop };
 }
