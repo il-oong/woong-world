@@ -8,6 +8,7 @@ import { listPlans } from "@/lib/plans";
 import { listHabits, getLogs } from "@/lib/life-dashboard";
 import { listHoldings, listWatchlist, listEvents as listEconEvents } from "@/lib/alpha";
 import { getCalendarFilter } from "@/lib/calendar-filter";
+import { getDailyQuote } from "@/lib/briefing-quote";
 import { Redis } from "@upstash/redis";
 import {
   getAllSessionEmails,
@@ -218,7 +219,8 @@ export async function GET(req: NextRequest) {
       const secretaryName = profile?.name ?? "비서";
       const voiceId = profile?.voiceId ?? "ko-KR-Wavenet-A";
 
-      const script = await generateBriefingScript(secretaryName, events, plans, mode, performance);
+      const quote = await getDailyQuote(email);
+      const script = await generateBriefingScript(secretaryName, events, plans, mode, performance, { quote });
       const audioBuffer = await synthesize(script, voiceId);
 
       const { url: audioUrl } = await put(
