@@ -110,9 +110,16 @@ export async function getDailyQuote(email: string): Promise<DailyQuote> {
 
   if (r) {
     try {
-      await r.set(dayKey, quote, { ex: DAY_TTL_SECONDS });
-      await r.lpush(listKey, quote.text);
-      await r.ltrim(listKey, 0, RECENT_MAX - 1);
+      // Set-if-absent: when a manual and a scheduled briefing race, exactly one quote wins and
+      // the loser returns the winner, so the whole day sees the same quote and history gets one entry.
+      const won = await r.set(dayKey, quote, { nx: true, ex: DAY_TTL_SECONDS });
+      if (won) {
+        await r.lpush(listKey, quote.text);
+        await r.ltrim(listKey, 0, RECENT_MAX - 1);
+      } else {
+        const stored = await r.get<DailyQuote>(dayKey);
+        if (stored?.text) return stored;
+      }
     } catch {
       // Not fatal.
     }
