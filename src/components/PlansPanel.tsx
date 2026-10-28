@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   DEFAULT_CATEGORIES,
   getCategory,
@@ -129,14 +129,24 @@ export function PlansPanel() {
     setRefresh((v) => v + 1);
   };
 
-  const handleUpdate = async (id: string, patch: Partial<Plan>) => {
-    const res = await fetch(`/api/plans/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(patch),
+  const updateQueue = useRef<Promise<void>>(Promise.resolve());
+
+  const handleUpdate = (id: string, patch: Partial<Plan>) => {
+    // Apply locally right away so a follow-up action (e.g. checkbox click
+    // right after an edit's blur-save) builds on the latest items, and send
+    // PATCHes one at a time so they cannot land out of order.
+    setPlans((prev) => prev.map((p) => (p.id === id ? { ...p, ...patch } : p)));
+    updateQueue.current = updateQueue.current.then(async () => {
+      try {
+        await fetch(`/api/plans/${id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(patch),
+        });
+      } finally {
+        setRefresh((v) => v + 1);
+      }
     });
-    if (!res.ok) return;
-    setRefresh((v) => v + 1);
   };
 
   const handleDelete = async (id: string) => {
@@ -518,7 +528,7 @@ function PlanCard({
               onChange={(e) => setTitleDraft(e.target.value)}
               onBlur={saveTitle}
               onKeyDown={(e) => {
-                if (e.key === "Enter") saveTitle();
+                if (e.key === "Enter" && !e.nativeEvent.isComposing) saveTitle();
                 if (e.key === "Escape") {
                   setTitleDraft(plan.title);
                   setTitleEditing(false);
@@ -611,7 +621,9 @@ function PlanCard({
                 onChange={(e) => setItemDraft(e.target.value)}
                 onBlur={saveItemText}
                 onKeyDown={(e) => {
-                  if (e.key === "Enter") saveItemText();
+                  if (e.key === "Enter" && !e.nativeEvent.isComposing) {
+                    saveItemText();
+                  }
                   if (e.key === "Escape") setEditingItemId(null);
                 }}
                 className="flex-1 rounded-md border border-[var(--border)] bg-transparent px-2 py-0.5 text-xs focus:border-[var(--accent)]/50 focus:outline-none"
