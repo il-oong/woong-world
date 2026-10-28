@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   DEFAULT_CATEGORIES,
   getCategory,
@@ -129,14 +129,24 @@ export function PlansPanel() {
     setRefresh((v) => v + 1);
   };
 
-  const handleUpdate = async (id: string, patch: Partial<Plan>) => {
-    const res = await fetch(`/api/plans/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(patch),
+  const updateQueue = useRef<Promise<void>>(Promise.resolve());
+
+  const handleUpdate = (id: string, patch: Partial<Plan>) => {
+    // Apply locally right away so a follow-up action (e.g. checkbox click
+    // right after an edit's blur-save) builds on the latest items, and send
+    // PATCHes one at a time so they cannot land out of order.
+    setPlans((prev) => prev.map((p) => (p.id === id ? { ...p, ...patch } : p)));
+    updateQueue.current = updateQueue.current.then(async () => {
+      try {
+        await fetch(`/api/plans/${id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(patch),
+        });
+      } finally {
+        setRefresh((v) => v + 1);
+      }
     });
-    if (!res.ok) return;
-    setRefresh((v) => v + 1);
   };
 
   const handleDelete = async (id: string) => {
@@ -319,6 +329,7 @@ GEMINI_API_KEY=...   (AI 리뷰용, 선택)`}</pre>
             key={plan.id}
             plan={plan}
             aiAvailable={status.ai}
+            categories={categories}
             onUpdate={(patch) => handleUpdate(plan.id, patch)}
             onDelete={() => handleDelete(plan.id)}
             onReview={() => reviewOne(plan)}
@@ -396,18 +407,24 @@ function CategoryFilterChip({
 function PlanCard({
   plan,
   aiAvailable,
+  categories,
   onUpdate,
   onDelete,
   onReview,
 }: {
   plan: Plan;
   aiAvailable: boolean;
+  categories: Category[];
   onUpdate: (patch: Partial<Plan>) => void;
   onDelete: () => void;
   onReview: () => void;
 }) {
   const cat = plan.categoryId ? getCategory(plan.categoryId) : null;
   const [newItem, setNewItem] = useState("");
+  const [titleEditing, setTitleEditing] = useState(false);
+  const [titleDraft, setTitleDraft] = useState(plan.title);
+  const [editingItemId, setEditingItemId] = useState<string | null>(null);
+  const [itemDraft, setItemDraft] = useState("");
   const [notesEditing, setNotesEditing] = useState(false);
   const [notesDraft, setNotesDraft] = useState(plan.notes);
   const [lastSyncedNotes, setLastSyncedNotes] = useState(plan.notes);
@@ -422,6 +439,28 @@ function PlanCard({
       it.id === id ? { ...it, done: !it.done } : it,
     );
     onUpdate({ items: next });
+  };
+
+  const saveTitle = () => {
+    const title = titleDraft.trim();
+    setTitleEditing(false);
+    if (!title || title === plan.title) {
+      setTitleDraft(plan.title);
+      return;
+    }
+    onUpdate({ title });
+  };
+
+  const saveItemText = () => {
+    const id = editingItemId;
+    const text = itemDraft.trim();
+    setEditingItemId(null);
+    if (!id || !text) return;
+    const target = plan.items.find((it) => it.id === id);
+    if (!target || target.text === text) return;
+    onUpdate({
+      items: plan.items.map((it) => (it.id === id ? { ...it, text } : it)),
+    });
   };
 
   const removeItem = (id: string) => {
@@ -459,16 +498,56 @@ function PlanCard({
         <div className="flex flex-col gap-1">
           <div className="flex items-center gap-2 text-[10px] font-mono uppercase tracking-wider text-[var(--muted)]">
             <span>{plan.periodKey}</span>
-            {cat && (
-              <span
-                className="rounded px-1.5 py-0.5"
-                style={{ background: cat.bg, color: cat.color }}
-              >
-                {cat.label}
-              </span>
-            )}
+            <select
+              value={plan.categoryId ?? ""}
+              onChange={(e) =>
+                onUpdate({
+                  categoryId: (e.target.value || null) as Plan["categoryId"],
+                })
+              }
+              aria-label="카테고리 변경"
+              className="rounded border-0 px-1.5 py-0.5 text-[10px] focus:outline-none"
+              style={
+                cat
+                  ? { background: cat.bg, color: cat.color }
+                  : { background: "transparent", color: "var(--muted)" }
+              }
+            >
+              <option value="">카테고리 없음</option>
+              {categories.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.label}
+                </option>
+              ))}
+            </select>
           </div>
-          <h3 className="text-sm font-medium">{plan.title}</h3>
+          {titleEditing ? (
+            <input
+              autoFocus
+              value={titleDraft}
+              onChange={(e) => setTitleDraft(e.target.value)}
+              onBlur={saveTitle}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.nativeEvent.isComposing) saveTitle();
+                if (e.key === "Escape") {
+                  setTitleDraft(plan.title);
+                  setTitleEditing(false);
+                }
+              }}
+              className="rounded-md border border-[var(--border)] bg-transparent px-2 py-0.5 text-sm font-medium focus:border-[var(--accent)]/50 focus:outline-none"
+            />
+          ) : (
+            <h3
+              className="cursor-text text-sm font-medium hover:text-[var(--accent)]"
+              title="클릭하여 제목 수정"
+              onClick={() => {
+                setTitleDraft(plan.title);
+                setTitleEditing(true);
+              }}
+            >
+              {plan.title}
+            </h3>
+          )}
         </div>
         <div className="flex items-center gap-1">
           {aiAvailable && (
@@ -535,13 +614,36 @@ function PlanCard({
             >
               ✓
             </button>
-            <span
-              className={`flex-1 text-xs ${
-                it.done ? "text-[var(--muted)] line-through" : "text-foreground"
-              }`}
-            >
-              {it.text}
-            </span>
+            {editingItemId === it.id ? (
+              <input
+                autoFocus
+                value={itemDraft}
+                onChange={(e) => setItemDraft(e.target.value)}
+                onBlur={saveItemText}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.nativeEvent.isComposing) {
+                    saveItemText();
+                  }
+                  if (e.key === "Escape") setEditingItemId(null);
+                }}
+                className="flex-1 rounded-md border border-[var(--border)] bg-transparent px-2 py-0.5 text-xs focus:border-[var(--accent)]/50 focus:outline-none"
+              />
+            ) : (
+              <span
+                className={`flex-1 cursor-text text-xs ${
+                  it.done
+                    ? "text-[var(--muted)] line-through"
+                    : "text-foreground"
+                }`}
+                title="클릭하여 수정"
+                onClick={() => {
+                  setItemDraft(it.text);
+                  setEditingItemId(it.id);
+                }}
+              >
+                {it.text}
+              </span>
+            )}
             <button
               type="button"
               onClick={() => removeItem(it.id)}
