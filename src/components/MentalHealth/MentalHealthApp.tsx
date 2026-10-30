@@ -77,6 +77,22 @@ function TextField({
     </Field>
   );
 }
+function Typing({ label }: { label: boolean }) {
+  return (
+    <article
+      className={`${styles.aiMessage} ${styles.typing}`}
+      aria-label="마음결이 입력 중"
+      role="status"
+    >
+      {label && <strong>마음결 · AI</strong>}
+      <span className={styles.dots} aria-hidden="true">
+        <i />
+        <i />
+        <i />
+      </span>
+    </article>
+  );
+}
 function Score({
   label,
   value,
@@ -128,6 +144,8 @@ export function MentalHealthApp({ owner }: { owner: string }) {
   const [expiry, setExpiry] = useState<number | null>(null);
   const [dirty, setDirty] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [pending, setPending] = useState<string | null>(null);
+  const [reveal, setReveal] = useState<{ at: number; n: number } | null>(null);
   const [momentBusy, setMomentBusy] = useState(false);
   const [momentDirty, setMomentDirty] = useState(false);
   const [momentVersion, setMomentVersion] = useState(0);
@@ -320,6 +338,7 @@ export function MentalHealthApp({ owner }: { owner: string }) {
       setReportPreview(false);
       setConsent(false);
       setMemoryConsent(false);
+      setReveal(null);
       setRecordConsent(false);
       setTimerEnd(null);
       setSeconds(0);
@@ -342,6 +361,17 @@ export function MentalHealthApp({ owner }: { owner: string }) {
     .filter(Boolean)
     .join("\n");
   const report = reportText(data, from, to, analysis);
+  const revealText = reveal ? (data.messages[reveal.at]?.text ?? "") : "";
+  useEffect(() => {
+    if (!reveal) return;
+    const parts = splitBubbles(revealText);
+    if (reveal.n >= parts.length) return;
+    const t = setTimeout(
+      () => setReveal({ at: reveal.at, n: reveal.n + 1 }),
+      Math.min(2200, 700 + (parts[reveal.n] ?? "").length * 28),
+    );
+    return () => clearTimeout(t);
+  }, [reveal, revealText]);
   async function send(event: FormEvent) {
     event.preventDefault();
     if (!draft.trim() || busy || !consent) return;
@@ -355,8 +385,11 @@ export function MentalHealthApp({ owner }: { owner: string }) {
       ...data.messages,
       { role: "user", text: draft.trim() },
     ];
+    const sent = draft;
     setBusy(true);
     setNotice("");
+    setPending(draft.trim());
+    setDraft("");
     try {
       const result = await api("/ai", "POST", {
         mode: "chat",
@@ -368,11 +401,13 @@ export function MentalHealthApp({ owner }: { owner: string }) {
         ...data,
         messages: [...messages, { role: "assistant", text: result.text }],
       });
-      setDraft("");
+      setReveal({ at: messages.length, n: 0 });
       if (result.safety) setHelp(true);
     } catch (e) {
+      setDraft(sent);
       setNotice((e as Error).message);
     } finally {
+      setPending(null);
       setBusy(false);
     }
   }
@@ -677,7 +712,8 @@ export function MentalHealthApp({ owner }: { owner: string }) {
               <p className={styles.help}>
                 AI 연결 준비가 필요합니다. 아래에서 입력을 준비하고 다른 메뉴의
                 기록 기능을 이용할 수 있어요.
-                {aiMissing.length > 0 && ` (서버 설정 필요: ${aiMissing.join(", ")})`}
+                {aiMissing.length > 0 &&
+                  ` (서버 설정 필요: ${aiMissing.join(", ")})`}
               </p>
             )}
             <div className={styles.choices}>
@@ -745,23 +781,41 @@ export function MentalHealthApp({ owner }: { owner: string }) {
                   </div>
                 </div>
               )}
-              {data.messages.map((m, i) => (
-                <article
-                  className={
-                    m.role === "user" ? styles.userMessage : styles.aiMessage
-                  }
-                  key={i}
-                >
-                  <strong>{m.role === "user" ? "나" : "마음결 · AI"}</strong>
-                  {m.role === "user" ? (
-                    <p>{m.text}</p>
-                  ) : (
-                    splitBubbles(m.text).map((part, j) => (
-                      <p key={j}>{part}</p>
-                    ))
-                  )}
-                </article>
-              ))}
+              {data.messages.map((m, i) => {
+                if (m.role === "user")
+                  return (
+                    <article className={styles.userMessage} key={i}>
+                      <strong>나</strong>
+                      <p>{m.text}</p>
+                    </article>
+                  );
+                const parts = splitBubbles(m.text);
+                const revealing = reveal?.at === i && reveal.n < parts.length;
+                const shown =
+                  reveal?.at === i ? parts.slice(0, reveal.n) : parts;
+                return (
+                  <div className={styles.aiGroup} key={i}>
+                    {shown.map((part, j) => (
+                      <article className={styles.aiMessage} key={j}>
+                        {j === 0 && <strong>마음결 · AI</strong>}
+                        <p>{part}</p>
+                      </article>
+                    ))}
+                    {revealing && <Typing label={shown.length === 0} />}
+                  </div>
+                );
+              })}
+              {pending && (
+                <>
+                  <article className={styles.userMessage}>
+                    <strong>나</strong>
+                    <p>{pending}</p>
+                  </article>
+                  <div className={styles.aiGroup}>
+                    <Typing label />
+                  </div>
+                </>
+              )}
             </div>
             <form onSubmit={send}>
               <TextField
@@ -1130,8 +1184,8 @@ export function MentalHealthApp({ owner }: { owner: string }) {
               <p>
                 상대와의 관계, 반복되는 갈등, 사건 경과, 내 감정을 한 번 정리해
                 두면 상담 대화에서 AI가 이미 알고 있는 사실로 쓰고 처음부터 다시
-                묻지 않습니다. 사실, 내 해석, 상대의 실제 발언을 구분해 쓰면
-                더 정확해요.
+                묻지 않습니다. 사실, 내 해석, 상대의 실제 발언을 구분해 쓰면 더
+                정확해요.
               </p>
               <Field label="관계 기록 (최대 20,000자)">
                 <textarea
@@ -1147,10 +1201,11 @@ export function MentalHealthApp({ owner }: { owner: string }) {
                 />
               </Field>
               <p className={styles.small}>
-                {data.relationship.length.toLocaleString()} / 20,000자 · 이 내용은
-                ‘암호화 저장’을 누른 뒤에만 서버에 남고, 상담에서 ‘관계 기록도
-                포함’을 켜 둘 때만 Google Gemini로 전송됩니다. 상대의 실제 생각과
-                의도는 기록과 다를 수 있다는 점을 AI에게도 알려 줍니다.
+                {data.relationship.length.toLocaleString()} / 20,000자 · 이
+                내용은 ‘암호화 저장’을 누른 뒤에만 서버에 남고, 상담에서 ‘관계
+                기록도 포함’을 켜 둘 때만 Google Gemini로 전송됩니다. 상대의
+                실제 생각과 의도는 기록과 다를 수 있다는 점을 AI에게도 알려
+                줍니다.
               </p>
               <div className={styles.actions}>
                 <button disabled={!storage || busy} onClick={save}>

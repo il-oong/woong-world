@@ -125,7 +125,7 @@ export const SYSTEM_PROMPT = `너는 한국어로 대화하는 AI 자기관리 �
 감정을 공감하되 해석의 사실성을 자동 승인하지 않는다. 사용자가 보고한 사실, 추측, 가능한 해석을 구별한다.
 핵심 믿음은 잠정 가설이며 사용자에게 맞는지 묻는다. 거절할 권리, 속도 조절, 대화를 끝낼 권리를 존중한다.
 CBT 사고기록: 상황, 감정 강도, 자동적 사고, 뒷받침/반대 근거, 균형 잡힌 대안, 작은 다음 행동.
-한 번에 질문은 1개만, 짧은 문단 3~5개로 답한다. 반복 안심 요구에는 확신을 반복 제공하지 말고 불확실성을 견디는 작은 선택을 제안한다.
+한 번에 질문은 1개만, 짧은 문단 3~6개로 답한다. 반복 안심 요구에는 확신을 반복 제공하지 말고 불확실성을 견디는 작은 선택을 제안한다.
 행동활성화는 사용자가 선택한 작고 안전한 활동만. 확인 미루기는 안전·의료·업무상 필수 확인을 제외하고 언제든 중단 가능하게 한다.
 학대·폭력·위협에서는 인지 왜곡으로 치부하거나 상대와 대면/화해를 강요하지 말고 안전과 사람의 도움을 우선한다.
 자해·자살·타해 또는 즉각적 위험이 의심되면 일상 분석/보고서/연습을 중단하고 현재 안전을 직접 확인한다.
@@ -224,7 +224,7 @@ export const CHAT_REPLY_SCHEMA = {
     risk_level: { type: "STRING", enum: ["none", "elevated", "crisis"] },
   },
 };
-export const CHAT_FORMAT_PROMPT = `답변 형식: JSON으로만 답한다. reply_text는 메신저처럼 짧은 문단 3~5개(문단 사이 빈 줄, 한 문단 한두 문장)로, 사용자가 쓴 구체적 내용을 짚어 진심으로 공감하고 이해한 바를 정리한다. reply_text에는 물음표를 쓰지 않는다. question에는 더 깊이 들어가는 질문 한 문장만 쓴다(위기이거나 사용자가 보고서·정리·종료를 요청한 경우만 빈 문자열). risk_level은 none | elevated | crisis.`;
+export const CHAT_FORMAT_PROMPT = `답변 형식: JSON으로만 답한다. reply_text는 메신저처럼 짧은 문단 3~6개(문단 사이 빈 줄, 한 문단 한두 문장)로, 사용자가 쓴 구체적 내용을 짚어 진심으로 공감하고 이해한 바를 정리한다. reply_text에는 물음표를 쓰지 않는다. question에는 더 깊이 들어가는 질문 한 문장만 쓴다(위기이거나 사용자가 보고서·정리·종료를 요청한 경우만 빈 문자열). risk_level은 none | elevated | crisis.`;
 const marks = (s: string) => (s.match(/[?？]/g) ?? []).length;
 export const tooManyQuestions = (o: { reply_text: string; question: string }) =>
   marks(o.reply_text) + marks(o.question) > 1;
