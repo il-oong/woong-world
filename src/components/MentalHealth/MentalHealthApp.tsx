@@ -153,6 +153,7 @@ export function MentalHealthApp({ owner }: { owner: string }) {
   const [busy, setBusy] = useState(false);
   const [relReport, setRelReport] = useState("");
   const [relConsent, setRelConsent] = useState(false);
+  const [pickDays, setPickDays] = useState<string[]>([]);
   const [logText, setLogText] = useState("");
   const [logDate, setLogDate] = useState(todayKorea());
   const [pending, setPending] = useState<string | null>(null);
@@ -1479,6 +1480,89 @@ export function MentalHealthApp({ owner }: { owner: string }) {
               <p className={styles.small}>
                 수정·삭제한 기억은 다음 AI 요청부터 반영됩니다. 저장된 사본을
                 바꾸려면 암호화 저장을 눌러 주세요.
+              </p>
+            </section>
+            <section className={styles.card}>
+              <h2>날짜별로 골라 지우기</h2>
+              <p>
+                기록이 있는 날짜를 보고, 지우고 싶은 날의 기록만 골라 삭제할 수
+                있어요. 기분 기록, 사고기록, 실천, 날짜별 관계 기록이 그날
+                기준으로 함께 지워집니다.
+              </p>
+              {(() => {
+                const days = new Map<string, string[]>();
+                const add = (d: string, label: string) =>
+                  days.set(d, [...(days.get(d) ?? []), label]);
+                data.moods.forEach((x) => add(x.date, "기분"));
+                data.thoughts.forEach((x) => add(x.date, "사고기록"));
+                data.practices.forEach((x) => add(x.date, "실천"));
+                data.relationshipLog.forEach((x) => add(x.date, "관계 기록"));
+                const list = [...days.entries()].sort((a, b) =>
+                  b[0].localeCompare(a[0]),
+                );
+                if (!list.length)
+                  return (
+                    <p className={styles.small}>날짜가 있는 기록이 없어요.</p>
+                  );
+                return (
+                  <>
+                    <ul>
+                      {list.map(([d, labels]) => (
+                        <li key={d}>
+                          <label>
+                            <input
+                              type="checkbox"
+                              checked={pickDays.includes(d)}
+                              onChange={(e) =>
+                                setPickDays(
+                                  e.target.checked
+                                    ? [...pickDays, d]
+                                    : pickDays.filter((x) => x !== d),
+                                )
+                              }
+                            />
+                            {d} · {labels.join(", ")}
+                          </label>
+                        </li>
+                      ))}
+                    </ul>
+                    <div className={styles.actions}>
+                      <button
+                        className={styles.danger}
+                        disabled={!pickDays.length}
+                        onClick={() => {
+                          if (
+                            !confirm(
+                              `선택한 ${pickDays.length}일의 기록을 지울까요? 지운 뒤 ‘암호화 저장’을 눌러야 서버에도 반영됩니다.`,
+                            )
+                          )
+                            return;
+                          const gone = new Set(pickDays);
+                          update({
+                            ...data,
+                            moods: data.moods.filter((x) => !gone.has(x.date)),
+                            thoughts: data.thoughts.filter(
+                              (x) => !gone.has(x.date),
+                            ),
+                            practices: data.practices.filter(
+                              (x) => !gone.has(x.date),
+                            ),
+                            relationshipLog: data.relationshipLog.filter(
+                              (x) => !gone.has(x.date),
+                            ),
+                          });
+                          setPickDays([]);
+                        }}
+                      >
+                        선택한 날짜 기록 지우기
+                      </button>
+                    </div>
+                  </>
+                );
+              })()}
+              <p className={styles.small}>
+                대화 내용과 관계 기록 본문은 날짜가 없어서 이 목록에 없어요.
+                본문은 ‘관계 기록’ 탭에서 직접 고쳐 주세요.
               </p>
             </section>
             <section className={styles.card}>
