@@ -36,7 +36,7 @@ export const practiceSchema = z
   .object({
     id: z.string().uuid(),
     date,
-    kind: z.enum(["activity", "pause", "boundary"]),
+    kind: z.enum(["activity", "pause", "boundary", "moment"]),
     plan: short,
     reflection: short,
     done: z.boolean(),
@@ -75,7 +75,7 @@ export const todayKorea = () =>
 
 export const aiRequestSchema = z
   .object({
-    mode: z.enum(["chat", "report"]),
+    mode: z.enum(["chat", "report", "moment"]),
     consent: z.literal(true),
     messages: z.array(messageSchema).max(24),
     context: z.string().max(24000),
@@ -83,7 +83,7 @@ export const aiRequestSchema = z
   .strict()
   .superRefine((value, ctx) => {
     if (
-      value.mode === "chat" &&
+      (value.mode === "chat" || value.mode === "moment") &&
       (value.messages.length === 0 || value.messages.at(-1)?.role !== "user")
     ) {
       ctx.addIssue({ code: "custom", message: "A user message is required" });

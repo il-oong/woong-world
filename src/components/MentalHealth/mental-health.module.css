@@ -367,6 +367,21 @@
 .app li {
   margin: 8px 0;
 }
+.momentHeading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+.momentFinish {
+  margin-top: 24px;
+}
+.app button[aria-pressed="true"] {
+  background: #355240;
+  border-color: #b5ddc6;
+}
 .footer {
   text-align: center;
   font-size: 12px;

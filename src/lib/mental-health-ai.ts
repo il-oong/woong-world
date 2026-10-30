@@ -1,5 +1,6 @@
 import { aiRequestSchema, SYSTEM_PROMPT } from "./mental-health";
 import type { z } from "zod";
+import { MOMENT_SYSTEM_PROMPT } from "./mental-health-moment";
 export function aiReady() {
   return Boolean(
     process.env.GEMINI_API_KEY &&
@@ -23,7 +24,15 @@ export async function generateSupport(
         "x-goog-api-key": process.env.GEMINI_API_KEY!,
       },
       body: JSON.stringify({
-        systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
+        systemInstruction: {
+          parts: [
+            {
+              text:
+                SYSTEM_PROMPT +
+                (input.mode === "moment" ? "\n" + MOMENT_SYSTEM_PROMPT : ""),
+            },
+          ],
+        },
         contents: [
           {
             role: "user",
@@ -33,7 +42,9 @@ export async function generateSupport(
                   task:
                     input.mode === "report"
                       ? "선택된 기록만 사용해 자기관리 보고서를 작성해 줘."
-                      : "아래 대화의 마지막 사용자 말에 답해 줘.",
+                      : input.mode === "moment"
+                        ? "불안한 지금 이 순간에 맞춰 짧게 도와줘. 마지막 사용자 말에 답하고 안전한 다음 행동 하나를 함께 정해줘."
+                        : "아래 대화의 마지막 사용자 말에 답해 줘.",
                   selectedContext: input.context,
                   conversation: input.messages,
                 }),

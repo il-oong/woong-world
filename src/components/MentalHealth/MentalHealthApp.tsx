@@ -16,9 +16,11 @@ import {
   type Practice,
 } from "@/lib/mental-health";
 import styles from "./mental-health.module.css";
+import { MomentSupport } from "./MomentSupport";
 
 const tabs = [
   "오늘의 마음",
+  "순간 도움",
   "상담 대화",
   "사고기록",
   "작은 실천",
@@ -122,6 +124,9 @@ export function MentalHealthApp({ owner }: { owner: string }) {
   const [expiry, setExpiry] = useState<number | null>(null);
   const [dirty, setDirty] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [momentBusy, setMomentBusy] = useState(false);
+  const [momentDirty, setMomentDirty] = useState(false);
+  const [momentVersion, setMomentVersion] = useState(0);
   const [notice, setNotice] = useState("");
   const [consent, setConsent] = useState(false);
   const [memoryConsent, setMemoryConsent] = useState(false);
@@ -195,6 +200,7 @@ export function MentalHealthApp({ owner }: { owner: string }) {
   useEffect(() => {
     if (
       !dirty &&
+      !momentDirty &&
       !draft &&
       !moodNote &&
       !plan &&
@@ -227,7 +233,7 @@ export function MentalHealthApp({ owner }: { owner: string }) {
       window.removeEventListener("beforeunload", prevent);
       document.removeEventListener("click", preventLink, true);
     };
-  }, [dirty, draft, moodNote, plan, thought]);
+  }, [dirty, momentDirty, draft, moodNote, plan, thought]);
   useEffect(() => {
     if (!timerEnd) return;
     const tick = () => {
@@ -295,6 +301,7 @@ export function MentalHealthApp({ owner }: { owner: string }) {
       const result = await api("", "DELETE");
       setRevision(result.revision);
       setData(emptyWorkspace());
+      setMomentVersion((v) => v + 1);
       setExpiry(null);
       setDirty(false);
       setAnalysis("");
@@ -489,6 +496,9 @@ export function MentalHealthApp({ owner }: { owner: string }) {
       </header>
       <p className={styles.disclaimer}>{DISCLAIMER}</p>
       <div className={styles.toolbar}>
+        <button className={styles.primary} onClick={() => setTab("순간 도움")}>
+          지금 불안해요
+        </button>
         <span>
           {!ready
             ? "기록을 확인하는 중…"
@@ -539,6 +549,27 @@ export function MentalHealthApp({ owner }: { owner: string }) {
           </button>
         ))}
       </nav>
+      <fieldset disabled={busy} className={styles.content}>
+        <MomentSupport
+          key={momentVersion}
+          active={tab === "순간 도움"}
+          aiReady={ai}
+          recordReady={ready}
+          owner={owner}
+          onBusyChange={setMomentBusy}
+          onDirtyChange={setMomentDirty}
+          onRecord={(practice) =>
+            update({
+              ...data,
+              practices: data.practices.some((p) => p.id === practice.id)
+                ? data.practices.map((p) =>
+                    p.id === practice.id ? { ...practice, done: p.done } : p,
+                  )
+                : [...data.practices, practice],
+            })
+          }
+        />
+      </fieldset>
       <fieldset disabled={!ready || busy} className={styles.content}>
         {tab === "오늘의 마음" && (
           <div className={styles.grid}>
@@ -1125,7 +1156,11 @@ export function MentalHealthApp({ owner }: { owner: string }) {
                 <button disabled={!storage} onClick={save}>
                   암호화 저장
                 </button>
-                <button className={styles.danger} onClick={erase}>
+                <button
+                  className={styles.danger}
+                  disabled={momentBusy}
+                  onClick={erase}
+                >
                   서버와 화면의 기록 모두 삭제
                 </button>
               </div>
