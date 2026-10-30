@@ -236,7 +236,10 @@ test("AI 미설정시 민감정보를 보내지 않고 제공사 오류 본문�
         ],
       });
     };
-    assert.equal(await generateSupport(input), "도움 답변");
+    assert.deepEqual(await generateSupport(input), {
+      text: "도움 답변",
+      crisis: false,
+    });
   } finally {
     globalThis.fetch = originalFetch;
     if (key === undefined) delete process.env.GEMINI_API_KEY;
@@ -256,4 +259,15 @@ test("relationship record defaults for old data and is bounded", () => {
   );
   const saved = workspaceSchema.parse({ ...emptyWorkspace(), relationship: "기록" });
   assert.equal(saved.relationship, "기록");
+});
+
+test("reply format keeps exactly one question and splits bubbles", async () => {
+  const { enforceOneQuestion, tooManyQuestions, splitBubbles } = await import(
+    "../src/lib/mental-health"
+  );
+  const o = { reply_text: "많이 힘들었겠어요. 왜 그랬을까요?", question: "그때 어땠나요?" };
+  assert.ok(tooManyQuestions(o));
+  const fixed = enforceOneQuestion(o);
+  assert.equal((`${fixed.reply}${fixed.question}`.match(/\?/g) ?? []).length, 1);
+  assert.deepEqual(splitBubbles("가\n\n나\n다"), ["가", "나", "다"]);
 });

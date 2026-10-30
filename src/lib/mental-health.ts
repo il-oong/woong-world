@@ -212,3 +212,44 @@ export function reportHtml(text: string): string {
   );
   return `<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'"><title>마음결 자기관리 보고서</title><style>body{font:16px/1.8 system-ui,sans-serif;max-width:800px;margin:48px auto;padding:24px;color:#182c2a}pre{white-space:pre-wrap;overflow-wrap:anywhere;font:inherit}h1{color:#14675b}@media print{body{margin:0;padding:0}@page{margin:20mm}}</style></head><body><h1>마음결 자기관리 보고서</h1><p>브라우저의 인쇄 메뉴에서 PDF로 저장할 수 있습니다.</p><pre>${escaped}</pre></body></html>`;
 }
+
+// Reply format ported from the couple app counselor: JSON with a reflective
+// reply plus exactly one question, shown as short messenger-style bubbles.
+export const CHAT_REPLY_SCHEMA = {
+  type: "OBJECT",
+  required: ["reply_text", "question", "risk_level"],
+  properties: {
+    reply_text: { type: "STRING" },
+    question: { type: "STRING" },
+    risk_level: { type: "STRING", enum: ["none", "elevated", "crisis"] },
+  },
+};
+export const CHAT_FORMAT_PROMPT = `답변 형식: JSON으로만 답한다. reply_text는 메신저처럼 짧은 문단 3~5개(문단 사이 빈 줄, 한 문단 한두 문장)로, 사용자가 쓴 구체적 내용을 짚어 진심으로 공감하고 이해한 바를 정리한다. reply_text에는 물음표를 쓰지 않는다. question에는 더 깊이 들어가는 질문 한 문장만 쓴다(위기이거나 사용자가 보고서·정리·종료를 요청한 경우만 빈 문자열). risk_level은 none | elevated | crisis.`;
+const marks = (s: string) => (s.match(/[?？]/g) ?? []).length;
+export const tooManyQuestions = (o: { reply_text: string; question: string }) =>
+  marks(o.reply_text) + marks(o.question) > 1;
+export function enforceOneQuestion(o: {
+  reply_text: string;
+  question: string;
+}) {
+  const reply = o.reply_text.trim();
+  const question = o.question.trim();
+  if (marks(reply) + marks(question) <= 1) return { reply, question };
+  const all = `${reply} ${question}`.trim();
+  const first = all.slice(0, all.search(/[?？]/) + 1);
+  const start =
+    Math.max(
+      first.lastIndexOf(". "),
+      first.lastIndexOf("! "),
+      first.lastIndexOf("요. "),
+    ) + 1;
+  return {
+    reply: first.slice(0, start).trim(),
+    question: first.slice(start).trim(),
+  };
+}
+export const splitBubbles = (text: string) =>
+  text
+    .split(/\n\s*\n|\n/)
+    .map((x) => x.trim())
+    .filter(Boolean);

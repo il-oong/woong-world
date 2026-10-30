@@ -5,6 +5,7 @@ import {
   DISCLAIMER,
   CRISIS_TEXT,
   emptyWorkspace,
+  splitBubbles,
   workspaceSchema,
   todayKorea,
   recordContext,
@@ -752,7 +753,13 @@ export function MentalHealthApp({ owner }: { owner: string }) {
                   key={i}
                 >
                   <strong>{m.role === "user" ? "나" : "마음결 · AI"}</strong>
-                  <p>{m.text}</p>
+                  {m.role === "user" ? (
+                    <p>{m.text}</p>
+                  ) : (
+                    splitBubbles(m.text).map((part, j) => (
+                      <p key={j}>{part}</p>
+                    ))
+                  )}
                 </article>
               ))}
             </div>

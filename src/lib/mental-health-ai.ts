@@ -1,4 +1,11 @@
-import { aiRequestSchema, SYSTEM_PROMPT } from "./mental-health";
+import {
+  aiRequestSchema,
+  SYSTEM_PROMPT,
+  CHAT_REPLY_SCHEMA,
+  CHAT_FORMAT_PROMPT,
+  enforceOneQuestion,
+  tooManyQuestions,
+} from "./mental-health";
 import type { z } from "zod";
 import { MOMENT_SYSTEM_PROMPT } from "./mental-health-moment";
 export function aiReady() {
@@ -14,8 +21,45 @@ export function aiMissing() {
     missing.push("MENTAL_HEALTH_AI_PRIVACY_REVIEWED");
   return missing;
 }
+type Input = z.infer<typeof aiRequestSchema>;
 export async function generateSupport(
-  input: z.infer<typeof aiRequestSchema>,
+  input: Input,
+): Promise<{ text: string; crisis: boolean }> {
+  if (input.mode === "report")
+    return { text: await callGemini(input, false), crisis: false };
+  const parse = async (hint?: string) => {
+    const raw = await callGemini(input, true, hint);
+    let o: { reply_text?: string; question?: string; risk_level?: string };
+    try {
+      o = JSON.parse(raw);
+    } catch {
+      // Not JSON: use the plain text as is, with no retry.
+      return { reply_text: raw, question: "", risk: "plain" };
+    }
+    return {
+      reply_text: String(o.reply_text ?? ""),
+      question: String(o.question ?? ""),
+      risk: o.risk_level,
+    };
+  };
+  let out = await parse();
+  if (!out.question.trim() && out.risk !== "crisis" && out.risk !== "plain")
+    out = await parse(
+      "(시스템 알림: 직전 답변에 질문이 없었습니다. 공감과 반영 뒤에 더 깊이 들어가는 질문 한 문장을 question에 쓰세요.)",
+    );
+  if (tooManyQuestions(out))
+    out = await parse(
+      "(시스템 알림: 질문이 둘 이상이었습니다. 질문은 question에 한 문장만 쓰고 reply_text에는 물음표를 쓰지 마세요.)",
+    );
+  const { reply, question } = enforceOneQuestion(out);
+  const text = [reply, question].filter(Boolean).join("\n\n");
+  if (!text) throw new Error("ai_failed");
+  return { text, crisis: out.risk === "crisis" };
+}
+async function callGemini(
+  input: Input,
+  json: boolean,
+  hint?: string,
 ): Promise<string> {
   if (!aiReady()) throw new Error("ai_unavailable");
   const model = process.env.MENTAL_HEALTH_MODEL || "gemini-2.5-flash";
@@ -36,6 +80,7 @@ export async function generateSupport(
             {
               text:
                 SYSTEM_PROMPT +
+                (json ? "\n" + CHAT_FORMAT_PROMPT : "") +
                 (input.mode === "moment" ? "\n" + MOMENT_SYSTEM_PROMPT : ""),
             },
           ],
@@ -54,12 +99,22 @@ export async function generateSupport(
                         : "아래 대화의 마지막 사용자 말에 답해 줘.",
                   selectedContext: input.context,
                   conversation: input.messages,
+                  ...(hint ? { systemNotice: hint } : {}),
                 }),
               },
             ],
           },
         ],
-        generationConfig: { temperature: 0.4, maxOutputTokens: 3000 },
+        generationConfig: {
+          temperature: 0.4,
+          maxOutputTokens: 3000,
+          ...(json
+            ? {
+                responseMimeType: "application/json",
+                responseSchema: CHAT_REPLY_SCHEMA,
+              }
+            : {}),
+        },
       }),
     },
   );
