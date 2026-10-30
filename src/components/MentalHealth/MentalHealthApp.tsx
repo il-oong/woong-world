@@ -311,7 +311,27 @@ export function MentalHealthApp({ owner }: { owner: string }) {
       return;
     setBusy(true);
     try {
-      const result = await api("", "PUT", { consent: true, data, revision });
+      const at = new Date().toISOString();
+      const stamp = <T extends { savedAt?: string }>(x: T): T =>
+        x.savedAt ? x : { ...x, savedAt: at };
+      const stamped: Workspace = {
+        ...data,
+        messages: data.messages.map(stamp),
+        moods: data.moods.map(stamp),
+        thoughts: data.thoughts.map(stamp),
+        practices: data.practices.map(stamp),
+        relationshipLog: data.relationshipLog.map(stamp),
+        relationshipSavedAt:
+          data.relationship && !data.relationshipSavedAt
+            ? at
+            : data.relationshipSavedAt,
+      };
+      const result = await api("", "PUT", {
+        consent: true,
+        data: stamped,
+        revision,
+      });
+      setData(stamped);
       setRevision(result.revision);
       setExpiry(result.expiresAt);
       setDirty(false);
@@ -1483,45 +1503,62 @@ export function MentalHealthApp({ owner }: { owner: string }) {
               </p>
             </section>
             <section className={styles.card}>
-              <h2>날짜별로 골라 지우기</h2>
+              <h2>저장한 시점별로 골라 지우기</h2>
               <p>
                 기록이 있는 날짜를 보고, 지우고 싶은 날의 기록만 골라 삭제할 수
                 있어요. 기분 기록, 사고기록, 실천, 날짜별 관계 기록이 그날
                 기준으로 함께 지워집니다.
               </p>
               {(() => {
-                const days = new Map<string, string[]>();
-                const add = (d: string, label: string) =>
-                  days.set(d, [...(days.get(d) ?? []), label]);
-                data.moods.forEach((x) => add(x.date, "기분"));
-                data.thoughts.forEach((x) => add(x.date, "사고기록"));
-                data.practices.forEach((x) => add(x.date, "실천"));
-                data.relationshipLog.forEach((x) => add(x.date, "관계 기록"));
-                const list = [...days.entries()].sort((a, b) =>
-                  b[0].localeCompare(a[0]),
+                const LEGACY = "이전 기록";
+                const groups = new Map<string, string[]>();
+                const add = (at: string | undefined, label: string) =>
+                  groups.set(at ?? LEGACY, [
+                    ...(groups.get(at ?? LEGACY) ?? []),
+                    label,
+                  ]);
+                data.messages.forEach((x) => add(x.savedAt, "대화"));
+                data.moods.forEach((x) => add(x.savedAt, "기분"));
+                data.thoughts.forEach((x) => add(x.savedAt, "사고기록"));
+                data.practices.forEach((x) => add(x.savedAt, "실천"));
+                data.relationshipLog.forEach((x) =>
+                  add(x.savedAt, "날짜별 관계 기록"),
                 );
+                const list = [...groups.entries()].sort((a, b) =>
+                  b[0].localeCompare(a[0], "ko"),
+                );
+                const title = (k: string) =>
+                  k === LEGACY
+                    ? "저장 시각이 없는 이전 기록"
+                    : `${new Date(k).toLocaleString("ko-KR", { timeZone: "Asia/Seoul" })} 저장`;
+                const count = (labels: string[]) =>
+                  [...new Set(labels)]
+                    .map((l) => `${l} ${labels.filter((x) => x === l).length}`)
+                    .join(" · ");
                 if (!list.length)
                   return (
-                    <p className={styles.small}>날짜가 있는 기록이 없어요.</p>
+                    <p className={styles.small}>
+                      저장 시점이 있는 기록이 없어요.
+                    </p>
                   );
                 return (
                   <>
                     <ul>
-                      {list.map(([d, labels]) => (
-                        <li key={d}>
+                      {list.map(([k, labels]) => (
+                        <li key={k}>
                           <label>
                             <input
                               type="checkbox"
-                              checked={pickDays.includes(d)}
+                              checked={pickDays.includes(k)}
                               onChange={(e) =>
                                 setPickDays(
                                   e.target.checked
-                                    ? [...pickDays, d]
-                                    : pickDays.filter((x) => x !== d),
+                                    ? [...pickDays, k]
+                                    : pickDays.filter((x) => x !== k),
                                 )
                               }
                             />
-                            {d} · {labels.join(", ")}
+                            {title(k)} · {count(labels)}
                           </label>
                         </li>
                       ))}
@@ -1533,36 +1570,33 @@ export function MentalHealthApp({ owner }: { owner: string }) {
                         onClick={() => {
                           if (
                             !confirm(
-                              `선택한 ${pickDays.length}일의 기록을 지울까요? 지운 뒤 ‘암호화 저장’을 눌러야 서버에도 반영됩니다.`,
+                              `선택한 ${pickDays.length}개 저장 시점의 기록을 지울까요? 지운 뒤 ‘암호화 저장’을 눌러야 서버에도 반영됩니다.`,
                             )
                           )
                             return;
                           const gone = new Set(pickDays);
+                          const keep = (x: { savedAt?: string }) =>
+                            !gone.has(x.savedAt ?? LEGACY);
                           update({
                             ...data,
-                            moods: data.moods.filter((x) => !gone.has(x.date)),
-                            thoughts: data.thoughts.filter(
-                              (x) => !gone.has(x.date),
-                            ),
-                            practices: data.practices.filter(
-                              (x) => !gone.has(x.date),
-                            ),
-                            relationshipLog: data.relationshipLog.filter(
-                              (x) => !gone.has(x.date),
-                            ),
+                            messages: data.messages.filter(keep),
+                            moods: data.moods.filter(keep),
+                            thoughts: data.thoughts.filter(keep),
+                            practices: data.practices.filter(keep),
+                            relationshipLog: data.relationshipLog.filter(keep),
                           });
                           setPickDays([]);
                         }}
                       >
-                        선택한 날짜 기록 지우기
+                        선택한 저장 시점 기록 지우기
                       </button>
                     </div>
                   </>
                 );
               })()}
               <p className={styles.small}>
-                대화 내용과 관계 기록 본문은 날짜가 없어서 이 목록에 없어요.
-                본문은 ‘관계 기록’ 탭에서 직접 고쳐 주세요.
+                관계 기록 본문(통째로 적은 글)은 저장 시점별 묶음에 들어 있지
+                않아요. 본문은 ‘관계 기록’ 탭에서 직접 고쳐 주세요.
               </p>
             </section>
             <section className={styles.card}>
