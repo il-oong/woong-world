@@ -1,6 +1,539 @@
 {
-  "updatedAt": "2026-10-29T08:27:09.884Z",
+  "updatedAt": "2026-10-30T08:37:44.106Z",
   "notices": [
+    {
+      "id": "2026000499",
+      "title": "한화포레나 지제역",
+      "kind": "sale",
+      "audience": "general",
+      "supplyType": "민영",
+      "address": "경기도 평택시 세교동 725번지 일원",
+      "sourceUrl": "https://www.applyhome.co.kr/ai/aia/selectAPTLttotPblancDetail.do?houseManageNo=2026000499&pblancNo=2026000499",
+      "applicationUrl": "https://www.applyhome.co.kr/ai/aia/selectAPTLttotPblancDetail.do?houseManageNo=2026000499&pblancNo=2026000499",
+      "publishedAt": "2026-10-29",
+      "point": null,
+      "moveIn": null,
+      "moveInNote": "",
+      "priceNote": "",
+      "locationUrl": null,
+      "locationImageUrl": null,
+      "events": [
+        {
+          "label": "특별공급 시작",
+          "date": "2026-11-09",
+          "type": "open",
+          "time": null
+        },
+        {
+          "label": "특별공급 마감",
+          "date": "2026-11-09",
+          "type": "close",
+          "time": null
+        },
+        {
+          "label": "1순위 해당지역 시작",
+          "date": "2026-11-10",
+          "type": "open",
+          "time": null
+        },
+        {
+          "label": "1순위 해당지역 마감",
+          "date": "2026-11-10",
+          "type": "close",
+          "time": null
+        },
+        {
+          "label": "1순위 기타지역 시작",
+          "date": "2026-11-10",
+          "type": "open",
+          "time": null
+        },
+        {
+          "label": "1순위 기타지역 마감",
+          "date": "2026-11-10",
+          "type": "close",
+          "time": null
+        },
+        {
+          "label": "2순위 해당지역 시작",
+          "date": "2026-11-11",
+          "type": "open",
+          "time": null
+        },
+        {
+          "label": "2순위 해당지역 마감",
+          "date": "2026-11-11",
+          "type": "close",
+          "time": null
+        },
+        {
+          "label": "2순위 기타지역 시작",
+          "date": "2026-11-11",
+          "type": "open",
+          "time": null
+        },
+        {
+          "label": "2순위 기타지역 마감",
+          "date": "2026-11-11",
+          "type": "close",
+          "time": null
+        },
+        {
+          "label": "전체 접수 시작",
+          "date": "2026-11-09",
+          "type": "open",
+          "time": null
+        },
+        {
+          "label": "전체 접수 마감",
+          "date": "2026-11-11",
+          "type": "close",
+          "time": null
+        },
+        {
+          "label": "당첨 발표",
+          "date": "2026-11-18",
+          "type": "result",
+          "time": null
+        },
+        {
+          "label": "계약 시작",
+          "date": "2026-11-29",
+          "type": "contract",
+          "time": null
+        },
+        {
+          "label": "계약 마감",
+          "date": "2026-12-01",
+          "type": "contract",
+          "time": null
+        }
+      ],
+      "units": [
+        {
+          "id": "01",
+          "name": "084.9424A (최고 공급금액)",
+          "area": null,
+          "rooms": null,
+          "price": 708750000,
+          "monthlyRent": null,
+          "floorPlanUrl": null,
+          "floorPlanImageUrl": null,
+          "payments": []
+        },
+        {
+          "id": "02",
+          "name": "084.9927B (최고 공급금액)",
+          "area": null,
+          "rooms": null,
+          "price": 700950000,
+          "monthlyRent": null,
+          "floorPlanUrl": null,
+          "floorPlanImageUrl": null,
+          "payments": []
+        },
+        {
+          "id": "03",
+          "name": "084.9839C (최고 공급금액)",
+          "area": null,
+          "rooms": null,
+          "price": 724500000,
+          "monthlyRent": null,
+          "floorPlanUrl": null,
+          "floorPlanImageUrl": null,
+          "payments": []
+        },
+        {
+          "id": "04",
+          "name": "084.9199D (최고 공급금액)",
+          "area": null,
+          "rooms": null,
+          "price": 723500000,
+          "monthlyRent": null,
+          "floorPlanUrl": null,
+          "floorPlanImageUrl": null,
+          "payments": []
+        },
+        {
+          "id": "05",
+          "name": "116.9134  (최고 공급금액)",
+          "area": null,
+          "rooms": null,
+          "price": 968450000,
+          "monthlyRent": null,
+          "floorPlanUrl": null,
+          "floorPlanImageUrl": null,
+          "payments": []
+        }
+      ],
+      "rules": [],
+      "requirements": {
+        "accountRequired": null,
+        "accountMonths": null,
+        "accountDeposit": null,
+        "homelessRequired": null
+      },
+      "nearby": [],
+      "comparable": null,
+      "reviewedAt": null,
+      "changeNote": "공공데이터에서 가져온 주택형별 최고 공급금액입니다. 전용면적·층별 가격·납부 일정·필수정보는 모집공고 원문 대조가 필요합니다."
+    },
+    {
+      "id": "2026000525",
+      "title": "엘리프 시흥 더프라임",
+      "kind": "sale",
+      "audience": "general",
+      "supplyType": "민영",
+      "address": "경기도 시흥시 거모동 시흥거모지구 B-5블록",
+      "sourceUrl": "https://www.applyhome.co.kr/ai/aia/selectAPTLttotPblancDetail.do?houseManageNo=2026000525&pblancNo=2026000525",
+      "applicationUrl": "https://www.applyhome.co.kr/ai/aia/selectAPTLttotPblancDetail.do?houseManageNo=2026000525&pblancNo=2026000525",
+      "publishedAt": "2026-10-29",
+      "point": null,
+      "moveIn": null,
+      "moveInNote": "",
+      "priceNote": "",
+      "locationUrl": null,
+      "locationImageUrl": null,
+      "events": [
+        {
+          "label": "특별공급 시작",
+          "date": "2026-11-09",
+          "type": "open",
+          "time": null
+        },
+        {
+          "label": "특별공급 마감",
+          "date": "2026-11-09",
+          "type": "close",
+          "time": null
+        },
+        {
+          "label": "1순위 해당지역 시작",
+          "date": "2026-11-10",
+          "type": "open",
+          "time": null
+        },
+        {
+          "label": "1순위 해당지역 마감",
+          "date": "2026-11-10",
+          "type": "close",
+          "time": null
+        },
+        {
+          "label": "1순위 경기지역 시작",
+          "date": "2026-11-10",
+          "type": "open",
+          "time": null
+        },
+        {
+          "label": "1순위 경기지역 마감",
+          "date": "2026-11-10",
+          "type": "close",
+          "time": null
+        },
+        {
+          "label": "1순위 기타지역 시작",
+          "date": "2026-11-10",
+          "type": "open",
+          "time": null
+        },
+        {
+          "label": "1순위 기타지역 마감",
+          "date": "2026-11-10",
+          "type": "close",
+          "time": null
+        },
+        {
+          "label": "2순위 해당지역 시작",
+          "date": "2026-11-11",
+          "type": "open",
+          "time": null
+        },
+        {
+          "label": "2순위 해당지역 마감",
+          "date": "2026-11-11",
+          "type": "close",
+          "time": null
+        },
+        {
+          "label": "2순위 경기지역 시작",
+          "date": "2026-11-11",
+          "type": "open",
+          "time": null
+        },
+        {
+          "label": "2순위 경기지역 마감",
+          "date": "2026-11-11",
+          "type": "close",
+          "time": null
+        },
+        {
+          "label": "2순위 기타지역 시작",
+          "date": "2026-11-11",
+          "type": "open",
+          "time": null
+        },
+        {
+          "label": "2순위 기타지역 마감",
+          "date": "2026-11-11",
+          "type": "close",
+          "time": null
+        },
+        {
+          "label": "전체 접수 시작",
+          "date": "2026-11-09",
+          "type": "open",
+          "time": null
+        },
+        {
+          "label": "전체 접수 마감",
+          "date": "2026-11-11",
+          "type": "close",
+          "time": null
+        },
+        {
+          "label": "당첨 발표",
+          "date": "2026-11-17",
+          "type": "result",
+          "time": null
+        },
+        {
+          "label": "계약 시작",
+          "date": "2026-11-28",
+          "type": "contract",
+          "time": null
+        },
+        {
+          "label": "계약 마감",
+          "date": "2026-11-30",
+          "type": "contract",
+          "time": null
+        }
+      ],
+      "units": [
+        {
+          "id": "01",
+          "name": "084.9607A (최고 공급금액)",
+          "area": null,
+          "rooms": null,
+          "price": 599300000,
+          "monthlyRent": null,
+          "floorPlanUrl": null,
+          "floorPlanImageUrl": null,
+          "payments": []
+        },
+        {
+          "id": "02",
+          "name": "084.9236B (최고 공급금액)",
+          "area": null,
+          "rooms": null,
+          "price": 599100000,
+          "monthlyRent": null,
+          "floorPlanUrl": null,
+          "floorPlanImageUrl": null,
+          "payments": []
+        }
+      ],
+      "rules": [],
+      "requirements": {
+        "accountRequired": null,
+        "accountMonths": null,
+        "accountDeposit": null,
+        "homelessRequired": null
+      },
+      "nearby": [],
+      "comparable": null,
+      "reviewedAt": null,
+      "changeNote": "공공데이터에서 가져온 주택형별 최고 공급금액입니다. 전용면적·층별 가격·납부 일정·필수정보는 모집공고 원문 대조가 필요합니다."
+    },
+    {
+      "id": "2026000535",
+      "title": "중앙하이츠 구성 플랫폼시티",
+      "kind": "sale",
+      "audience": "general",
+      "supplyType": "민영",
+      "address": "경기도 용인시 기흥구 마북동 298-1번지 일원",
+      "sourceUrl": "https://www.applyhome.co.kr/ai/aia/selectAPTLttotPblancDetail.do?houseManageNo=2026000535&pblancNo=2026000535",
+      "applicationUrl": "https://www.applyhome.co.kr/ai/aia/selectAPTLttotPblancDetail.do?houseManageNo=2026000535&pblancNo=2026000535",
+      "publishedAt": "2026-10-29",
+      "point": null,
+      "moveIn": null,
+      "moveInNote": "",
+      "priceNote": "",
+      "locationUrl": null,
+      "locationImageUrl": null,
+      "events": [
+        {
+          "label": "특별공급 시작",
+          "date": "2026-11-09",
+          "type": "open",
+          "time": null
+        },
+        {
+          "label": "특별공급 마감",
+          "date": "2026-11-09",
+          "type": "close",
+          "time": null
+        },
+        {
+          "label": "1순위 해당지역 시작",
+          "date": "2026-11-10",
+          "type": "open",
+          "time": null
+        },
+        {
+          "label": "1순위 해당지역 마감",
+          "date": "2026-11-10",
+          "type": "close",
+          "time": null
+        },
+        {
+          "label": "1순위 기타지역 시작",
+          "date": "2026-11-11",
+          "type": "open",
+          "time": null
+        },
+        {
+          "label": "1순위 기타지역 마감",
+          "date": "2026-11-11",
+          "type": "close",
+          "time": null
+        },
+        {
+          "label": "2순위 해당지역 시작",
+          "date": "2026-11-12",
+          "type": "open",
+          "time": null
+        },
+        {
+          "label": "2순위 해당지역 마감",
+          "date": "2026-11-12",
+          "type": "close",
+          "time": null
+        },
+        {
+          "label": "2순위 기타지역 시작",
+          "date": "2026-11-12",
+          "type": "open",
+          "time": null
+        },
+        {
+          "label": "2순위 기타지역 마감",
+          "date": "2026-11-12",
+          "type": "close",
+          "time": null
+        },
+        {
+          "label": "전체 접수 시작",
+          "date": "2026-11-09",
+          "type": "open",
+          "time": null
+        },
+        {
+          "label": "전체 접수 마감",
+          "date": "2026-11-12",
+          "type": "close",
+          "time": null
+        },
+        {
+          "label": "당첨 발표",
+          "date": "2026-11-18",
+          "type": "result",
+          "time": null
+        },
+        {
+          "label": "계약 시작",
+          "date": "2026-11-30",
+          "type": "contract",
+          "time": null
+        },
+        {
+          "label": "계약 마감",
+          "date": "2026-12-02",
+          "type": "contract",
+          "time": null
+        }
+      ],
+      "units": [
+        {
+          "id": "01",
+          "name": "059.9670A (최고 공급금액)",
+          "area": null,
+          "rooms": null,
+          "price": 625000000,
+          "monthlyRent": null,
+          "floorPlanUrl": null,
+          "floorPlanImageUrl": null,
+          "payments": []
+        },
+        {
+          "id": "02",
+          "name": "059.9898B (최고 공급금액)",
+          "area": null,
+          "rooms": null,
+          "price": 625300000,
+          "monthlyRent": null,
+          "floorPlanUrl": null,
+          "floorPlanImageUrl": null,
+          "payments": []
+        },
+        {
+          "id": "03",
+          "name": "068.9683  (최고 공급금액)",
+          "area": null,
+          "rooms": null,
+          "price": 716800000,
+          "monthlyRent": null,
+          "floorPlanUrl": null,
+          "floorPlanImageUrl": null,
+          "payments": []
+        },
+        {
+          "id": "04",
+          "name": "074.9857  (최고 공급금액)",
+          "area": null,
+          "rooms": null,
+          "price": 771100000,
+          "monthlyRent": null,
+          "floorPlanUrl": null,
+          "floorPlanImageUrl": null,
+          "payments": []
+        },
+        {
+          "id": "05",
+          "name": "079.9780  (최고 공급금액)",
+          "area": null,
+          "rooms": null,
+          "price": 822700000,
+          "monthlyRent": null,
+          "floorPlanUrl": null,
+          "floorPlanImageUrl": null,
+          "payments": []
+        },
+        {
+          "id": "06",
+          "name": "084.9932  (최고 공급금액)",
+          "area": null,
+          "rooms": null,
+          "price": 852100000,
+          "monthlyRent": null,
+          "floorPlanUrl": null,
+          "floorPlanImageUrl": null,
+          "payments": []
+        }
+      ],
+      "rules": [],
+      "requirements": {
+        "accountRequired": null,
+        "accountMonths": null,
+        "accountDeposit": null,
+        "homelessRequired": null
+      },
+      "nearby": [],
+      "comparable": null,
+      "reviewedAt": null,
+      "changeNote": "공공데이터에서 가져온 주택형별 최고 공급금액입니다. 전용면적·층별 가격·납부 일정·필수정보는 모집공고 원문 대조가 필요합니다."
+    },
     {
       "id": "seoul-youth-6708",
       "title": "[민간임대] 노량진역 더써밋타워 추가모집공고",
