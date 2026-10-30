@@ -50,7 +50,7 @@ export const workspaceSchema = z
     thoughts: z.array(thoughtSchema).max(30),
     practices: z.array(practiceSchema).max(60),
     memory: z.string().max(2000),
-    relationship: z.string().max(20000).default(""),
+    relationship: z.string().max(50000).default(""),
   })
   .strict();
 export type Workspace = z.infer<typeof workspaceSchema>;

@@ -16,6 +16,11 @@ import {
   type Thought,
   type Practice,
 } from "@/lib/mental-health";
+import {
+  RELATIONSHIP_FILE_MAX_BYTES,
+  RELATIONSHIP_MAX_LENGTH,
+  relationshipForAi,
+} from "@/lib/mental-health-memory";
 import styles from "./mental-health.module.css";
 import { MomentSupport } from "./MomentSupport";
 import { MemoryImport } from "./MemoryImport";
@@ -354,7 +359,7 @@ export function MentalHealthApp({ owner }: { owner: string }) {
   const context = [
     memoryConsent && data.memory ? `내가 직접 작성한 기억: ${data.memory}` : "",
     relationshipConsent && data.relationship
-      ? `내가 직접 정리한 연애 관계 기록(이미 아는 사실로 쓰고 처음부터 다시 묻지 말 것):\n<자료>\n${data.relationship.replace(/<\/?자료>/g, "")}\n</자료>`
+      ? `내가 직접 정리한 연애 관계 기록(이미 아는 사실로 쓰고 처음부터 다시 묻지 말 것):\n<자료>\n${relationshipForAi(data.relationship).replace(/<\/?자료>/g, "")}\n</자료>`
       : "",
     recordConsent ? recordContext(data, todayKorea(), todayKorea()) : "",
   ]
@@ -1187,13 +1192,53 @@ export function MentalHealthApp({ owner }: { owner: string }) {
                 묻지 않습니다. 사실, 내 해석, 상대의 실제 발언을 구분해 쓰면 더
                 정확해요.
               </p>
-              <Field label="관계 기록 (최대 20,000자)">
+              <Field label="TXT 파일에서 불러오기 (700KB 이하)">
+                <input
+                  type="file"
+                  accept=".txt,text/plain"
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    e.target.value = "";
+                    if (!file) return;
+                    if (
+                      !/\.txt$/i.test(file.name) ||
+                      file.size > RELATIONSHIP_FILE_MAX_BYTES
+                    ) {
+                      setNotice("700KB 이하의 TXT 파일만 불러올 수 있습니다.");
+                      return;
+                    }
+                    let text = (await file.text())
+                      .replace(/\r\n?/g, "\n")
+                      .trim();
+                    if (!text) return setNotice("빈 파일입니다.");
+                    if (text.length > RELATIONSHIP_MAX_LENGTH) {
+                      if (
+                        !confirm(
+                          `파일이 ${text.length.toLocaleString()}자입니다. 저장 한도는 ${RELATIONSHIP_MAX_LENGTH.toLocaleString()}자라서 가장 최근 부분만 가져옵니다. 계속할까요?`,
+                        )
+                      )
+                        return;
+                      text = text.slice(-RELATIONSHIP_MAX_LENGTH);
+                    }
+                    if (
+                      data.relationship.trim() &&
+                      !confirm("기존 관계 기록을 파일 내용으로 바꿀까요?")
+                    )
+                      return;
+                    update({ ...data, relationship: text });
+                    setNotice(
+                      "관계 기록에 불러왔어요. 서버에 보관하려면 암호화 저장을 눌러 주세요.",
+                    );
+                  }}
+                />
+              </Field>
+              <Field label="관계 기록 (최대 50,000자)">
                 <textarea
                   value={data.relationship}
                   onChange={(e) =>
                     update({ ...data, relationship: e.target.value })
                   }
-                  maxLength={20000}
+                  maxLength={50000}
                   rows={18}
                   placeholder={
                     "예) 기본 정보 / 상대의 성향(내가 관찰한 모습) / 나의 연애 성향 / 반복된 갈등 / 날짜별 사건 경과 / 최근 화해 시도"
@@ -1201,7 +1246,7 @@ export function MentalHealthApp({ owner }: { owner: string }) {
                 />
               </Field>
               <p className={styles.small}>
-                {data.relationship.length.toLocaleString()} / 20,000자 · 이
+                {data.relationship.length.toLocaleString()} / 50,000자 · 이
                 내용은 ‘암호화 저장’을 누른 뒤에만 서버에 남고, 상담에서 ‘관계
                 기록도 포함’을 켜 둘 때만 Google Gemini로 전송됩니다. 상대의
                 실제 생각과 의도는 기록과 다를 수 있다는 점을 AI에게도 알려
