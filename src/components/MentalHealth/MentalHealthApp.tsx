@@ -5,6 +5,7 @@ import {
   DISCLAIMER,
   CRISIS_TEXT,
   emptyWorkspace,
+  splitBubbles,
   workspaceSchema,
   todayKorea,
   recordContext,
@@ -26,6 +27,7 @@ const tabs = [
   "사고기록",
   "작은 실천",
   "보고서",
+  "관계 기록",
   "기억·개인정보",
 ] as const;
 const errors: Record<string, string> = {
@@ -133,6 +135,7 @@ export function MentalHealthApp({ owner }: { owner: string }) {
   const [consent, setConsent] = useState(false);
   const [memoryConsent, setMemoryConsent] = useState(false);
   const [recordConsent, setRecordConsent] = useState(false);
+  const [relationshipConsent, setRelationshipConsent] = useState(true);
   const [help, setHelp] = useState(false);
   const [draft, setDraft] = useState("");
   const [mood, setMood] = useState(5);
@@ -331,6 +334,9 @@ export function MentalHealthApp({ owner }: { owner: string }) {
   }
   const context = [
     memoryConsent && data.memory ? `내가 직접 작성한 기억: ${data.memory}` : "",
+    relationshipConsent && data.relationship
+      ? `내가 직접 정리한 연애 관계 기록(이미 아는 사실로 쓰고 처음부터 다시 묻지 말 것):\n<자료>\n${data.relationship.replace(/<\/?자료>/g, "")}\n</자료>`
+      : "",
     recordConsent ? recordContext(data, todayKorea(), todayKorea()) : "",
   ]
     .filter(Boolean)
@@ -692,6 +698,16 @@ export function MentalHealthApp({ owner }: { owner: string }) {
                 />
                 내가 작성한 기억도 포함
               </label>
+              {data.relationship && (
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={relationshipConsent}
+                    onChange={(e) => setRelationshipConsent(e.target.checked)}
+                  />
+                  관계 기록도 포함 (매번 처음부터 설명하지 않아도 돼요)
+                </label>
+              )}
               <label>
                 <input
                   type="checkbox"
@@ -737,7 +753,13 @@ export function MentalHealthApp({ owner }: { owner: string }) {
                   key={i}
                 >
                   <strong>{m.role === "user" ? "나" : "마음결 · AI"}</strong>
-                  <p>{m.text}</p>
+                  {m.role === "user" ? (
+                    <p>{m.text}</p>
+                  ) : (
+                    splitBubbles(m.text).map((part, j) => (
+                      <p key={j}>{part}</p>
+                    ))
+                  )}
                 </article>
               ))}
             </div>
@@ -1099,6 +1121,50 @@ export function MentalHealthApp({ owner }: { owner: string }) {
             )}
             <pre className={styles.report}>{report}</pre>
           </section>
+        )}
+        {tab === "관계 기록" && (
+          <div className={styles.grid}>
+            <section className={styles.card}>
+              <p className={styles.eyebrow}>MY RELATIONSHIP RECORD</p>
+              <h2>연애 관계 기록</h2>
+              <p>
+                상대와의 관계, 반복되는 갈등, 사건 경과, 내 감정을 한 번 정리해
+                두면 상담 대화에서 AI가 이미 알고 있는 사실로 쓰고 처음부터 다시
+                묻지 않습니다. 사실, 내 해석, 상대의 실제 발언을 구분해 쓰면
+                더 정확해요.
+              </p>
+              <Field label="관계 기록 (최대 20,000자)">
+                <textarea
+                  value={data.relationship}
+                  onChange={(e) =>
+                    update({ ...data, relationship: e.target.value })
+                  }
+                  maxLength={20000}
+                  rows={18}
+                  placeholder={
+                    "예) 기본 정보 / 상대의 성향(내가 관찰한 모습) / 나의 연애 성향 / 반복된 갈등 / 날짜별 사건 경과 / 최근 화해 시도"
+                  }
+                />
+              </Field>
+              <p className={styles.small}>
+                {data.relationship.length.toLocaleString()} / 20,000자 · 이 내용은
+                ‘암호화 저장’을 누른 뒤에만 서버에 남고, 상담에서 ‘관계 기록도
+                포함’을 켜 둘 때만 Google Gemini로 전송됩니다. 상대의 실제 생각과
+                의도는 기록과 다를 수 있다는 점을 AI에게도 알려 줍니다.
+              </p>
+              <div className={styles.actions}>
+                <button disabled={!storage || busy} onClick={save}>
+                  암호화 저장
+                </button>
+                <button
+                  className={styles.danger}
+                  onClick={() => update({ ...data, relationship: "" })}
+                >
+                  관계 기록 비우기
+                </button>
+              </div>
+            </section>
+          </div>
         )}
         {tab === "기억·개인정보" && (
           <div className={styles.grid}>

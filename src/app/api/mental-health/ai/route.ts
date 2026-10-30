@@ -32,7 +32,8 @@ export async function POST(req: Request) {
   try {
     if (!(await allowAiRequest(session.email)))
       return privateJson({ error: "rate_limited" }, 429);
-    return privateJson({ text: await generateSupport(input), safety: false });
+    const out = await generateSupport(input);
+    return privateJson({ text: out.text, safety: out.crisis });
   } catch {
     return privateJson({ error: "ai_failed" }, 503);
   }
