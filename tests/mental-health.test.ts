@@ -246,3 +246,14 @@ test("AI 미설정시 민감정보를 보내지 않고 제공사 오류 본문�
     else process.env.MENTAL_HEALTH_AI_PRIVACY_REVIEWED = reviewed;
   }
 });
+
+test("relationship record defaults for old data and is bounded", () => {
+  const legacy: Record<string, unknown> = { ...emptyWorkspace() };
+  delete legacy.relationship;
+  assert.equal(workspaceSchema.parse(legacy).relationship, "");
+  assert.throws(() =>
+    workspaceSchema.parse({ ...emptyWorkspace(), relationship: "가".repeat(20001) }),
+  );
+  const saved = workspaceSchema.parse({ ...emptyWorkspace(), relationship: "기록" });
+  assert.equal(saved.relationship, "기록");
+});
