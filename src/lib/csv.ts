@@ -2,19 +2,30 @@ import type { CategoryId } from "./categories";
 
 export type CsvRow = {
   summary: string;
-  date: string;        // YYYY-MM-DD
-  startTime?: string;  // HH:mm
-  endTime?: string;    // HH:mm
+  date: string; // YYYY-MM-DD
+  startTime?: string; // HH:mm
+  endTime?: string; // HH:mm
   category?: string;
   location?: string;
 };
 
 const CATEGORY_MAP: Record<string, CategoryId> = {
-  인생: "life", 개인: "life", life: "life",
-  회사: "company", 업무: "company", 직장: "company", company: "company",
-  vfx: "vfx", VFX: "vfx",
-  앱개발: "appdev", 개발: "appdev", dev: "appdev", appdev: "appdev",
-  재즈: "jazz", 음악: "jazz", jazz: "jazz",
+  인생: "life",
+  개인: "life",
+  life: "life",
+  회사: "company",
+  업무: "company",
+  직장: "company",
+  company: "company",
+  vfx: "vfx",
+  VFX: "vfx",
+  앱개발: "appdev",
+  개발: "appdev",
+  dev: "appdev",
+  appdev: "appdev",
+  재즈: "jazz",
+  음악: "jazz",
+  jazz: "jazz",
 };
 
 export function mapCategory(raw: string | undefined): CategoryId {
@@ -47,7 +58,12 @@ function detectSeparator(header: string): string {
   for (const ch of header) {
     if (ch in counts) counts[ch as keyof typeof counts]++;
   }
-  if (counts["\t"] >= counts[","] && counts["\t"] >= counts[";"] && counts["\t"] > 0) return "\t";
+  if (
+    counts["\t"] >= counts[","] &&
+    counts["\t"] >= counts[";"] &&
+    counts["\t"] > 0
+  )
+    return "\t";
   if (counts[";"] > counts[","]) return ";";
   return ",";
 }
@@ -75,19 +91,43 @@ function splitLine(line: string, sep: string): string[] {
 export function parseCsv(text: string): CsvRow[] {
   // BOM 제거
   const cleaned = text.replace(/^﻿/, "");
-  const lines = cleaned.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+  const lines = cleaned
+    .split(/\r?\n/)
+    .map((l) => l.trim())
+    .filter(Boolean);
   if (lines.length < 2) return [];
 
   const sep = detectSeparator(lines[0]);
-  const header = splitLine(lines[0], sep).map((h) => h.toLowerCase().replace(/['"]/g, ""));
+  const header = splitLine(lines[0], sep).map((h) =>
+    h.toLowerCase().replace(/['"]/g, ""),
+  );
 
   const idx = {
-    summary: header.findIndex((h) => ["제목", "title", "summary", "이름", "name", "event", "일정"].includes(h)),
+    summary: header.findIndex((h) =>
+      ["제목", "title", "summary", "이름", "name", "event", "일정"].includes(h),
+    ),
     date: header.findIndex((h) => ["날짜", "date", "일자", "일시"].includes(h)),
-    startTime: header.findIndex((h) => ["시작시간", "시작", "start", "starttime", "start_time", "시작 시간"].includes(h)),
-    endTime: header.findIndex((h) => ["종료시간", "종료", "end", "endtime", "end_time", "종료 시간"].includes(h)),
-    category: header.findIndex((h) => ["카테고리", "category", "분류", "cat"].includes(h)),
-    location: header.findIndex((h) => ["장소", "location", "위치", "venue", "place"].includes(h)),
+    startTime: header.findIndex((h) =>
+      [
+        "시작시간",
+        "시작",
+        "start",
+        "starttime",
+        "start_time",
+        "시작 시간",
+      ].includes(h),
+    ),
+    endTime: header.findIndex((h) =>
+      ["종료시간", "종료", "end", "endtime", "end_time", "종료 시간"].includes(
+        h,
+      ),
+    ),
+    category: header.findIndex((h) =>
+      ["카테고리", "category", "분류", "cat"].includes(h),
+    ),
+    location: header.findIndex((h) =>
+      ["장소", "location", "위치", "venue", "place"].includes(h),
+    ),
   };
 
   if (idx.summary === -1 || idx.date === -1) return [];
@@ -104,10 +144,16 @@ export function parseCsv(text: string): CsvRow[] {
     rows.push({
       summary,
       date,
-      startTime: idx.startTime >= 0 ? cols[idx.startTime]?.trim() || undefined : undefined,
-      endTime: idx.endTime >= 0 ? cols[idx.endTime]?.trim() || undefined : undefined,
-      category: idx.category >= 0 ? cols[idx.category]?.trim() || undefined : undefined,
-      location: idx.location >= 0 ? cols[idx.location]?.trim() || undefined : undefined,
+      startTime:
+        idx.startTime >= 0
+          ? cols[idx.startTime]?.trim() || undefined
+          : undefined,
+      endTime:
+        idx.endTime >= 0 ? cols[idx.endTime]?.trim() || undefined : undefined,
+      category:
+        idx.category >= 0 ? cols[idx.category]?.trim() || undefined : undefined,
+      location:
+        idx.location >= 0 ? cols[idx.location]?.trim() || undefined : undefined,
     });
   }
   return rows;

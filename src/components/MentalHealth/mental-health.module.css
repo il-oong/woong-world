@@ -470,3 +470,31 @@
     opacity: 0.7;
   }
 }
+
+.relReport {
+  background: #eef2ee;
+  color: #182c2a;
+  border-radius: 14px;
+  padding: 16px;
+  overflow-x: auto;
+}
+.relReport h2 {
+  font-size: 15px;
+  margin: 18px 0 6px;
+  color: #14675b;
+}
+.relReport table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 13px;
+}
+.relReport th,
+.relReport td {
+  border: 1px solid #b9c9c5;
+  padding: 6px 8px;
+  text-align: left;
+  vertical-align: top;
+}
+.relReport th {
+  background: #dcebe7;
+}

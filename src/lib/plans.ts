@@ -47,8 +47,7 @@ export type UpdatePlanInput = Partial<{
 function getRedisCreds(): { url: string; token: string } | null {
   // Vercel Marketplace injects Upstash credentials as KV_REST_API_* by default,
   // but direct Upstash signup uses UPSTASH_REDIS_REST_*. Accept either.
-  const url =
-    process.env.UPSTASH_REDIS_REST_URL ?? process.env.KV_REST_API_URL;
+  const url = process.env.UPSTASH_REDIS_REST_URL ?? process.env.KV_REST_API_URL;
   const token =
     process.env.UPSTASH_REDIS_REST_TOKEN ?? process.env.KV_REST_API_TOKEN;
   if (!url || !token) return null;
@@ -142,7 +141,10 @@ export async function deletePlan(email: string, id: string): Promise<boolean> {
   return true;
 }
 
-export function currentPeriodKey(period: PlanPeriod, date = new Date()): string {
+export function currentPeriodKey(
+  period: PlanPeriod,
+  date = new Date(),
+): string {
   if (period === "yearly") return String(date.getFullYear());
   if (period === "monthly") {
     return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
@@ -152,10 +154,14 @@ export function currentPeriodKey(period: PlanPeriod, date = new Date()): string 
 
 export function isoWeekKey(date: Date): string {
   // ISO 8601 week-numbering year/week
-  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+  const d = new Date(
+    Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()),
+  );
   const dayNum = d.getUTCDay() || 7;
   d.setUTCDate(d.getUTCDate() + 4 - dayNum);
   const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
-  const weekNum = Math.ceil(((d.getTime() - yearStart.getTime()) / 86_400_000 + 1) / 7);
+  const weekNum = Math.ceil(
+    ((d.getTime() - yearStart.getTime()) / 86_400_000 + 1) / 7,
+  );
   return `${d.getUTCFullYear()}-W${String(weekNum).padStart(2, "0")}`;
 }

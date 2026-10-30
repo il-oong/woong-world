@@ -42,7 +42,10 @@ async function readExtras(): Promise<string[]> {
   }
 }
 
-export async function listAdmins(): Promise<{ super: string; extras: string[] }> {
+export async function listAdmins(): Promise<{
+  super: string;
+  extras: string[];
+}> {
   const superE = getSuperAdminEmail();
   const extras = (await readExtras()).filter((e) => e !== superE);
   return { super: superE, extras };
@@ -94,5 +97,8 @@ export async function removeAdmin(email: string): Promise<void> {
   const r = redis();
   if (!r) throw new Error("storage_not_configured");
   const extras = await readExtras();
-  await r.set(ADMINS_KEY, extras.filter((x) => x !== e));
+  await r.set(
+    ADMINS_KEY,
+    extras.filter((x) => x !== e),
+  );
 }

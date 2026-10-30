@@ -136,7 +136,10 @@ export type MarketSnapshot = {
   text: string;
   asOf: number;
   ok: boolean;
-  readings: Record<string, { price: number | null; changePercent: number | null }>;
+  readings: Record<
+    string,
+    { price: number | null; changePercent: number | null }
+  >;
 };
 
 export type AgentReadiness = "ready" | "caution" | "unavailable";
@@ -206,8 +209,12 @@ function buildMarketContext(q: QuoteSummaryModules, news: NewsItem[]): string {
   const lines: string[] = [];
 
   lines.push("=== 실시간 시장 데이터 ===");
-  lines.push(`현재가: ${fmt(sd.regularMarketPrice?.raw ?? fd.currentPrice?.raw)}`);
-  lines.push(`52주 범위: ${fmt(sd.fiftyTwoWeekLow?.raw)} ~ ${fmt(sd.fiftyTwoWeekHigh?.raw)}`);
+  lines.push(
+    `현재가: ${fmt(sd.regularMarketPrice?.raw ?? fd.currentPrice?.raw)}`,
+  );
+  lines.push(
+    `52주 범위: ${fmt(sd.fiftyTwoWeekLow?.raw)} ~ ${fmt(sd.fiftyTwoWeekHigh?.raw)}`,
+  );
   lines.push(`52주 변동률: ${pct(ks["52WeekChange"]?.raw)}`);
   lines.push(`시가총액: ${fmtM(sd.marketCap?.raw)}`);
   lines.push(`거래량(평균): ${fmtM(sd.averageVolume?.raw)}`);
@@ -234,7 +241,9 @@ function buildMarketContext(q: QuoteSummaryModules, news: NewsItem[]): string {
   lines.push("\n=== 애널리스트 컨센서스 ===");
   lines.push(`추천: ${fd.recommendationKey ?? "N/A"}`);
   lines.push(`목표주가 평균: ${fmt(fd.targetMeanPrice?.raw)}`);
-  lines.push(`목표주가 범위: ${fmt(fd.targetLowPrice?.raw)} ~ ${fmt(fd.targetHighPrice?.raw)}`);
+  lines.push(
+    `목표주가 범위: ${fmt(fd.targetLowPrice?.raw)} ~ ${fmt(fd.targetHighPrice?.raw)}`,
+  );
   lines.push(`커버리지 수: ${fd.numberOfAnalystOpinions?.raw ?? "N/A"}명`);
 
   lines.push("\n=== 수급 ===");
@@ -250,7 +259,9 @@ function buildMarketContext(q: QuoteSummaryModules, news: NewsItem[]): string {
       const date = n.providerPublishTime
         ? new Date(n.providerPublishTime * 1000).toLocaleDateString("ko-KR")
         : "";
-      lines.push(`${i + 1}. [${date}] ${n.title ?? "(제목 없음)"} (${n.publisher ?? ""})`);
+      lines.push(
+        `${i + 1}. [${date}] ${n.title ?? "(제목 없음)"} (${n.publisher ?? ""})`,
+      );
     });
   }
 
@@ -258,7 +269,10 @@ function buildMarketContext(q: QuoteSummaryModules, news: NewsItem[]): string {
 }
 
 /** 5인 에이전트 분석용 한 줄 펀더멘털 요약 + 데이터 유무. */
-export function buildFundamentalsLine(q: QuoteSummaryModules | null): { text: string; ok: boolean } {
+export function buildFundamentalsLine(q: QuoteSummaryModules | null): {
+  text: string;
+  ok: boolean;
+} {
   if (!q) return { text: "(데이터 없음)", ok: false };
   const sd = q.summaryDetail ?? {};
   const fd = q.financialData ?? {};
@@ -283,13 +297,20 @@ export function buildFundamentalsLine(q: QuoteSummaryModules | null): { text: st
 
 // ── Yahoo Finance 페처 ───────────────────────────────────────────────────────
 
-async function fetchQuoteSummary(ticker: string): Promise<QuoteSummaryModules | null> {
+async function fetchQuoteSummary(
+  ticker: string,
+): Promise<QuoteSummaryModules | null> {
   try {
     const modules = "summaryDetail,financialData,defaultKeyStatistics";
     const url = `https://query1.finance.yahoo.com/v10/finance/quoteSummary/${encodeURIComponent(ticker)}?modules=${modules}`;
-    const res = await fetch(url, { headers: YF_HEADERS, signal: AbortSignal.timeout(4000) });
+    const res = await fetch(url, {
+      headers: YF_HEADERS,
+      signal: AbortSignal.timeout(4000),
+    });
     if (!res.ok) return null;
-    const data = (await res.json()) as { quoteSummary?: { result?: QuoteSummaryModules[] } };
+    const data = (await res.json()) as {
+      quoteSummary?: { result?: QuoteSummaryModules[] };
+    };
     return data.quoteSummary?.result?.[0] ?? null;
   } catch {
     return null;
@@ -300,7 +321,10 @@ async function fetchNews(ticker: string, name: string): Promise<NewsItem[]> {
   try {
     const query = encodeURIComponent(`${ticker} ${name}`);
     const url = `https://query1.finance.yahoo.com/v1/finance/search?q=${query}&newsCount=6&enableFuzzyQuery=false&quotesCount=0`;
-    const res = await fetch(url, { headers: YF_HEADERS, signal: AbortSignal.timeout(3000) });
+    const res = await fetch(url, {
+      headers: YF_HEADERS,
+      signal: AbortSignal.timeout(3000),
+    });
     if (!res.ok) return [];
     const data = (await res.json()) as { news?: NewsItem[] };
     return data.news?.slice(0, 6) ?? [];
@@ -311,7 +335,11 @@ async function fetchNews(ticker: string, name: string): Promise<NewsItem[]> {
 
 async function fetchChartQuote(
   ticker: string,
-): Promise<{ price: number | null; changePercent: number | null; ok: boolean }> {
+): Promise<{
+  price: number | null;
+  changePercent: number | null;
+  ok: boolean;
+}> {
   try {
     const res = await fetch(
       `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?interval=1d&range=1d`,
@@ -319,11 +347,23 @@ async function fetchChartQuote(
     );
     if (!res.ok) return { price: null, changePercent: null, ok: false };
     const data = (await res.json()) as {
-      chart?: { result?: { meta?: { regularMarketPrice?: number; regularMarketChangePercent?: number } }[] };
+      chart?: {
+        result?: {
+          meta?: {
+            regularMarketPrice?: number;
+            regularMarketChangePercent?: number;
+          };
+        }[];
+      };
     };
     const meta = data.chart?.result?.[0]?.meta;
-    if (!meta?.regularMarketPrice) return { price: null, changePercent: null, ok: false };
-    return { price: meta.regularMarketPrice, changePercent: meta.regularMarketChangePercent ?? null, ok: true };
+    if (!meta?.regularMarketPrice)
+      return { price: null, changePercent: null, ok: false };
+    return {
+      price: meta.regularMarketPrice,
+      changePercent: meta.regularMarketChangePercent ?? null,
+      ok: true,
+    };
   } catch {
     return { price: null, changePercent: null, ok: false };
   }
@@ -343,8 +383,11 @@ async function fetchChartHistory(ticker: string): Promise<number[]> {
         }[];
       };
     };
-    return (data.chart?.result?.[0]?.indicators?.quote?.[0]?.close ?? []).filter(
-      (value): value is number => typeof value === "number" && Number.isFinite(value),
+    return (
+      data.chart?.result?.[0]?.indicators?.quote?.[0]?.close ?? []
+    ).filter(
+      (value): value is number =>
+        typeof value === "number" && Number.isFinite(value),
     );
   } catch {
     return [];
@@ -371,24 +414,52 @@ function tickerCandidates(ticker: string): string[] {
  * 한 종목의 실시간 데이터를 1회 수집한다. 살아있는 티커를 찾으면 그 데이터를,
  * 모두 실패하면 dataOk=false로 입력 티커를 그대로 돌려준다.
  */
-export async function gatherMarketData(input: string, name: string): Promise<StockMarketData> {
+export async function gatherMarketData(
+  input: string,
+  name: string,
+): Promise<StockMarketData> {
   const candidates = tickerCandidates(input);
-  let best: { ticker: string; price: number | null; changePercent: number | null; quote: QuoteSummaryModules | null } | null =
-    null;
+  let best: {
+    ticker: string;
+    price: number | null;
+    changePercent: number | null;
+    quote: QuoteSummaryModules | null;
+  } | null = null;
 
   for (const c of candidates) {
-    const [chart, quote] = await Promise.all([fetchChartQuote(c), fetchQuoteSummary(c)]);
+    const [chart, quote] = await Promise.all([
+      fetchChartQuote(c),
+      fetchQuoteSummary(c),
+    ]);
     if (chart.ok && quote) {
-      best = { ticker: c, price: chart.price, changePercent: chart.changePercent, quote };
+      best = {
+        ticker: c,
+        price: chart.price,
+        changePercent: chart.changePercent,
+        quote,
+      };
       break;
     }
     if ((chart.ok || quote) && !best) {
-      best = { ticker: c, price: chart.price, changePercent: chart.changePercent, quote };
+      best = {
+        ticker: c,
+        price: chart.price,
+        changePercent: chart.changePercent,
+        quote,
+      };
     }
   }
 
   if (!best) {
-    return { ticker: input, price: null, changePercent: null, quote: null, news: [], dataOk: false, asOf: Date.now() };
+    return {
+      ticker: input,
+      price: null,
+      changePercent: null,
+      quote: null,
+      news: [],
+      dataOk: false,
+      asOf: Date.now(),
+    };
   }
 
   const news = await fetchNews(best.ticker, name);
@@ -410,7 +481,9 @@ function clampScore(score: number): number {
 }
 
 function average(values: number[]): number | null {
-  return values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : null;
+  return values.length
+    ? values.reduce((sum, value) => sum + value, 0) / values.length
+    : null;
 }
 
 function readableNumber(value: number): string {
@@ -447,10 +520,14 @@ function runMacroRiskAgent(snapshot: MarketSnapshot): MacroRiskAgentResult {
   if (typeof spxMove === "number") {
     if (spxMove <= -1.5) {
       score -= 15;
-      signals.push(`S&P 500 daily move ${spxMove.toFixed(2)}%: risk-off session.`);
+      signals.push(
+        `S&P 500 daily move ${spxMove.toFixed(2)}%: risk-off session.`,
+      );
     } else if (spxMove >= 1) {
       score += 8;
-      signals.push(`S&P 500 daily move +${spxMove.toFixed(2)}%: risk appetite improved.`);
+      signals.push(
+        `S&P 500 daily move +${spxMove.toFixed(2)}%: risk appetite improved.`,
+      );
     }
   } else {
     signals.push("S&P 500 daily move is unavailable.");
@@ -464,7 +541,9 @@ function runMacroRiskAgent(snapshot: MarketSnapshot): MacroRiskAgentResult {
   };
 }
 
-function runFundamentalValueAgent(md: StockMarketData): FundamentalValueAgentResult {
+function runFundamentalValueAgent(
+  md: StockMarketData,
+): FundamentalValueAgentResult {
   const quote = md.quote;
   if (!quote) {
     return {
@@ -493,7 +572,8 @@ function runFundamentalValueAgent(md: StockMarketData): FundamentalValueAgentRes
     verifiedFields += 1;
     score += revenueGrowth > 0.1 ? 12 : revenueGrowth < 0 ? -12 : 0;
     signals.push(`Revenue growth: ${(revenueGrowth * 100).toFixed(1)}%.`);
-    if (revenueGrowth > 0.1) masterPatterns.push("O'Neil growth screen: revenue growth is positive.");
+    if (revenueGrowth > 0.1)
+      masterPatterns.push("O'Neil growth screen: revenue growth is positive.");
   }
   if (typeof earningsGrowth === "number") {
     verifiedFields += 1;
@@ -519,13 +599,19 @@ function runFundamentalValueAgent(md: StockMarketData): FundamentalValueAgentRes
     verifiedFields += 1;
     signals.push(`Trailing P/E: ${trailingPe.toFixed(1)}.`);
   }
-  if (!masterPatterns.length) masterPatterns.push("Classic-investor pattern checks need more verified fields.");
+  if (!masterPatterns.length)
+    masterPatterns.push(
+      "Classic-investor pattern checks need more verified fields.",
+    );
   if (verifiedFields < 3) {
     return {
       role: "fundamental_value",
       readiness: "unavailable",
       score: 0,
-      signals: [...signals, "Fewer than three verified fundamental fields are available."],
+      signals: [
+        ...signals,
+        "Fewer than three verified fundamental fields are available.",
+      ],
       masterPatterns,
     };
   }
@@ -538,14 +624,18 @@ function runFundamentalValueAgent(md: StockMarketData): FundamentalValueAgentRes
   };
 }
 
-async function runTrendEntryAgent(ticker: string): Promise<TrendEntryAgentResult> {
+async function runTrendEntryAgent(
+  ticker: string,
+): Promise<TrendEntryAgentResult> {
   const closes = await fetchChartHistory(ticker);
   if (closes.length < 50) {
     return {
       role: "trend_entry",
       readiness: "unavailable",
       score: 0,
-      signals: ["At least 50 verified daily closes are required for trend analysis."],
+      signals: [
+        "At least 50 verified daily closes are required for trend analysis.",
+      ],
       entryRule: "No entry rule until historical price data is available.",
       invalidationRule: "No trade while trend data is unavailable.",
     };
@@ -558,21 +648,29 @@ async function runTrendEntryAgent(ticker: string): Promise<TrendEntryAgentResult
   let score = 50;
   if (price > sma50) {
     score += 15;
-    signals.push(`Price ${readableNumber(price)} is above the 50-day average ${readableNumber(sma50)}.`);
+    signals.push(
+      `Price ${readableNumber(price)} is above the 50-day average ${readableNumber(sma50)}.`,
+    );
   } else {
     score -= 15;
-    signals.push(`Price ${readableNumber(price)} is below the 50-day average ${readableNumber(sma50)}.`);
+    signals.push(
+      `Price ${readableNumber(price)} is below the 50-day average ${readableNumber(sma50)}.`,
+    );
   }
   if (sma200 !== null) {
     if (price > sma200) score += 15;
     else score -= 15;
     if (sma50 > sma200) score += 10;
     else score -= 10;
-    signals.push(`200-day average: ${readableNumber(sma200)}; 50/200 trend relationship checked.`);
+    signals.push(
+      `200-day average: ${readableNumber(sma200)}; 50/200 trend relationship checked.`,
+    );
   } else {
-    signals.push("200-day average is unavailable because the listing history is short.");
+    signals.push(
+      "200-day average is unavailable because the listing history is short.",
+    );
   }
-  const distanceFromHigh = ((price / high) - 1) * 100;
+  const distanceFromHigh = (price / high - 1) * 100;
   if (distanceFromHigh >= -15) score += 5;
   else score -= 5;
   signals.push(`Distance from 1-year high: ${distanceFromHigh.toFixed(1)}%.`);
@@ -592,9 +690,12 @@ export async function runThreeAgentAnalysis(input: {
   marketData?: StockMarketData;
   macroSnapshot?: MarketSnapshot;
 }): Promise<ThreeAgentAnalysis> {
-  const md = input.marketData ?? (await gatherMarketData(input.ticker, input.name));
+  const md =
+    input.marketData ?? (await gatherMarketData(input.ticker, input.name));
   const [snapshot, trendEntry] = await Promise.all([
-    input.macroSnapshot ? Promise.resolve(input.macroSnapshot) : fetchMarketSnapshot(),
+    input.macroSnapshot
+      ? Promise.resolve(input.macroSnapshot)
+      : fetchMarketSnapshot(),
     runTrendEntryAgent(md.ticker),
   ]);
   const macroRisk = runMacroRiskAgent(snapshot);
@@ -615,17 +716,24 @@ export async function runThreeAgentAnalysis(input: {
       riskGate: {
         decision: "no_trade",
         score: null,
-        reasons: reasons.length ? reasons : ["Verified market data is unavailable."],
+        reasons: reasons.length
+          ? reasons
+          : ["Verified market data is unavailable."],
         requiresManualConfirmation: true,
       },
     };
   }
   const score = clampScore(
-    macroRisk.score * 0.3 + fundamentalValue.score * 0.4 + trendEntry.score * 0.3,
+    macroRisk.score * 0.3 +
+      fundamentalValue.score * 0.4 +
+      trendEntry.score * 0.3,
   );
-  const decision = score >= 70 && macroRisk.readiness === "ready" && trendEntry.readiness === "ready"
-    ? "buy_candidate"
-    : "watch";
+  const decision =
+    score >= 70 &&
+    macroRisk.readiness === "ready" &&
+    trendEntry.readiness === "ready"
+      ? "buy_candidate"
+      : "watch";
   return {
     ticker: md.ticker,
     name: input.name,
@@ -639,14 +747,20 @@ export async function runThreeAgentAnalysis(input: {
       score,
       reasons:
         decision === "buy_candidate"
-          ? ["All three independent checks passed; manual confirmation remains required."]
+          ? [
+              "All three independent checks passed; manual confirmation remains required.",
+            ]
           : ["The combined signal does not meet the candidate threshold."],
       requiresManualConfirmation: true,
     },
   };
 }
 
-async function callGeminiJson<T>(systemPrompt: string, userPrompt: string, temperature = 0.2): Promise<T> {
+async function callGeminiJson<T>(
+  systemPrompt: string,
+  userPrompt: string,
+  temperature = 0.2,
+): Promise<T> {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) throw new Error("GEMINI_API_KEY not set");
 
@@ -656,7 +770,11 @@ async function callGeminiJson<T>(systemPrompt: string, userPrompt: string, tempe
     body: JSON.stringify({
       systemInstruction: { parts: [{ text: systemPrompt }] },
       contents: [{ role: "user", parts: [{ text: userPrompt }] }],
-      generationConfig: { temperature, responseMimeType: "application/json", thinkingConfig: { thinkingBudget: 0 } },
+      generationConfig: {
+        temperature,
+        responseMimeType: "application/json",
+        thinkingConfig: { thinkingBudget: 0 },
+      },
     }),
   });
 
@@ -664,7 +782,9 @@ async function callGeminiJson<T>(systemPrompt: string, userPrompt: string, tempe
     const text = await res.text();
     throw new Error(`Gemini ${res.status}: ${text.slice(0, 300)}`);
   }
-  const data = (await res.json()) as { candidates?: { content?: { parts?: { text?: string }[] } }[] };
+  const data = (await res.json()) as {
+    candidates?: { content?: { parts?: { text?: string }[] } }[];
+  };
   const raw = data.candidates?.[0]?.content?.parts?.[0]?.text ?? "{}";
   return JSON.parse(raw) as T;
 }
@@ -678,11 +798,15 @@ export async function runJkpAnalysis(input: {
   settings: InvestSettings;
   marketData?: StockMarketData;
 }): Promise<JkpAnalysisResult> {
-  const md = input.marketData ?? (await gatherMarketData(input.ticker, input.name));
+  const md =
+    input.marketData ?? (await gatherMarketData(input.ticker, input.name));
   if (!md.dataOk) {
-    throw new Error("Verified market data is unavailable; no trade analysis was produced.");
+    throw new Error(
+      "Verified market data is unavailable; no trade analysis was produced.",
+    );
   }
-  const { livermore, oneil, weinstein, minervini, lynch } = input.settings.traderWeights;
+  const { livermore, oneil, weinstein, minervini, lynch } =
+    input.settings.traderWeights;
 
   const marketContext = md.quote
     ? buildMarketContext(md.quote, md.news)
@@ -737,9 +861,12 @@ export async function runAgentReview(input: {
   recommendationReason?: string;
   marketData?: StockMarketData;
 }): Promise<AgentReviewResult> {
-  const md = input.marketData ?? (await gatherMarketData(input.ticker, input.name));
+  const md =
+    input.marketData ?? (await gatherMarketData(input.ticker, input.name));
   if (!md.dataOk) {
-    throw new Error("Verified market data is unavailable; no investor-persona review was produced.");
+    throw new Error(
+      "Verified market data is unavailable; no investor-persona review was produced.",
+    );
   }
   const fundamentals = buildFundamentalsLine(md.quote);
 
@@ -821,7 +948,10 @@ export async function runAgentReview(input: {
 }`;
 
   const result = await callGeminiJson<
-    Omit<AgentReviewResult, "ticker" | "name" | "currentPrice" | "changePercent">
+    Omit<
+      AgentReviewResult,
+      "ticker" | "name" | "currentPrice" | "changePercent"
+    >
   >(systemPrompt, userPrompt);
 
   return {
@@ -847,7 +977,9 @@ const SNAPSHOT_TICKERS: { symbol: string; label: string }[] = [
 
 /** 시장 전반(공포/지수/환율/금리/원자재) 실시간 스냅샷 텍스트. */
 export async function fetchMarketSnapshot(): Promise<MarketSnapshot> {
-  const quotes = await Promise.all(SNAPSHOT_TICKERS.map((t) => fetchChartQuote(t.symbol)));
+  const quotes = await Promise.all(
+    SNAPSHOT_TICKERS.map((t) => fetchChartQuote(t.symbol)),
+  );
   const lines: string[] = [];
   const readings: MarketSnapshot["readings"] = {};
   let ok = false;
@@ -860,17 +992,33 @@ export async function fetchMarketSnapshot(): Promise<MarketSnapshot> {
     }
     ok = true;
     const chg =
-      q.changePercent !== null ? ` (${q.changePercent > 0 ? "+" : ""}${q.changePercent.toFixed(2)}%)` : "";
-    lines.push(`${t.label}: ${q.price.toLocaleString("en-US", { maximumFractionDigits: 2 })}${chg}`);
+      q.changePercent !== null
+        ? ` (${q.changePercent > 0 ? "+" : ""}${q.changePercent.toFixed(2)}%)`
+        : "";
+    lines.push(
+      `${t.label}: ${q.price.toLocaleString("en-US", { maximumFractionDigits: 2 })}${chg}`,
+    );
   });
   return { text: lines.join("\n"), asOf: Date.now(), ok, readings };
 }
 
 // ── 종목명/코드 → 티커 해석 ───────────────────────────────────────────────────
 
-type TickerMatch = { ticker: string; name: string; market: "KR" | "US" | "OTHER" };
+type TickerMatch = {
+  ticker: string;
+  name: string;
+  market: "KR" | "US" | "OTHER";
+};
 
-const US_EXCHANGES = new Set(["NYSE", "NASDAQ", "NMS", "NGM", "NCM", "ASE", "PCX"]);
+const US_EXCHANGES = new Set([
+  "NYSE",
+  "NASDAQ",
+  "NMS",
+  "NGM",
+  "NCM",
+  "ASE",
+  "PCX",
+]);
 const KR_EXCHANGE_CODES = new Set(["KOE", "KSC", "KSE"]);
 
 // 자주 쓰는 종목의 오프라인 폴백 (Yahoo 검색 실패 시).
@@ -914,7 +1062,13 @@ const LOCAL_STOCKS: TickerMatch[] = [
 function detectMarket(symbol: string, exchange: string): "KR" | "US" | "OTHER" {
   const sym = symbol.toUpperCase();
   const exch = exchange.toUpperCase();
-  if (sym.endsWith(".KS") || sym.endsWith(".KQ") || exch.includes("KS") || exch.includes("KQ") || KR_EXCHANGE_CODES.has(exch))
+  if (
+    sym.endsWith(".KS") ||
+    sym.endsWith(".KQ") ||
+    exch.includes("KS") ||
+    exch.includes("KQ") ||
+    KR_EXCHANGE_CODES.has(exch)
+  )
     return "KR";
   if (US_EXCHANGES.has(exch)) return "US";
   return "OTHER";
@@ -922,7 +1076,11 @@ function detectMarket(symbol: string, exchange: string): "KR" | "US" | "OTHER" {
 
 function normalizeTicker(symbol: string, exchange: string): string {
   const exch = exchange.toUpperCase();
-  if (KR_EXCHANGE_CODES.has(exch) && !symbol.endsWith(".KS") && !symbol.endsWith(".KQ")) {
+  if (
+    KR_EXCHANGE_CODES.has(exch) &&
+    !symbol.endsWith(".KS") &&
+    !symbol.endsWith(".KQ")
+  ) {
     return `${symbol}.KS`;
   }
   return symbol;
@@ -938,16 +1096,31 @@ async function yahooSearch(q: string): Promise<TickerMatch[]> {
   };
   const params = `?q=${encodeURIComponent(q)}&quotesCount=8&newsCount=0&enableFuzzyQuery=true&region=KR,US&lang=ko-KR`;
 
-  for (const base of ["https://query1.finance.yahoo.com", "https://query2.finance.yahoo.com"]) {
+  for (const base of [
+    "https://query1.finance.yahoo.com",
+    "https://query2.finance.yahoo.com",
+  ]) {
     try {
-      const res = await fetch(`${base}/v1/finance/search${params}`, { headers, signal: AbortSignal.timeout(3000) });
+      const res = await fetch(`${base}/v1/finance/search${params}`, {
+        headers,
+        signal: AbortSignal.timeout(3000),
+      });
       if (!res.ok) continue;
       const data = (await res.json()) as {
-        quotes?: { symbol?: string; longname?: string; shortname?: string; exchange?: string; quoteType?: string }[];
+        quotes?: {
+          symbol?: string;
+          longname?: string;
+          shortname?: string;
+          exchange?: string;
+          quoteType?: string;
+        }[];
       };
       const quotes = data.quotes ?? [];
       const results = quotes
-        .filter((qq) => (qq.quoteType === "EQUITY" || qq.quoteType === "ETF") && qq.symbol)
+        .filter(
+          (qq) =>
+            (qq.quoteType === "EQUITY" || qq.quoteType === "ETF") && qq.symbol,
+        )
         .map((qq) => {
           const symbol = qq.symbol!;
           const exchange = qq.exchange ?? "";
@@ -966,26 +1139,35 @@ async function yahooSearch(q: string): Promise<TickerMatch[]> {
 }
 
 /** 종목명/코드/티커를 받아 가장 그럴듯한 1개 종목을 해석한다. 실패 시 null. */
-export async function searchTickerSmart(query: string): Promise<TickerMatch | null> {
+export async function searchTickerSmart(
+  query: string,
+): Promise<TickerMatch | null> {
   const q = query.trim();
   if (!q) return null;
   const remote = await yahooSearch(q);
   if (remote.length > 0) return remote[0];
   const lower = q.toLowerCase();
   const local = LOCAL_STOCKS.find(
-    (s) => s.name.toLowerCase().includes(lower) || s.ticker.toLowerCase().includes(lower),
+    (s) =>
+      s.name.toLowerCase().includes(lower) ||
+      s.ticker.toLowerCase().includes(lower),
   );
   return local ?? null;
 }
 
 // ── Google 검색 그라운딩 기반 시장 브리핑 ─────────────────────────────────────
 
-export type GroundedBrief = { text: string; sources: { title: string; uri: string }[] };
+export type GroundedBrief = {
+  text: string;
+  sources: { title: string; uri: string }[];
+};
 
 type GroundingResponse = {
   candidates?: {
     content?: { parts?: { text?: string }[] };
-    groundingMetadata?: { groundingChunks?: { web?: { uri?: string; title?: string } }[] };
+    groundingMetadata?: {
+      groundingChunks?: { web?: { uri?: string; title?: string } }[];
+    };
   }[];
 };
 
@@ -994,7 +1176,9 @@ type GroundingResponse = {
  * 검색 그라운딩이 API 키에서 비활성화돼 있으면 그라운딩 없이 1회 재시도하고,
  * 그래도 실패하면 null을 반환한다(베스트에포트 — 채팅을 깨뜨리지 않는다).
  */
-export async function fetchGroundedMarketBrief(query: string): Promise<GroundedBrief | null> {
+export async function fetchGroundedMarketBrief(
+  query: string,
+): Promise<GroundedBrief | null> {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) return null;
 
@@ -1022,7 +1206,11 @@ export async function fetchGroundedMarketBrief(query: string): Promise<GroundedB
     if (!res.ok) return null;
     const data = (await res.json()) as GroundingResponse;
     const cand = data.candidates?.[0];
-    const text = cand?.content?.parts?.map((p) => p.text ?? "").join("").trim() ?? "";
+    const text =
+      cand?.content?.parts
+        ?.map((p) => p.text ?? "")
+        .join("")
+        .trim() ?? "";
     if (!text) return null;
     const chunks = cand?.groundingMetadata?.groundingChunks ?? [];
     const sources = chunks

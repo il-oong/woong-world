@@ -283,6 +283,92 @@ export const splitBubbles = (text: string) =>
     .map((x) => x.trim())
     .filter(Boolean);
 
-export const RELATIONSHIP_REPORT_PROMPT = `지금 할 일: 제공된 관계 기록만 근거로 '관계 분석 보고서'를 쓴다. 한국어, 따뜻하지만 분명하게, 마크다운 제목(##)과 불릿을 쓴다.
-구성: ## 한 문단 요약 / ## 기록에서 확인되는 사실 / ## 반복되는 갈등 순환(어떤 장면 → 각자의 반응 → 결과) / ## 내 감정과 필요 / ## 상대의 입장에서 가능한 설명(가능성으로만) / ## 관계가 좋아지려면 내가 할 수 있는 노력(구체적 행동, 말 예시 포함) / ## 상대와 함께 합의해 볼 것(연락 방식 등, 부탁 형태로) / ## 조심해야 할 행동(내 쪽의 패턴: 표현이 극단적으로 들릴 수 있는 말, 불안할 때의 반복 확인, 상대 반응을 기다리지 못하는 조급함 등 기록에 실제로 있는 것만) / ## 상대에게 요구하기 전에 점검할 것 / ## 이번 주 실천 3가지 / ## 더 확인이 필요한 것과 한계.
-규칙: 기록에 없는 사건·원인·날짜·인용을 만들지 않는다. 한쪽의 기록이므로 상대의 마음과 의도를 단정하지 않는다. 사용자를 비난하거나 무조건 편들지 않고, 양쪽 모두에게 변화가 필요할 수 있음을 균형 있게 다룬다. 관계 유지나 이별 어느 쪽도 권하지 않고 결정은 사용자가 한다. 이별 확률·애착 유형·성격 진단을 하지 않는다. 폭력·통제·위협 정황이 기록에 보이면 개선 노력보다 안전과 전문가·주변 도움을 먼저 안내한다. 마지막에 이 보고서는 AI의 참고 의견이며 전문 상담을 대신하지 않는다고 한 줄 덧붙인다.`;
+export const RELATIONSHIP_REPORT_PROMPT = `지금 할 일: 제공된 관계 기록만 근거로 '관계 분석 보고서'를 JSON으로 쓴다. 한국어, 따뜻하지만 분명하게, 각 칸은 한두 문장.
+필드: summary(한 문단 요약) / facts(기록에서 확인되는 사실: item·detail·basis에 날짜나 실제 발언) / cycle(반복되는 갈등 순환을 단계별로: step·me·partner·result) / needs(나의 감정과 필요) / partner(상대 입장에서 가능한 설명, 가능성으로만: possibility·basis) / efforts(관계가 좋아지려면 내가 할 수 있는 구체적 노력: action·why·how·example은 실제로 쓸 수 있는 말 한마디) / agreements(상대와 합의해 볼 것, 요구가 아닌 부탁 형태: topic·request) / cautions(조심해야 할 행동: 기록에 실제로 있는 내 쪽의 패턴만. behavior·risk(상대에게 어떻게 받아들여질 수 있는지)·instead(대신 해볼 것)) / weekly(이번 주 실천 3~5개: day·task) / unknowns(더 확인이 필요한 것과 한계).
+규칙: 기록에 없는 사건·원인·날짜·인용을 만들지 않는다. 한쪽의 기록이므로 상대의 마음과 의도를 단정하지 않는다. 사용자를 비난하거나 무조건 편들지 않고, 양쪽 모두에게 변화가 필요할 수 있음을 균형 있게 다룬다. 관계 유지나 이별 어느 쪽도 권하지 않고 결정은 사용자가 한다. 이별 확률·애착 유형·성격 진단을 하지 않는다. 폭력·통제·위협 정황이 기록에 있으면 안전과 전문가·주변 도움을 summary와 unknowns에 먼저 안내한다. 기록 속 일상 대화의 가벼운 표현(예: 힘들어 죽겠다)은 위기 신호로 보지 않는다.`;
+
+// Structured relationship report (tables) so it can be shown on screen and saved as a PDF.
+const T = { type: "STRING" };
+const rows = (required: string[]) => ({
+  type: "ARRAY",
+  items: {
+    type: "OBJECT",
+    required,
+    properties: Object.fromEntries(required.map((k) => [k, T])),
+  },
+});
+export const RELATIONSHIP_REPORT_SCHEMA = {
+  type: "OBJECT",
+  required: [
+    "summary",
+    "facts",
+    "cycle",
+    "needs",
+    "partner",
+    "efforts",
+    "agreements",
+    "cautions",
+    "weekly",
+    "unknowns",
+  ],
+  properties: {
+    summary: T,
+    facts: rows(["item", "detail", "basis"]),
+    cycle: rows(["step", "me", "partner", "result"]),
+    needs: rows(["feeling", "need"]),
+    partner: rows(["possibility", "basis"]),
+    efforts: rows(["action", "why", "how", "example"]),
+    agreements: rows(["topic", "request"]),
+    cautions: rows(["behavior", "risk", "instead"]),
+    weekly: rows(["day", "task"]),
+    unknowns: { type: "ARRAY", items: T },
+  },
+};
+export type RelationshipReport = {
+  summary: string;
+  facts: { item: string; detail: string; basis: string }[];
+  cycle: { step: string; me: string; partner: string; result: string }[];
+  needs: { feeling: string; need: string }[];
+  partner: { possibility: string; basis: string }[];
+  efforts: { action: string; why: string; how: string; example: string }[];
+  agreements: { topic: string; request: string }[];
+  cautions: { behavior: string; risk: string; instead: string }[];
+  weekly: { day: string; task: string }[];
+  unknowns: string[];
+};
+const esc = (s: unknown) =>
+  String(s ?? "").replace(
+    /[&<>"']/g,
+    (c) =>
+      ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[
+        c
+      ]!,
+  );
+const table = (heads: string[], keys: string[], data: object[]) =>
+  `<table><thead><tr>${heads.map((h) => `<th>${esc(h)}</th>`).join("")}</tr></thead><tbody>${
+    data.length
+      ? data
+          .map(
+            (r) =>
+              `<tr>${keys.map((k) => `<td>${esc((r as Record<string, unknown>)[k])}</td>`).join("")}</tr>`,
+          )
+          .join("")
+      : `<tr><td colspan="${keys.length}">해당 내용이 기록에 없습니다.</td></tr>`
+  }</tbody></table>`;
+export function relationshipReportBody(r: RelationshipReport): string {
+  return [
+    `<h2>1. 한눈에 보기</h2><p>${esc(r.summary)}</p>`,
+    `<h2>2. 기록에서 확인되는 사실</h2>${table(["항목", "내용", "근거(날짜·발언)"], ["item", "detail", "basis"], r.facts)}`,
+    `<h2>3. 반복되는 갈등 순환</h2>${table(["단계", "나의 반응", "상대의 반응(기록상)", "결과"], ["step", "me", "partner", "result"], r.cycle)}`,
+    `<h2>4. 나의 감정과 필요</h2>${table(["감정", "필요했던 것"], ["feeling", "need"], r.needs)}`,
+    `<h2>5. 상대 입장에서 가능한 설명 (단정 아님)</h2>${table(["가능성", "근거"], ["possibility", "basis"], r.partner)}`,
+    `<h2>6. 관계가 좋아지려면: 내가 할 수 있는 노력</h2>${table(["행동", "이유", "방법", "말 예시"], ["action", "why", "how", "example"], r.efforts)}`,
+    `<h2>7. 상대와 함께 합의해 볼 것</h2>${table(["주제", "부탁 형태의 제안"], ["topic", "request"], r.agreements)}`,
+    `<h2>8. 조심해야 할 행동</h2>${table(["조심할 행동", "생길 수 있는 문제", "대신 해볼 것"], ["behavior", "risk", "instead"], r.cautions)}`,
+    `<h2>9. 이번 주 실천 계획</h2>${table(["때", "실천"], ["day", "task"], r.weekly)}`,
+    `<h2>10. 더 확인이 필요한 것</h2><ul>${(r.unknowns.length ? r.unknowns : ["없음"]).map((u) => `<li>${esc(u)}</li>`).join("")}</ul>`,
+  ].join("");
+}
+export function relationshipReportHtml(r: RelationshipReport, date: string) {
+  return `<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>관계 분석 보고서</title><style>body{font:14px/1.7 "Malgun Gothic","Apple SD Gothic Neo",system-ui,sans-serif;max-width:860px;margin:32px auto;padding:0 20px;color:#182c2a}h1{color:#14675b;border-bottom:3px solid #14675b;padding-bottom:8px}h2{font-size:16px;margin:26px 0 8px;color:#14675b}table{border-collapse:collapse;width:100%;font-size:13px}th,td{border:1px solid #b9c9c5;padding:6px 8px;vertical-align:top;text-align:left}th{background:#e6f0ee}tr{page-break-inside:avoid}.note{margin-top:28px;font-size:12px;color:#55645f}@media print{body{margin:0;padding:0}@page{margin:16mm}}</style></head><body><h1>관계 분석 보고서</h1><p class="note">작성일 ${esc(date)} · 본인이 정리한 관계 기록만 근거로 한 AI의 참고 의견입니다.</p>${relationshipReportBody(r)}<p class="note">${esc(DISCLAIMER)} 상대의 실제 생각과 의도는 기록과 다를 수 있습니다. 개인정보가 포함된 문서이니 저장·공유 위치를 확인하세요.</p></body></html>`;
+}

@@ -44,8 +44,12 @@ export async function listMemos(email: string): Promise<Memo[]> {
   if (!data) return [];
   const all = Object.values(data);
   // pinned first (by updatedAt desc), then the rest (by updatedAt desc).
-  const pinned = all.filter((m) => m.pinned).sort((a, b) => b.updatedAt - a.updatedAt);
-  const rest = all.filter((m) => !m.pinned).sort((a, b) => b.updatedAt - a.updatedAt);
+  const pinned = all
+    .filter((m) => m.pinned)
+    .sort((a, b) => b.updatedAt - a.updatedAt);
+  const rest = all
+    .filter((m) => !m.pinned)
+    .sort((a, b) => b.updatedAt - a.updatedAt);
   return [...pinned, ...rest];
 }
 

@@ -302,7 +302,30 @@ test("relationship report mode requires context and uses the report prompt", asy
   assert.doesNotThrow(() =>
     aiRequestSchema.parse({ ...base, mode: "relationship", context: "기록" }),
   );
-  const { RELATIONSHIP_REPORT_PROMPT } = await import("../src/lib/mental-health");
+  const { RELATIONSHIP_REPORT_PROMPT } =
+    await import("../src/lib/mental-health");
   assert.match(RELATIONSHIP_REPORT_PROMPT, /조심해야 할 행동/);
   assert.match(RELATIONSHIP_REPORT_PROMPT, /만들지 않는다/);
+});
+
+test("relationship report renders escaped tables for the PDF", async () => {
+  const { relationshipReportBody, relationshipReportHtml } =
+    await import("../src/lib/mental-health");
+  const r = {
+    summary: "<script>x</script>요약",
+    facts: [{ item: "a", detail: "b", basis: "c" }],
+    cycle: [],
+    needs: [],
+    partner: [],
+    efforts: [],
+    agreements: [],
+    cautions: [{ behavior: "x", risk: "y", instead: "z" }],
+    weekly: [],
+    unknowns: [],
+  };
+  const body = relationshipReportBody(r);
+  assert.ok(!body.includes("<script>"));
+  assert.match(body, /<table>/);
+  assert.match(body, /해당 내용이 기록에 없습니다/);
+  assert.match(relationshipReportHtml(r, "2026-10-30"), /관계 분석 보고서/);
 });

@@ -11,6 +11,9 @@ import {
   recordContext,
   reportText,
   reportHtml,
+  relationshipReportHtml,
+  relationshipReportBody,
+  type RelationshipReport,
   type Workspace,
   type Message,
   type Thought,
@@ -151,7 +154,7 @@ export function MentalHealthApp({ owner }: { owner: string }) {
   const [expiry, setExpiry] = useState<number | null>(null);
   const [dirty, setDirty] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [relReport, setRelReport] = useState("");
+  const [relReport, setRelReport] = useState<RelationshipReport | null>(null);
   const [relConsent, setRelConsent] = useState(false);
   const [pickDays, setPickDays] = useState<string[]>([]);
   const [logText, setLogText] = useState("");
@@ -454,7 +457,11 @@ export function MentalHealthApp({ owner }: { owner: string }) {
         messages: [],
         context: `<자료>\n${relationshipForAi(relationshipText(data)).replace(/<\/?자료>/g, "")}\n</자료>`,
       });
-      setRelReport(result.text);
+      try {
+        setRelReport(JSON.parse(result.text) as RelationshipReport);
+      } catch {
+        throw new Error("보고서 형식이 올바르지 않아요. 다시 분석해 주세요.");
+      }
       if (result.safety) setHelp(true);
     } catch (e) {
       setNotice((e as Error).message);
@@ -1440,17 +1447,39 @@ export function MentalHealthApp({ owner }: { owner: string }) {
                   {relReport ? "다시 분석하기" : "관계 분석 보고서 만들기"}
                 </button>
                 {relReport && (
-                  <button
-                    onClick={() =>
-                      download(
-                        "관계분석보고서.txt",
-                        `${relReport}\n\n${DISCLAIMER}`,
-                        "text/plain;charset=utf-8",
-                      )
-                    }
-                  >
-                    내려받기
-                  </button>
+                  <>
+                    <button
+                      onClick={() => {
+                        const w = window.open("", "_blank");
+                        if (!w) {
+                          setNotice(
+                            "팝업이 막혀 있어요. 허용한 뒤 다시 눌러 주세요.",
+                          );
+                          return;
+                        }
+                        w.document.open();
+                        w.document.write(
+                          relationshipReportHtml(relReport, todayKorea()),
+                        );
+                        w.document.close();
+                        w.focus();
+                        setTimeout(() => w.print(), 400);
+                      }}
+                    >
+                      PDF로 저장
+                    </button>
+                    <button
+                      onClick={() =>
+                        download(
+                          `관계분석보고서-${todayKorea()}.html`,
+                          relationshipReportHtml(relReport, todayKorea()),
+                          "text/html;charset=utf-8",
+                        )
+                      }
+                    >
+                      HTML 내려받기
+                    </button>
+                  </>
                 )}
               </div>
               {!ai && (
@@ -1458,7 +1487,20 @@ export function MentalHealthApp({ owner }: { owner: string }) {
                   AI 설정이 준비되지 않아 지금은 사용할 수 없어요.
                 </p>
               )}
-              {relReport && <pre className={styles.report}>{relReport}</pre>}
+              {relReport && (
+                <div
+                  className={styles.relReport}
+                  dangerouslySetInnerHTML={{
+                    __html: relationshipReportBody(relReport),
+                  }}
+                />
+              )}
+              {relReport && (
+                <p className={styles.small}>
+                  ‘PDF로 저장’을 누르면 인쇄 창이 열려요. 프린터를 ‘PDF로
+                  저장’으로 고르면 PDF 파일이 됩니다.
+                </p>
+              )}
               <p className={styles.small}>
                 AI의 참고 의견이며 전문 상담을 대신하지 않습니다. 보고서는
                 화면에만 있고 저장되지 않으니 필요하면 내려받아 주세요.
