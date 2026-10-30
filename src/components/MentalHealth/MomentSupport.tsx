@@ -63,6 +63,7 @@ function Rating({
 export function MomentSupport({
   active,
   aiReady,
+  aiMissing,
   recordReady,
   owner,
   memory,
@@ -72,6 +73,7 @@ export function MomentSupport({
 }: {
   active: boolean;
   aiReady: boolean;
+  aiMissing: string[];
   recordReady: boolean;
   owner: string;
   memory: string;
@@ -337,6 +339,8 @@ export function MomentSupport({
             <p className={styles.small}>
               AI 연결 설정 전에는 아래 대화 버튼이 비활성화됩니다. 짧은 안내와
               행동 선택은 지금도 이용할 수 있어요.
+              {aiMissing.length > 0 &&
+                ` (서버 설정 필요: ${aiMissing.join(", ")})`}
             </p>
           )}
           {!messages.length && (

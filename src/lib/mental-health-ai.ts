@@ -7,6 +7,13 @@ export function aiReady() {
     process.env.MENTAL_HEALTH_AI_PRIVACY_REVIEWED === "true",
   );
 }
+export function aiMissing() {
+  const missing: string[] = [];
+  if (!process.env.GEMINI_API_KEY) missing.push("GEMINI_API_KEY");
+  if (process.env.MENTAL_HEALTH_AI_PRIVACY_REVIEWED !== "true")
+    missing.push("MENTAL_HEALTH_AI_PRIVACY_REVIEWED");
+  return missing;
+}
 export async function generateSupport(
   input: z.infer<typeof aiRequestSchema>,
 ): Promise<string> {

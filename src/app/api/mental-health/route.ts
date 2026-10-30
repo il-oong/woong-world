@@ -7,7 +7,7 @@ import {
   deleteWorkspace,
   storageReady,
 } from "@/lib/mental-health-store";
-import { aiReady } from "@/lib/mental-health-ai";
+import { aiMissing, aiReady } from "@/lib/mental-health-ai";
 import { privateJson, sameOrigin, limitedJson } from "@/lib/mental-health-http";
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -24,6 +24,12 @@ export async function GET(req: Request) {
       ...stored,
       storageReady: storageReady(),
       aiReady: aiReady() && storageReady(),
+      aiMissing: [
+        ...aiMissing(),
+        ...(storageReady()
+          ? []
+          : ["MENTAL_HEALTH_ENCRYPTION_KEY / UPSTASH(KV)_REST 변수"]),
+      ],
     });
   } catch {
     return privateJson({ error: "storage_unavailable" }, 503);

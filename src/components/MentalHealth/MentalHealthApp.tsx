@@ -121,6 +121,7 @@ export function MentalHealthApp({ owner }: { owner: string }) {
   const [ready, setReady] = useState(false);
   const [storage, setStorage] = useState(false);
   const [ai, setAi] = useState(false);
+  const [aiMissing, setAiMissing] = useState<string[]>([]);
   const [revision, setRevision] = useState<string | null>(null);
   const [expiry, setExpiry] = useState<number | null>(null);
   const [dirty, setDirty] = useState(false);
@@ -186,6 +187,7 @@ export function MentalHealthApp({ owner }: { owner: string }) {
         setExpiry(result.expiresAt);
         setStorage(result.storageReady);
         setAi(result.aiReady);
+        setAiMissing(Array.isArray(result.aiMissing) ? result.aiMissing : []);
         setReady(true);
       })
       .catch((e) => {
@@ -555,6 +557,7 @@ export function MentalHealthApp({ owner }: { owner: string }) {
           key={momentVersion}
           active={tab === "순간 도움"}
           aiReady={ai}
+          aiMissing={aiMissing}
           recordReady={ready}
           owner={owner}
           memory={data.memory}
@@ -668,6 +671,7 @@ export function MentalHealthApp({ owner }: { owner: string }) {
               <p className={styles.help}>
                 AI 연결 준비가 필요합니다. 아래에서 입력을 준비하고 다른 메뉴의
                 기록 기능을 이용할 수 있어요.
+                {aiMissing.length > 0 && ` (서버 설정 필요: ${aiMissing.join(", ")})`}
               </p>
             )}
             <div className={styles.choices}>
