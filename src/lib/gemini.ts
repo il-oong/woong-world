@@ -1,11 +1,7 @@
 import { CATEGORIES, getCategory } from "./categories";
 import type { DevTaskStatus } from "./jarvis-dev";
 import type { Plan } from "./plans";
-import type {
-  ChatMessage,
-  ProposedAction,
-  UploadedFile,
-} from "./assistant";
+import type { ChatMessage, ProposedAction, UploadedFile } from "./assistant";
 import { parseProposedAction } from "./assistant";
 import type { CalendarEvent } from "./google";
 import type { Todo } from "./todos";
@@ -62,7 +58,11 @@ const SYSTEM_PROMPT = `너는 사용자의 인생 비서다. 사용자의 계획
 function buildUserPrompt(plan: Plan): string {
   const cat = plan.categoryId ? getCategory(plan.categoryId).label : "전체";
   const periodLabel =
-    plan.period === "weekly" ? "주간" : plan.period === "monthly" ? "월간" : "연간";
+    plan.period === "weekly"
+      ? "주간"
+      : plan.period === "monthly"
+        ? "월간"
+        : "연간";
   const itemList = plan.items.length
     ? plan.items
         .map((i, idx) => `  ${idx + 1}. [${i.done ? "x" : " "}] ${i.text}`)
@@ -274,7 +274,9 @@ function summarizeEvents(events: CalendarEvent[], today: string): string {
     if (onDay.length === 0) continue;
     lines.push(`  ${iso}:`);
     for (const ev of onDay.slice(0, 6)) {
-      lines.push(`    - ${ev.summary ?? "(제목 없음)"} (${formatTimeRange(ev)}) [id:${ev.id}]`);
+      lines.push(
+        `    - ${ev.summary ?? "(제목 없음)"} (${formatTimeRange(ev)}) [id:${ev.id}]`,
+      );
     }
   }
   return lines.length ? lines.join("\n") : "  (없음)";
@@ -314,7 +316,13 @@ function summarizePlugins(
 ): string {
   if (entries.length === 0) return "  (없음)";
   const lightOf = (lvl: PluginStatus["level"]) =>
-    lvl === "green" ? "🟢" : lvl === "yellow" ? "🟡" : lvl === "red" ? "🔴" : "⚪";
+    lvl === "green"
+      ? "🟢"
+      : lvl === "yellow"
+        ? "🟡"
+        : lvl === "red"
+          ? "🔴"
+          : "⚪";
   return entries
     .map(({ plugin, status }) => {
       const parts = [
@@ -349,15 +357,26 @@ function summarizeStock(s: StockContext): string {
   }
   if (s.watchlist.length) {
     lines.push(
-      "관심 종목: " + s.watchlist.slice(0, 30).map((w) => `${w.name}(${w.ticker})`).join(", "),
+      "관심 종목: " +
+        s.watchlist
+          .slice(0, 30)
+          .map((w) => `${w.name}(${w.ticker})`)
+          .join(", "),
     );
   }
   const today = toIso(new Date());
-  const upcoming = s.econEvents.filter((ev) => ev.eventDate >= today).slice(0, 10);
+  const upcoming = s.econEvents
+    .filter((ev) => ev.eventDate >= today)
+    .slice(0, 10);
   if (upcoming.length) {
     lines.push("다가오는 경제 일정:");
     for (const ev of upcoming) {
-      const imp = ev.importance === "high" ? "고" : ev.importance === "medium" ? "중" : "저";
+      const imp =
+        ev.importance === "high"
+          ? "고"
+          : ev.importance === "medium"
+            ? "중"
+            : "저";
       lines.push(`  - ${ev.eventDate} [${imp}] ${ev.title} (${ev.market})`);
     }
   }
@@ -365,7 +384,8 @@ function summarizeStock(s: StockContext): string {
   lines.push(
     `트레이더 가중치: Livermore ${w.livermore} / O'Neil ${w.oneil} / Weinstein ${w.weinstein} / Minervini ${w.minervini} / Lynch ${w.lynch}`,
   );
-  if (s.settings.focusThemes?.trim()) lines.push(`집중 테마: ${s.settings.focusThemes.trim()}`);
+  if (s.settings.focusThemes?.trim())
+    lines.push(`집중 테마: ${s.settings.focusThemes.trim()}`);
   return lines.join("\n");
 }
 
@@ -385,7 +405,10 @@ function summarizeWorkspace(workspace: WorkspaceContext): string {
   );
   lines.push(
     workspace.subscriptions.length
-      ? `Subscriptions: ${workspace.subscriptions.slice(0, 30).map((sub) => `${sub.id}=${sub.name} ${sub.amount}KRW/${sub.cycle}`).join(" | ")}`
+      ? `Subscriptions: ${workspace.subscriptions
+          .slice(0, 30)
+          .map((sub) => `${sub.id}=${sub.name} ${sub.amount}KRW/${sub.cycle}`)
+          .join(" | ")}`
       : "Subscriptions: none",
   );
   return lines.join("\n");
@@ -437,7 +460,9 @@ function buildContextBlock(ctx: AssistantContext): string {
     blocks.push(
       "",
       "[클라우드 개발 작업 (실시간 GitHub 상태)]",
-      ctx.devTasks.length ? summarizeDevTasks(ctx.devTasks) : "  (최근 개발 요청 없음)",
+      ctx.devTasks.length
+        ? summarizeDevTasks(ctx.devTasks)
+        : "  (최근 개발 요청 없음)",
       "",
       "관리자가 개발 진행 상황을 묻거든 위 목록만 근거로 답해라. 이슈가 있다는 것은 이미 승인되어 시작됐다는 뜻이다. 목록에 없는 내용은 추측하지 말고 모른다고 말해라. 머지는 사용자가 카드의 머지 버튼을 눌러야 한다.",
     );
@@ -548,7 +573,8 @@ async function callChatGemini(
 
   const generationConfig: Record<string, unknown> = { temperature };
   if (maxOutputTokens) generationConfig.maxOutputTokens = maxOutputTokens;
-  if (thinkingBudget !== undefined) generationConfig.thinkingConfig = { thinkingBudget };
+  if (thinkingBudget !== undefined)
+    generationConfig.thinkingConfig = { thinkingBudget };
 
   const res = await fetch(`${ENDPOINT}?key=${apiKey}`, {
     method: "POST",
@@ -656,7 +682,13 @@ export async function chatWithAssistant(input: {
 // =====================================================================
 
 const DEFAULT_INVEST_SETTINGS: InvestSettings = {
-  traderWeights: { livermore: 20, oneil: 20, weinstein: 20, minervini: 20, lynch: 20 },
+  traderWeights: {
+    livermore: 20,
+    oneil: 20,
+    weinstein: 20,
+    minervini: 20,
+    lynch: 20,
+  },
   defaultStopLossRate: 7,
   focusThemes: "",
 };
@@ -730,7 +762,10 @@ function buildGroundingQuery(
   targets: { name: string }[],
 ): string {
   const today = toIso(new Date());
-  const names = targets.map((t) => t.name).filter(Boolean).join(", ");
+  const names = targets
+    .map((t) => t.name)
+    .filter(Boolean)
+    .join(", ");
   const focus = d.focus ? ` 사용자 관심: ${d.focus}.` : "";
   if (d.intent === "market" || !names) {
     return `오늘(${today}) 글로벌·한국 증시의 최신 흐름과, 이번 주~다음 주 예정된 주요 경제 이벤트(FOMC, CPI, 고용지표, 주요 실적 등)를 날짜와 함께 정리.${focus}`;
@@ -823,7 +858,11 @@ async function runStockNetwork(
   // 분석 대상 결정 — portfolio면 보유 종목 전체로 채운다.
   let targets: { name: string; ticker?: string; market?: string }[] = d.queries;
   if (d.intent === "portfolio" && holdings.length) {
-    targets = holdings.map((h) => ({ name: h.name, ticker: h.ticker, market: h.market }));
+    targets = holdings.map((h) => ({
+      name: h.name,
+      ticker: h.ticker,
+      market: h.market,
+    }));
   }
   targets = targets.slice(0, 3); // 지연/비용 상한 (최대 3종목)
 
@@ -844,7 +883,9 @@ async function runStockNetwork(
 
   return {
     perTicker,
-    macro: macroSnapshot.ok ? { text: macroSnapshot.text, asOf: macroSnapshot.asOf } : null,
+    macro: macroSnapshot.ok
+      ? { text: macroSnapshot.text, asOf: macroSnapshot.asOf }
+      : null,
     grounded,
   };
 }
@@ -950,7 +991,10 @@ async function screenCandidate(
 function buildScreenGroundingQuery(d: StockDelegation): string {
   const today = toIso(new Date());
   const theme = d.theme || d.focus || "관심 테마";
-  const names = d.queries.map((q) => q.name).filter(Boolean).join(", ");
+  const names = d.queries
+    .map((q) => q.name)
+    .filter(Boolean)
+    .join(", ");
   return `오늘(${today}) 기준 "${theme}" 테마의 최신 시장 흐름·수급·정책/실적 모멘텀과, 관련 종목(${names})에 영향을 줄 예정 이벤트를 날짜와 함께 정리. 테마 자체의 단기·중기·장기 전망도 한 단락으로.`;
 }
 
@@ -963,7 +1007,9 @@ async function runScreen(
   const candidatesIn = d.queries.slice(0, 6); // 비용·지연 상한 (최대 6 후보)
 
   const [candidates, macro, grounded] = await Promise.all([
-    Promise.all(candidatesIn.map((t) => screenCandidate(t, settings, holdings))),
+    Promise.all(
+      candidatesIn.map((t) => screenCandidate(t, settings, holdings)),
+    ),
     fetchMarketSnapshot()
       .then((s) => (s.ok ? { text: s.text, asOf: s.asOf } : null))
       .catch(() => null),
@@ -996,15 +1042,19 @@ function buildScreenReportText(r: ScreenReport, ctx: AssistantContext): string {
     );
     lines.push(`  펀더멘털: ${c.fundamentals}`);
     if (c.holding) {
-      lines.push(`  사용자 보유: ${c.holding.qty}주 @평단 ${c.holding.avgBuyPrice}`);
+      lines.push(
+        `  사용자 보유: ${c.holding.qty}주 @평단 ${c.holding.avgBuyPrice}`,
+      );
     }
     if (c.jkp) {
       const j = c.jkp;
       lines.push(
         `  [JKP] 결론=${j.final_action} (확신 ${j.confidence}) / 매수구간 ${j.buy_zone?.entry_price} / 목표1 ${j.target_price?.target_1} / 목표2 ${j.target_price?.target_2} / 손절 ${j.stop_loss} / 손익비 ${j.risk_reward_ratio} / 기간 ${j.time_horizon}`,
       );
-      if (j.key_catalysts?.length) lines.push(`    촉매: ${j.key_catalysts.join("; ")}`);
-      if (j.key_risks?.length) lines.push(`    리스크: ${j.key_risks.join("; ")}`);
+      if (j.key_catalysts?.length)
+        lines.push(`    촉매: ${j.key_catalysts.join("; ")}`);
+      if (j.key_risks?.length)
+        lines.push(`    리스크: ${j.key_risks.join("; ")}`);
     } else {
       lines.push("  [JKP] 분석 없음 (실데이터 부족)");
     }
@@ -1036,7 +1086,10 @@ function buildScreenReportText(r: ScreenReport, ctx: AssistantContext): string {
     blocks.push(
       "### 사용자 등록 경제 일정\n" +
         upcoming
-          .map((ev) => `  - ${ev.eventDate} [${ev.importance}] ${ev.title} (${ev.market})`)
+          .map(
+            (ev) =>
+              `  - ${ev.eventDate} [${ev.importance}] ${ev.title} (${ev.market})`,
+          )
           .join("\n"),
     );
   }
@@ -1185,7 +1238,9 @@ function buildReportText(r: StockAgentReport, ctx: AssistantContext): string {
     lines.push(
       `현재가: ${t.price !== null ? t.price : "데이터 없음"}${chg} — Yahoo Finance, ${fmtKDateTime(t.asOf)} 기준`,
     );
-    lines.push(`실데이터 수집: ${t.dataOk ? "성공" : "실패 (수치 없음 — 추정 금지)"}`);
+    lines.push(
+      `실데이터 수집: ${t.dataOk ? "성공" : "실패 (수치 없음 — 추정 금지)"}`,
+    );
 
     if (t.holding) {
       const h = t.holding;
@@ -1223,8 +1278,10 @@ function buildReportText(r: StockAgentReport, ctx: AssistantContext): string {
       lines.push(
         `[JKP 분석] 결론=${j.final_action} (확신 ${j.confidence}) / 매수구간 ${j.buy_zone?.entry_price} / 목표1 ${j.target_price?.target_1} / 목표2 ${j.target_price?.target_2} / 손절 ${j.stop_loss} / 손익비 ${j.risk_reward_ratio} / 기간 ${j.time_horizon}`,
       );
-      if (j.key_catalysts?.length) lines.push(`  촉매: ${j.key_catalysts.join("; ")}`);
-      if (j.key_risks?.length) lines.push(`  리스크: ${j.key_risks.join("; ")}`);
+      if (j.key_catalysts?.length)
+        lines.push(`  촉매: ${j.key_catalysts.join("; ")}`);
+      if (j.key_risks?.length)
+        lines.push(`  리스크: ${j.key_risks.join("; ")}`);
       if (j.jkp_comment) lines.push(`  JKP 코멘트: ${j.jkp_comment}`);
     } else {
       lines.push("[JKP 분석] 생성 실패");
@@ -1236,7 +1293,9 @@ function buildReportText(r: StockAgentReport, ctx: AssistantContext): string {
         `[5인 합의] 컨센서스=${v.consensus} (${v.consensusScore}/100) / 밸류에이션 ${v.valuation?.view}`,
       );
       for (const a of v.agents ?? []) {
-        lines.push(`  - ${a.agent}(${a.style}): ${a.verdict} ${a.score} — ${a.key_point}`);
+        lines.push(
+          `  - ${a.agent}(${a.style}): ${a.verdict} ${a.score} — ${a.key_point}`,
+        );
       }
       if (v.buyTiming) {
         lines.push(
@@ -1264,16 +1323,23 @@ function buildReportText(r: StockAgentReport, ctx: AssistantContext): string {
           .map((s, i) => `  [${i + 1}] ${s.title || s.uri} — ${s.uri}`)
           .join("\n")
       : "";
-    blocks.push(`### 최신 시장/이벤트 브리핑 (Google 검색 그라운딩)\n${r.grounded.text}${src}`);
+    blocks.push(
+      `### 최신 시장/이벤트 브리핑 (Google 검색 그라운딩)\n${r.grounded.text}${src}`,
+    );
   }
 
   const today = toIso(new Date());
-  const upcoming = (ctx.stock?.econEvents ?? []).filter((ev) => ev.eventDate >= today).slice(0, 8);
+  const upcoming = (ctx.stock?.econEvents ?? [])
+    .filter((ev) => ev.eventDate >= today)
+    .slice(0, 8);
   if (upcoming.length) {
     blocks.push(
       "### 사용자 등록 경제 일정\n" +
         upcoming
-          .map((ev) => `  - ${ev.eventDate} [${ev.importance}] ${ev.title} (${ev.market})`)
+          .map(
+            (ev) =>
+              `  - ${ev.eventDate} [${ev.importance}] ${ev.title} (${ev.market})`,
+          )
           .join("\n"),
     );
   }
@@ -1308,7 +1374,13 @@ ${reportText}
 ========================================
 
 위 에이전트 리포트와 원본 데이터만 근거로, 사용자 질문에 종합 답변하라. 제공되지 않은 수치는 절대 만들지 마라.`;
-  return callChatGemini(`${systemText}\n${THREE_AGENT_SYNTHESIS_GUARD}`, [{ role: "user", parts: [{ text: userPrompt }] }], 0.2, 2000, 0);
+  return callChatGemini(
+    `${systemText}\n${THREE_AGENT_SYNTHESIS_GUARD}`,
+    [{ role: "user", parts: [{ text: userPrompt }] }],
+    0.2,
+    2000,
+    0,
+  );
 }
 
 // =====================================================================
@@ -1317,14 +1389,17 @@ ${reportText}
 
 export type ParsedEvent = {
   summary: string;
-  date: string;       // YYYY-MM-DD
+  date: string; // YYYY-MM-DD
   startTime?: string; // HH:mm
-  endTime?: string;   // HH:mm
+  endTime?: string; // HH:mm
   category?: string;
   location?: string;
 };
 
-export async function parseEventsFromSheet(rawText: string, correction?: string): Promise<ParsedEvent[]> {
+export async function parseEventsFromSheet(
+  rawText: string,
+  correction?: string,
+): Promise<ParsedEvent[]> {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) throw new Error("GEMINI_API_KEY not set");
 
@@ -1373,7 +1448,10 @@ ${rawText.slice(0, 8000)}`;
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       contents: [{ role: "user", parts: [{ text: prompt }] }],
-      generationConfig: { temperature: 0.1, responseMimeType: "application/json" },
+      generationConfig: {
+        temperature: 0.1,
+        responseMimeType: "application/json",
+      },
     }),
   });
 
@@ -1391,7 +1469,9 @@ ${rawText.slice(0, 8000)}`;
   try {
     const cleaned = text.replace(/^```(?:json)?\s*|\s*```$/g, "").trim();
     const parsed = JSON.parse(cleaned) as ParsedEvent[];
-    return Array.isArray(parsed) ? parsed.filter((e) => e.summary && e.date) : [];
+    return Array.isArray(parsed)
+      ? parsed.filter((e) => e.summary && e.date)
+      : [];
   } catch {
     throw new Error("Gemini 응답 파싱 실패");
   }
@@ -1419,7 +1499,11 @@ function fmtEventList(evs: CalendarEvent[]): string {
     .join("\n");
 }
 
-function eventsInRange(events: CalendarEvent[], from: string, to: string): CalendarEvent[] {
+function eventsInRange(
+  events: CalendarEvent[],
+  from: string,
+  to: string,
+): CalendarEvent[] {
   return events.filter((ev) => {
     const d = ev.start.date ?? ev.start.dateTime?.slice(0, 10) ?? "";
     return d >= from && d <= to;
@@ -1432,16 +1516,24 @@ function isoOffset(base: Date, days: number): string {
   return toIso(d);
 }
 
-function buildDailyBlock(events: CalendarEvent[], plans: Plan[], now: Date): string {
+function buildDailyBlock(
+  events: CalendarEvent[],
+  plans: Plan[],
+  now: Date,
+): string {
   const today = toIso(now);
   const tomorrow = isoOffset(now, 1);
   const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"];
 
-  const activePlans = plans
-    .filter((p) => !p.items.every((i) => i.done))
-    .slice(0, 5)
-    .map((p) => `  · [${p.period}] ${p.title} (${p.items.filter((i) => !i.done).length}개 남음)`)
-    .join("\n") || "  없음";
+  const activePlans =
+    plans
+      .filter((p) => !p.items.every((i) => i.done))
+      .slice(0, 5)
+      .map(
+        (p) =>
+          `  · [${p.period}] ${p.title} (${p.items.filter((i) => !i.done).length}개 남음)`,
+      )
+      .join("\n") || "  없음";
 
   return `[오늘: ${today} ${WEEKDAYS[now.getDay()]}요일]
 오늘 일정:
@@ -1454,20 +1546,25 @@ ${fmtEventList(events.filter((ev) => eventOnDay(ev, tomorrow)))}
 ${activePlans}`;
 }
 
-function buildWeeklyBlock(events: CalendarEvent[], plans: Plan[], now: Date): string {
+function buildWeeklyBlock(
+  events: CalendarEvent[],
+  plans: Plan[],
+  now: Date,
+): string {
   const mon = new Date(now);
   mon.setDate(now.getDate() - ((now.getDay() + 6) % 7));
   const sun = isoOffset(mon, 6);
   const weekEvents = eventsInRange(events, toIso(mon), sun);
 
-  const weeklyPlans = plans
-    .filter((p) => p.period === "weekly" && !p.items.every((i) => i.done))
-    .slice(0, 5)
-    .map((p) => {
-      const done = p.items.filter((i) => i.done).length;
-      return `  · ${p.title} (${done}/${p.items.length} 완료)`;
-    })
-    .join("\n") || "  없음";
+  const weeklyPlans =
+    plans
+      .filter((p) => p.period === "weekly" && !p.items.every((i) => i.done))
+      .slice(0, 5)
+      .map((p) => {
+        const done = p.items.filter((i) => i.done).length;
+        return `  · ${p.title} (${done}/${p.items.length} 완료)`;
+      })
+      .join("\n") || "  없음";
 
   return `[이번 주: ${toIso(mon)} ~ ${sun}]
 이번 주 일정:
@@ -1477,21 +1574,30 @@ ${fmtEventList(weekEvents)}
 ${weeklyPlans}`;
 }
 
-function buildMonthlyBlock(events: CalendarEvent[], plans: Plan[], now: Date): string {
+function buildMonthlyBlock(
+  events: CalendarEvent[],
+  plans: Plan[],
+  now: Date,
+): string {
   const y = now.getFullYear();
   const m = now.getMonth();
   const firstDay = toIso(new Date(y, m, 1));
   const lastDay = toIso(new Date(y, m + 1, 0));
   const monthEvents = eventsInRange(events, firstDay, lastDay);
 
-  const monthlyPlans = plans
-    .filter((p) => (p.period === "monthly" || p.period === "yearly") && !p.items.every((i) => i.done))
-    .slice(0, 5)
-    .map((p) => {
-      const done = p.items.filter((i) => i.done).length;
-      return `  · [${p.period}] ${p.title} (${done}/${p.items.length} 완료)`;
-    })
-    .join("\n") || "  없음";
+  const monthlyPlans =
+    plans
+      .filter(
+        (p) =>
+          (p.period === "monthly" || p.period === "yearly") &&
+          !p.items.every((i) => i.done),
+      )
+      .slice(0, 5)
+      .map((p) => {
+        const done = p.items.filter((i) => i.done).length;
+        return `  · [${p.period}] ${p.title} (${done}/${p.items.length} 완료)`;
+      })
+      .join("\n") || "  없음";
 
   return `[이번 달: ${y}년 ${m + 1}월]
 이달 주요 일정:
@@ -1502,16 +1608,25 @@ ${monthlyPlans}`;
 }
 
 export type BriefingPerformance = {
-  yesterdayHabitRate: number | null;    // 0–100
+  yesterdayHabitRate: number | null; // 0–100
   yesterdayHabitChecked: number | null;
   yesterdayHabitTotal: number | null;
-  weekHabitRate: number | null;         // 0–100
-  weekRoutineRate: number | null;       // 0–100
+  weekHabitRate: number | null; // 0–100
+  weekRoutineRate: number | null; // 0–100
   openTodos: number | null;
   doneTodosToday: number | null;
-  portfolioAlerts: { name: string; ticker: string; alertType: string; message: string }[] | null;
+  portfolioAlerts:
+    | { name: string; ticker: string; alertType: string; message: string }[]
+    | null;
   watchlistItems: { name: string; ticker: string; memo: string }[] | null;
-  upcomingEconEvents: { title: string; eventDate: string; importance: string; daysLeft: number }[] | null;
+  upcomingEconEvents:
+    | {
+        title: string;
+        eventDate: string;
+        importance: string;
+        daysLeft: number;
+      }[]
+    | null;
 };
 
 export async function generateBriefingScript(
@@ -1528,19 +1643,25 @@ export async function generateBriefingScript(
   const resolvedMode = mode ?? getBriefingMode(now);
 
   const sections: string[] = [];
-  if (resolvedMode === "monthly") sections.push(buildMonthlyBlock(events, plans, now));
-  if (resolvedMode === "monthly" || resolvedMode === "weekly") sections.push(buildWeeklyBlock(events, plans, now));
+  if (resolvedMode === "monthly")
+    sections.push(buildMonthlyBlock(events, plans, now));
+  if (resolvedMode === "monthly" || resolvedMode === "weekly")
+    sections.push(buildWeeklyBlock(events, plans, now));
   sections.push(buildDailyBlock(events, plans, now));
 
   const modeLabel =
-    resolvedMode === "monthly" ? "월간+주간+일간" :
-    resolvedMode === "weekly" ? "주간+일간" : "일간";
+    resolvedMode === "monthly"
+      ? "월간+주간+일간"
+      : resolvedMode === "weekly"
+        ? "주간+일간"
+        : "일간";
 
   // Gemini 2.5 Flash는 "thinking" 토큰이 maxOutputTokens에 함께 잡힌다.
   // 브리핑은 추론보다 자연스러운 글쓰기가 필요하므로 thinking은 끄고, 한국어 출력을
   // 충분히 담을 수 있게 상한을 넉넉하게 잡는다. (이전 400/500/700에서 스크립트가
   // 끊기는 원인.)
-  const maxTokens = resolvedMode === "monthly" ? 4000 : resolvedMode === "weekly" ? 2500 : 2000;
+  const maxTokens =
+    resolvedMode === "monthly" ? 4000 : resolvedMode === "weekly" ? 2500 : 2000;
 
   // Build performance feedback instruction
   let performanceInstruction = "";
@@ -1548,25 +1669,41 @@ export async function generateBriefingScript(
     const p = performance;
     const lines: string[] = [];
 
-    if (p.yesterdayHabitRate !== null && p.yesterdayHabitTotal !== null && p.yesterdayHabitTotal > 0) {
+    if (
+      p.yesterdayHabitRate !== null &&
+      p.yesterdayHabitTotal !== null &&
+      p.yesterdayHabitTotal > 0
+    ) {
       const r = p.yesterdayHabitRate;
-      lines.push(`어제 습관 달성률: ${r}% (${p.yesterdayHabitChecked}/${p.yesterdayHabitTotal}개)`);
+      lines.push(
+        `어제 습관 달성률: ${r}% (${p.yesterdayHabitChecked}/${p.yesterdayHabitTotal}개)`,
+      );
       if (r < 30) {
-        lines.push("→ 어제 습관이 심각하게 부진했다. 강하게 야단치되, 포기하지 말라는 메시지를 줘.");
+        lines.push(
+          "→ 어제 습관이 심각하게 부진했다. 강하게 야단치되, 포기하지 말라는 메시지를 줘.",
+        );
       } else if (r < 60) {
-        lines.push("→ 어제 습관이 절반도 안 됐다. 날카롭게 지적하고 오늘은 반드시 달라져야 한다고 강조해.");
+        lines.push(
+          "→ 어제 습관이 절반도 안 됐다. 날카롭게 지적하고 오늘은 반드시 달라져야 한다고 강조해.",
+        );
       } else if (r < 80) {
-        lines.push("→ 어제 습관이 아쉬웠다. 부드럽게 독려하고 조금만 더 하면 된다고 동기부여해.");
+        lines.push(
+          "→ 어제 습관이 아쉬웠다. 부드럽게 독려하고 조금만 더 하면 된다고 동기부여해.",
+        );
       } else {
-        lines.push("→ 어제 습관을 잘 지켰다. 진심으로 칭찬하고 오늘도 유지하라고 격려해.");
+        lines.push(
+          "→ 어제 습관을 잘 지켰다. 진심으로 칭찬하고 오늘도 유지하라고 격려해.",
+        );
       }
     }
 
     if (p.weekHabitRate !== null) {
       const r = p.weekHabitRate;
       lines.push(`이번주 습관 달성률: ${r}%`);
-      if (r < 40) lines.push("→ 이번 주 전반적으로 습관이 무너지고 있다. 경각심을 줘.");
-      else if (r >= 80) lines.push("→ 이번 주 습관이 훌륭하다. 한 번 더 칭찬해줘.");
+      if (r < 40)
+        lines.push("→ 이번 주 전반적으로 습관이 무너지고 있다. 경각심을 줘.");
+      else if (r >= 80)
+        lines.push("→ 이번 주 습관이 훌륭하다. 한 번 더 칭찬해줘.");
     }
 
     if (p.weekRoutineRate !== null) {
@@ -1578,8 +1715,10 @@ export async function generateBriefingScript(
 
     if (p.openTodos !== null) {
       lines.push(`미완료 할 일: ${p.openTodos}개`);
-      if (p.openTodos > 10) lines.push("→ 할 일이 쌓여 있다. 우선순위를 정하라고 촉구해.");
-      else if (p.openTodos === 0) lines.push("→ 할 일을 모두 처리했다. 칭찬해줘.");
+      if (p.openTodos > 10)
+        lines.push("→ 할 일이 쌓여 있다. 우선순위를 정하라고 촉구해.");
+      else if (p.openTodos === 0)
+        lines.push("→ 할 일을 모두 처리했다. 칭찬해줘.");
     }
 
     if (p.doneTodosToday !== null && p.doneTodosToday > 0) {
@@ -1591,7 +1730,9 @@ export async function generateBriefingScript(
       for (const a of p.portfolioAlerts) {
         lines.push(`- ${a.name}(${a.ticker}): ${a.alertType} — ${a.message}`);
       }
-      lines.push("→ 위 포트폴리오 신호들을 브리핑에 포함해. JKP처럼 단호하게 매도/보유 판단을 언급해줘.");
+      lines.push(
+        "→ 위 포트폴리오 신호들을 브리핑에 포함해. JKP처럼 단호하게 매도/보유 판단을 언급해줘.",
+      );
     }
 
     if (p.watchlistItems && p.watchlistItems.length > 0) {
@@ -1599,16 +1740,27 @@ export async function generateBriefingScript(
       for (const w of p.watchlistItems) {
         lines.push(`- ${w.name}(${w.ticker})${w.memo ? `: ${w.memo}` : ""}`);
       }
-      lines.push("→ 관심종목들을 짧게 언급하며 오늘 주의 깊게 봐야 할 종목이라고 언급해줘.");
+      lines.push(
+        "→ 관심종목들을 짧게 언급하며 오늘 주의 깊게 봐야 할 종목이라고 언급해줘.",
+      );
     }
 
     if (p.upcomingEconEvents && p.upcomingEconEvents.length > 0) {
       lines.push(`\n[다가오는 경제 일정]`);
       for (const e of p.upcomingEconEvents) {
-        const dayStr = e.daysLeft === 0 ? "오늘" : e.daysLeft === 1 ? "내일" : `D-${e.daysLeft}`;
-        lines.push(`- ${dayStr} ${e.title} (${e.importance === "high" ? "고중요도" : e.importance === "medium" ? "중요도 보통" : "저중요도"})`);
+        const dayStr =
+          e.daysLeft === 0
+            ? "오늘"
+            : e.daysLeft === 1
+              ? "내일"
+              : `D-${e.daysLeft}`;
+        lines.push(
+          `- ${dayStr} ${e.title} (${e.importance === "high" ? "고중요도" : e.importance === "medium" ? "중요도 보통" : "저중요도"})`,
+        );
       }
-      lines.push("→ 경제 일정들을 브리핑에 포함하고, 고중요도 이벤트는 포지션에 미치는 영향을 JKP 스타일로 간략히 언급해.");
+      lines.push(
+        "→ 경제 일정들을 브리핑에 포함하고, 고중요도 이벤트는 포지션에 미치는 영향을 JKP 스타일로 간략히 언급해.",
+      );
     }
 
     if (lines.length > 0) {
@@ -1654,5 +1806,8 @@ export async function generateBriefingScript(
   const data = (await res.json()) as {
     candidates?: { content?: { parts?: { text?: string }[] } }[];
   };
-  return data.candidates?.[0]?.content?.parts?.[0]?.text ?? "(브리핑을 생성할 수 없습니다)";
+  return (
+    data.candidates?.[0]?.content?.parts?.[0]?.text ??
+    "(브리핑을 생성할 수 없습니다)"
+  );
 }

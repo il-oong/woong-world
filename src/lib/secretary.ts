@@ -30,7 +30,8 @@ export type SecretaryProfile = {
 
 function getRedisCreds(): { url: string; token: string } | null {
   const url = process.env.UPSTASH_REDIS_REST_URL ?? process.env.KV_REST_API_URL;
-  const token = process.env.UPSTASH_REDIS_REST_TOKEN ?? process.env.KV_REST_API_TOKEN;
+  const token =
+    process.env.UPSTASH_REDIS_REST_TOKEN ?? process.env.KV_REST_API_TOKEN;
   if (!url || !token) return null;
   return { url, token };
 }
@@ -52,13 +53,20 @@ export function isStorageConfigured(): boolean {
   return getRedisCreds() !== null;
 }
 
-export async function getProfile(email: string): Promise<SecretaryProfile | null> {
+export async function getProfile(
+  email: string,
+): Promise<SecretaryProfile | null> {
   return redis().get<SecretaryProfile>(profileKey(email));
 }
 
 export async function saveProfile(
   email: string,
-  input: { name: string; voiceId: VoiceId; briefingHour: number; briefingMinute: number },
+  input: {
+    name: string;
+    voiceId: VoiceId;
+    briefingHour: number;
+    briefingMinute: number;
+  },
 ): Promise<SecretaryProfile> {
   const existing = await getProfile(email);
   const now = Date.now();

@@ -1,8 +1,4 @@
-import {
-  readSession,
-  writeSession,
-  type GoogleSession,
-} from "./session";
+import { readSession, writeSession, type GoogleSession } from "./session";
 import { getCategory, type CategoryId } from "./categories";
 
 const TOKEN_URL = "https://oauth2.googleapis.com/token";
@@ -85,9 +81,9 @@ function required(name: string): string {
 export function isConfigured(): boolean {
   return Boolean(
     process.env.GOOGLE_CLIENT_ID &&
-      process.env.GOOGLE_CLIENT_SECRET &&
-      process.env.GOOGLE_REDIRECT_URI &&
-      process.env.SESSION_SECRET,
+    process.env.GOOGLE_CLIENT_SECRET &&
+    process.env.GOOGLE_REDIRECT_URI &&
+    process.env.SESSION_SECRET,
   );
 }
 
@@ -122,7 +118,9 @@ export async function exchangeCode(code: string): Promise<TokenResponse> {
   return res.json();
 }
 
-async function refreshAccessToken(refreshToken: string): Promise<TokenResponse> {
+async function refreshAccessToken(
+  refreshToken: string,
+): Promise<TokenResponse> {
   const res = await fetch(TOKEN_URL, {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -137,13 +135,20 @@ async function refreshAccessToken(refreshToken: string): Promise<TokenResponse> 
   return res.json();
 }
 
-export async function fetchUserEmail(accessToken: string): Promise<string | null> {
+export async function fetchUserEmail(
+  accessToken: string,
+): Promise<string | null> {
   const res = await fetch("https://www.googleapis.com/oauth2/v2/userinfo", {
     headers: { Authorization: `Bearer ${accessToken}` },
   });
   if (!res.ok) return null;
-  const data = (await res.json()) as { email?: string; verified_email?: boolean };
-  return data.verified_email && data.email ? data.email.trim().toLowerCase() : null;
+  const data = (await res.json()) as {
+    email?: string;
+    verified_email?: boolean;
+  };
+  return data.verified_email && data.email
+    ? data.email.trim().toLowerCase()
+    : null;
 }
 
 export async function refreshSession(
@@ -181,14 +186,21 @@ export async function getValidSession(): Promise<GoogleSession | null> {
   }
 }
 
-export async function listCalendars(session: GoogleSession): Promise<UserCalendar[]> {
-  const res = await fetch(`${CALENDAR_API}/users/me/calendarList?maxResults=50`, {
-    headers: { Authorization: `Bearer ${session.accessToken}` },
-    cache: "no-store",
-  });
+export async function listCalendars(
+  session: GoogleSession,
+): Promise<UserCalendar[]> {
+  const res = await fetch(
+    `${CALENDAR_API}/users/me/calendarList?maxResults=50`,
+    {
+      headers: { Authorization: `Bearer ${session.accessToken}` },
+      cache: "no-store",
+    },
+  );
   if (!res.ok) throw new Error(`CalendarList failed: ${res.status}`);
   const data = (await res.json()) as { items?: UserCalendar[] };
-  return (data.items ?? []).filter((c) => c.accessRole === "owner" || c.accessRole === "writer");
+  return (data.items ?? []).filter(
+    (c) => c.accessRole === "owner" || c.accessRole === "writer",
+  );
 }
 
 export async function createCalendar(
@@ -214,9 +226,13 @@ export async function deleteCalendar(
 ): Promise<void> {
   const res = await fetch(
     `${CALENDAR_API}/calendars/${encodeURIComponent(calendarId)}`,
-    { method: "DELETE", headers: { Authorization: `Bearer ${session.accessToken}` } },
+    {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${session.accessToken}` },
+    },
   );
-  if (!res.ok && res.status !== 404) throw new Error(`DeleteCalendar failed: ${res.status}`);
+  if (!res.ok && res.status !== 404)
+    throw new Error(`DeleteCalendar failed: ${res.status}`);
 }
 
 export async function listEvents(
@@ -225,7 +241,9 @@ export async function listEvents(
   timeMax: string,
   calendarId = "primary",
 ): Promise<CalendarEvent[]> {
-  const url = new URL(`${CALENDAR_API}/calendars/${encodeURIComponent(calendarId)}/events`);
+  const url = new URL(
+    `${CALENDAR_API}/calendars/${encodeURIComponent(calendarId)}/events`,
+  );
   url.searchParams.set("timeMin", timeMin);
   url.searchParams.set("timeMax", timeMax);
   url.searchParams.set("singleEvents", "true");
@@ -255,8 +273,12 @@ export async function listAllCalendarsEvents(
     ),
   );
   return results
-    .filter((r): r is PromiseFulfilledResult<(CalendarEvent & { calendarId: string })[]> =>
-      r.status === "fulfilled",
+    .filter(
+      (
+        r,
+      ): r is PromiseFulfilledResult<
+        (CalendarEvent & { calendarId: string })[]
+      > => r.status === "fulfilled",
     )
     .flatMap((r) => r.value)
     .sort((a, b) => {
@@ -335,9 +357,13 @@ export async function updateEvent(
     body.end = { date: addOneDay(input.end) };
   }
 
-  body.reminders = input.reminderMinutes != null
-    ? { useDefault: false, overrides: [{ method: "popup", minutes: input.reminderMinutes }] }
-    : { useDefault: false, overrides: [] };
+  body.reminders =
+    input.reminderMinutes != null
+      ? {
+          useDefault: false,
+          overrides: [{ method: "popup", minutes: input.reminderMinutes }],
+        }
+      : { useDefault: false, overrides: [] };
 
   if (input.categoryId) {
     const category = getCategory(input.categoryId);
@@ -372,7 +398,10 @@ export async function getEvent(
 ): Promise<CalendarEvent | null> {
   const res = await fetch(
     `${CALENDAR_API}/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(eventId)}`,
-    { headers: { Authorization: `Bearer ${session.accessToken}` }, cache: "no-store" },
+    {
+      headers: { Authorization: `Bearer ${session.accessToken}` },
+      cache: "no-store",
+    },
   );
   if (res.status === 404 || res.status === 410) return null;
   if (!res.ok) throw new Error(`Get failed: ${res.status}`);
@@ -400,9 +429,13 @@ export async function patchEvent(
   }
 
   if (input.reminderMinutes !== undefined) {
-    body.reminders = input.reminderMinutes === null
-      ? { useDefault: false, overrides: [] }
-      : { useDefault: false, overrides: [{ method: "popup", minutes: input.reminderMinutes }] };
+    body.reminders =
+      input.reminderMinutes === null
+        ? { useDefault: false, overrides: [] }
+        : {
+            useDefault: false,
+            overrides: [{ method: "popup", minutes: input.reminderMinutes }],
+          };
   }
 
   if (input.categoryId) {
@@ -436,13 +469,20 @@ export async function patchEvent(
 export async function patchEventMeta(
   session: GoogleSession,
   eventId: string,
-  input: Pick<CreateEventInput, "reminderMinutes" | "categoryId" | "calendarId">,
+  input: Pick<
+    CreateEventInput,
+    "reminderMinutes" | "categoryId" | "calendarId"
+  >,
 ): Promise<CalendarEvent> {
   const body: Record<string, unknown> = {};
   if (input.reminderMinutes !== undefined) {
-    body.reminders = input.reminderMinutes === null
-      ? { useDefault: false, overrides: [] }
-      : { useDefault: false, overrides: [{ method: "popup", minutes: input.reminderMinutes }] };
+    body.reminders =
+      input.reminderMinutes === null
+        ? { useDefault: false, overrides: [] }
+        : {
+            useDefault: false,
+            overrides: [{ method: "popup", minutes: input.reminderMinutes }],
+          };
   }
   if (input.categoryId) {
     const category = getCategory(input.categoryId);
@@ -461,7 +501,8 @@ export async function patchEventMeta(
       body: JSON.stringify(body),
     },
   );
-  if (!res.ok) throw new Error(`Update failed: ${res.status} ${await res.text()}`);
+  if (!res.ok)
+    throw new Error(`Update failed: ${res.status} ${await res.text()}`);
   return res.json();
 }
 

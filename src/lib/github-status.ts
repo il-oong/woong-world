@@ -14,13 +14,20 @@ function ghHeaders(): HeadersInit {
 }
 
 type CommitInfo = { sha: string; date: string; message: string };
-type WorkflowRun = { conclusion: string | null; status: string; head_sha: string };
+type WorkflowRun = {
+  conclusion: string | null;
+  status: string;
+  head_sha: string;
+};
 type CombinedStatus = {
   state: "success" | "pending" | "failure" | "error";
   statuses: { context: string; state: string; description?: string }[];
 };
 
-async function fetchLatestCommit(repo: string, branch: string): Promise<CommitInfo | null> {
+async function fetchLatestCommit(
+  repo: string,
+  branch: string,
+): Promise<CommitInfo | null> {
   try {
     const res = await fetch(
       `${GH_API}/repos/${repo}/commits/${encodeURIComponent(branch)}`,
@@ -41,7 +48,10 @@ async function fetchLatestCommit(repo: string, branch: string): Promise<CommitIn
   }
 }
 
-async function fetchLatestRun(repo: string, branch: string): Promise<WorkflowRun | null> {
+async function fetchLatestRun(
+  repo: string,
+  branch: string,
+): Promise<WorkflowRun | null> {
   try {
     const url = new URL(`${GH_API}/repos/${repo}/actions/runs`);
     url.searchParams.set("branch", branch);
@@ -79,7 +89,12 @@ async function fetchCombinedStatus(
 async function fetchPrInfo(
   repo: string,
   prNumber: number,
-): Promise<{ draft: boolean; merged: boolean; state: string; mergeable_state: string } | null> {
+): Promise<{
+  draft: boolean;
+  merged: boolean;
+  state: string;
+  mergeable_state: string;
+} | null> {
   try {
     const res = await fetch(`${GH_API}/repos/${repo}/pulls/${prNumber}`, {
       headers: ghHeaders(),
@@ -101,14 +116,17 @@ export async function getPluginStatus(plugin: Plugin): Promise<PluginStatus> {
   const [commit, run, pr] = await Promise.all([
     fetchLatestCommit(plugin.repo, plugin.branch),
     fetchLatestRun(plugin.repo, plugin.branch),
-    plugin.pr != null ? fetchPrInfo(plugin.repo, plugin.pr) : Promise.resolve(null),
+    plugin.pr != null
+      ? fetchPrInfo(plugin.repo, plugin.pr)
+      : Promise.resolve(null),
   ]);
 
   let level: StatusLevel = "unknown";
   let label = "상태 확인 불가";
   const details: string[] = [];
 
-  if (commit) details.push(`최신 커밋 ${commit.sha.slice(0, 7)}: ${commit.message}`);
+  if (commit)
+    details.push(`최신 커밋 ${commit.sha.slice(0, 7)}: ${commit.message}`);
 
   if (run) {
     if (run.status !== "completed") {
@@ -185,6 +203,8 @@ export async function getPluginStatus(plugin: Plugin): Promise<PluginStatus> {
   };
 }
 
-export async function getAllPluginStatuses(plugins: Plugin[]): Promise<PluginStatus[]> {
+export async function getAllPluginStatuses(
+  plugins: Plugin[],
+): Promise<PluginStatus[]> {
   return Promise.all(plugins.map((p) => getPluginStatus(p)));
 }

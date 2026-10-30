@@ -4,6 +4,7 @@ import {
   CHAT_REPLY_SCHEMA,
   CHAT_FORMAT_PROMPT,
   RELATIONSHIP_REPORT_PROMPT,
+  RELATIONSHIP_REPORT_SCHEMA,
   enforceOneQuestion,
   tooManyQuestions,
 } from "./mental-health";
@@ -26,7 +27,17 @@ type Input = z.infer<typeof aiRequestSchema>;
 export async function generateSupport(
   input: Input,
 ): Promise<{ text: string; crisis: boolean }> {
-  if (input.mode === "report" || input.mode === "relationship")
+  if (input.mode === "relationship") {
+    const raw = await callGemini(
+      input,
+      true,
+      undefined,
+      RELATIONSHIP_REPORT_SCHEMA,
+    );
+    JSON.parse(raw);
+    return { text: raw, crisis: false };
+  }
+  if (input.mode === "report")
     return { text: await callGemini(input, false), crisis: false };
   const parse = async (hint?: string) => {
     const raw = await callGemini(input, true, hint);
@@ -61,6 +72,7 @@ async function callGemini(
   input: Input,
   json: boolean,
   hint?: string,
+  schema: object = CHAT_REPLY_SCHEMA,
 ): Promise<string> {
   if (!aiReady()) throw new Error("ai_unavailable");
   const model = process.env.MENTAL_HEALTH_MODEL || "gemini-2.5-flash";
@@ -81,7 +93,9 @@ async function callGemini(
             {
               text:
                 SYSTEM_PROMPT +
-                (json ? "\n" + CHAT_FORMAT_PROMPT : "") +
+                (json && input.mode !== "relationship"
+                  ? "\n" + CHAT_FORMAT_PROMPT
+                  : "") +
                 (input.mode === "relationship"
                   ? "\n" + RELATIONSHIP_REPORT_PROMPT
                   : "") +
@@ -113,11 +127,11 @@ async function callGemini(
         ],
         generationConfig: {
           temperature: 0.4,
-          maxOutputTokens: input.mode === "relationship" ? 6000 : 3000,
+          maxOutputTokens: input.mode === "relationship" ? 8000 : 3000,
           ...(json
             ? {
                 responseMimeType: "application/json",
-                responseSchema: CHAT_REPLY_SCHEMA,
+                responseSchema: schema,
               }
             : {}),
         },
@@ -134,6 +148,7 @@ async function callGemini(
     .map((p: { text?: string }) => p.text ?? "")
     .join("")
     .trim();
-  if (!text || text.length > 12000) throw new Error("ai_failed");
+  if (!text || text.length > (input.mode === "relationship" ? 30000 : 12000))
+    throw new Error("ai_failed");
   return text;
 }

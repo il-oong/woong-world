@@ -87,4 +87,3 @@ export function isValidPluginId(id: string): boolean {
 export function isValidRepo(repo: string): boolean {
   return /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(repo);
 }
-

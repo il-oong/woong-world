@@ -3,7 +3,10 @@ import type { CalendarEvent } from "./google";
 
 /** Google refuses some edits on events it created itself (Gmail bookings, birthdays, ...). */
 export function isEventTypeRestriction(error: unknown): boolean {
-  return error instanceof Error && /eventTypeRestriction|Event type cannot be changed/i.test(error.message);
+  return (
+    error instanceof Error &&
+    /eventTypeRestriction|Event type cannot be changed/i.test(error.message)
+  );
 }
 
 /**
