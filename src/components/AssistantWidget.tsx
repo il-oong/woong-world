@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 import { AssistantPanel } from "./AssistantPanel";
 
 const OPEN_KEY = "wh-assistant-open";
@@ -8,6 +9,7 @@ const OPEN_KEY = "wh-assistant-open";
 export type AssistantOpenDetail = { prefill?: string };
 
 export function AssistantWidget() {
+  const pathname = usePathname();
   const [open, setOpen] = useState<boolean>(() => {
     if (typeof window === "undefined") return false;
     return window.localStorage.getItem(OPEN_KEY) === "1";
@@ -32,6 +34,7 @@ export function AssistantWidget() {
       window.removeEventListener("wh:assistant-open", handler as EventListener);
   }, []);
 
+  if (pathname.startsWith("/therapy")) return null;
   return (
     <>
       {open && (
