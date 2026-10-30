@@ -151,6 +151,8 @@ export function MentalHealthApp({ owner }: { owner: string }) {
   const [expiry, setExpiry] = useState<number | null>(null);
   const [dirty, setDirty] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [relReport, setRelReport] = useState("");
+  const [relConsent, setRelConsent] = useState(false);
   const [logText, setLogText] = useState("");
   const [logDate, setLogDate] = useState(todayKorea());
   const [pending, setPending] = useState<string | null>(null);
@@ -417,6 +419,25 @@ export function MentalHealthApp({ owner }: { owner: string }) {
       setNotice((e as Error).message);
     } finally {
       setPending(null);
+      setBusy(false);
+    }
+  }
+  async function analyzeRelationship() {
+    if (!relConsent || busy) return;
+    setBusy(true);
+    setNotice("");
+    try {
+      const result = await api("/ai", "POST", {
+        mode: "relationship",
+        consent: true,
+        messages: [],
+        context: `<자료>\n${relationshipForAi(relationshipText(data)).replace(/<\/?자료>/g, "")}\n</자료>`,
+      });
+      setRelReport(result.text);
+      if (result.safety) setHelp(true);
+    } catch (e) {
+      setNotice((e as Error).message);
+    } finally {
       setBusy(false);
     }
   }
@@ -1370,6 +1391,57 @@ export function MentalHealthApp({ owner }: { owner: string }) {
                   암호화 저장
                 </button>
               </div>
+            </section>
+            <section className={styles.card}>
+              <p className={styles.eyebrow}>RELATIONSHIP REPORT</p>
+              <h2>관계 분석 보고서</h2>
+              <p>
+                위의 관계 기록과 날짜별 기록만 근거로, 앞으로 관계가 좋아지려면
+                어떤 노력이 필요한지와 조심해야 할 행동을 정리합니다. 상대의
+                마음을 단정하지 않고, 기록에 없는 내용은 만들지 않습니다.
+              </p>
+              <label>
+                <input
+                  type="checkbox"
+                  checked={relConsent}
+                  onChange={(e) => setRelConsent(e.target.checked)}
+                />
+                관계 기록 전체를 Google Gemini로 전송하는 데 동의합니다.
+              </label>
+              <div className={styles.actions}>
+                <button
+                  className={styles.primary}
+                  disabled={
+                    busy || !ai || !relConsent || relationshipChars(data) === 0
+                  }
+                  onClick={analyzeRelationship}
+                >
+                  {relReport ? "다시 분석하기" : "관계 분석 보고서 만들기"}
+                </button>
+                {relReport && (
+                  <button
+                    onClick={() =>
+                      download(
+                        "관계분석보고서.txt",
+                        `${relReport}\n\n${DISCLAIMER}`,
+                        "text/plain;charset=utf-8",
+                      )
+                    }
+                  >
+                    내려받기
+                  </button>
+                )}
+              </div>
+              {!ai && (
+                <p className={styles.small}>
+                  AI 설정이 준비되지 않아 지금은 사용할 수 없어요.
+                </p>
+              )}
+              {relReport && <pre className={styles.report}>{relReport}</pre>}
+              <p className={styles.small}>
+                AI의 참고 의견이며 전문 상담을 대신하지 않습니다. 보고서는
+                화면에만 있고 저장되지 않으니 필요하면 내려받아 주세요.
+              </p>
             </section>
           </div>
         )}

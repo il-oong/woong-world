@@ -293,3 +293,16 @@ test("long relationship record is trimmed for the AI but kept whole for storage"
     workspaceSchema.parse({ ...emptyWorkspace(), relationship: long }),
   );
 });
+
+test("relationship report mode requires context and uses the report prompt", async () => {
+  const base = { consent: true, messages: [] as never[] };
+  assert.throws(() =>
+    aiRequestSchema.parse({ ...base, mode: "relationship", context: " " }),
+  );
+  assert.doesNotThrow(() =>
+    aiRequestSchema.parse({ ...base, mode: "relationship", context: "기록" }),
+  );
+  const { RELATIONSHIP_REPORT_PROMPT } = await import("../src/lib/mental-health");
+  assert.match(RELATIONSHIP_REPORT_PROMPT, /조심해야 할 행동/);
+  assert.match(RELATIONSHIP_REPORT_PROMPT, /만들지 않는다/);
+});

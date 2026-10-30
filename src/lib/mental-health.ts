@@ -97,7 +97,7 @@ export const todayKorea = () =>
 
 export const aiRequestSchema = z
   .object({
-    mode: z.enum(["chat", "report", "moment"]),
+    mode: z.enum(["chat", "report", "moment", "relationship"]),
     consent: z.literal(true),
     messages: z.array(messageSchema).max(24),
     context: z.string().max(48000),
@@ -110,7 +110,10 @@ export const aiRequestSchema = z
     ) {
       ctx.addIssue({ code: "custom", message: "A user message is required" });
     }
-    if (value.mode === "report" && !value.context.trim())
+    if (
+      (value.mode === "report" || value.mode === "relationship") &&
+      !value.context.trim()
+    )
       ctx.addIssue({ code: "custom", message: "Report context required" });
   });
 
@@ -273,3 +276,7 @@ export const splitBubbles = (text: string) =>
     .split(/\n\s*\n|\n/)
     .map((x) => x.trim())
     .filter(Boolean);
+
+export const RELATIONSHIP_REPORT_PROMPT = `지금 할 일: 제공된 관계 기록만 근거로 '관계 분석 보고서'를 쓴다. 한국어, 따뜻하지만 분명하게, 마크다운 제목(##)과 불릿을 쓴다.
+구성: ## 한 문단 요약 / ## 기록에서 확인되는 사실 / ## 반복되는 갈등 순환(어떤 장면 → 각자의 반응 → 결과) / ## 내 감정과 필요 / ## 상대의 입장에서 가능한 설명(가능성으로만) / ## 관계가 좋아지려면 내가 할 수 있는 노력(구체적 행동, 말 예시 포함) / ## 상대와 함께 합의해 볼 것(연락 방식 등, 부탁 형태로) / ## 조심해야 할 행동(내 쪽의 패턴: 표현이 극단적으로 들릴 수 있는 말, 불안할 때의 반복 확인, 상대 반응을 기다리지 못하는 조급함 등 기록에 실제로 있는 것만) / ## 상대에게 요구하기 전에 점검할 것 / ## 이번 주 실천 3가지 / ## 더 확인이 필요한 것과 한계.
+규칙: 기록에 없는 사건·원인·날짜·인용을 만들지 않는다. 한쪽의 기록이므로 상대의 마음과 의도를 단정하지 않는다. 사용자를 비난하거나 무조건 편들지 않고, 양쪽 모두에게 변화가 필요할 수 있음을 균형 있게 다룬다. 관계 유지나 이별 어느 쪽도 권하지 않고 결정은 사용자가 한다. 이별 확률·애착 유형·성격 진단을 하지 않는다. 폭력·통제·위협 정황이 기록에 보이면 개선 노력보다 안전과 전문가·주변 도움을 먼저 안내한다. 마지막에 이 보고서는 AI의 참고 의견이며 전문 상담을 대신하지 않는다고 한 줄 덧붙인다.`;
