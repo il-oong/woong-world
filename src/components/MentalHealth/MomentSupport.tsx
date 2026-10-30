@@ -65,6 +65,7 @@ export function MomentSupport({
   aiReady,
   recordReady,
   owner,
+  memory,
   onRecord,
   onBusyChange,
   onDirtyChange,
@@ -73,6 +74,7 @@ export function MomentSupport({
   aiReady: boolean;
   recordReady: boolean;
   owner: string;
+  memory: string;
   onRecord: (practice: Practice) => boolean;
   onBusyChange: (busy: boolean) => void;
   onDirtyChange: (dirty: boolean) => void;
@@ -84,6 +86,8 @@ export function MomentSupport({
   const [messages, setMessages] = useState<Message[]>([]);
   const [draft, setDraft] = useState("");
   const [consent, setConsent] = useState(false);
+  const [approvedMemory, setApprovedMemory] = useState("");
+  const includeMemory = Boolean(memory && approvedMemory === memory);
   const [pending, setPending] = useState(false);
   const [safety, setSafety] = useState(false);
   const [action, setAction] = useState("");
@@ -142,7 +146,11 @@ export function MomentSupport({
           mode: "moment",
           consent: true,
           messages: next,
-          context: momentContext(situation, before),
+          context: momentContext(
+            situation,
+            before,
+            includeMemory ? memory : "",
+          ),
         }),
       });
       const result = await response.json();
@@ -184,6 +192,7 @@ export function MomentSupport({
     setMessages([]);
     setDraft("");
     setConsent(false);
+    setApprovedMemory("");
     setSafety(false);
     setAction("");
     setSaved(false);
@@ -301,10 +310,29 @@ export function MomentSupport({
                 checked={consent}
                 onChange={(e) => setConsent(e.target.checked)}
               />
-              이번 상황·불안 점수·이번 대화만 Google Gemini로 전송하는 데
-              동의합니다. 일반 상담 기록과 기억은 보내지 않습니다.
+              이번 상황·불안 점수·이번 대화와 아래에서 선택한 기억을 Google
+              Gemini로 전송하는 데 동의합니다. 과거 대화 원문은 보내지 않습니다.
             </span>
           </label>
+          <label className={styles.choices}>
+            <span>
+              <input
+                type="checkbox"
+                checked={includeMemory && Boolean(memory)}
+                disabled={!memory}
+                onChange={(e) =>
+                  setApprovedMemory(e.target.checked ? memory : "")
+                }
+              />
+              이전에 정리한 개인 기억도 참고하기 (선택)
+            </span>
+          </label>
+          {includeMemory && memory && (
+            <details>
+              <summary>이번 상담에 함께 보낼 기억 확인</summary>
+              <pre>{memory}</pre>
+            </details>
+          )}
           {!aiReady && (
             <p className={styles.small}>
               AI 연결 설정 전에는 아래 대화 버튼이 비활성화됩니다. 짧은 안내와

@@ -17,6 +17,7 @@ import {
 } from "@/lib/mental-health";
 import styles from "./mental-health.module.css";
 import { MomentSupport } from "./MomentSupport";
+import { MemoryImport } from "./MemoryImport";
 
 const tabs = [
   "오늘의 마음",
@@ -556,6 +557,7 @@ export function MentalHealthApp({ owner }: { owner: string }) {
           aiReady={ai}
           recordReady={ready}
           owner={owner}
+          memory={data.memory}
           onBusyChange={setMomentBusy}
           onDirtyChange={setMomentDirty}
           onRecord={(practice) =>
@@ -1099,6 +1101,14 @@ export function MentalHealthApp({ owner }: { owner: string }) {
             <section className={styles.card}>
               <p className={styles.eyebrow}>YOU ARE IN CONTROL</p>
               <h2>기억할 내용은 내가 정해요</h2>
+              <MemoryImport
+                key={momentVersion}
+                current={data.memory}
+                onApply={(memory) => {
+                  update({ ...data, memory });
+                  setMemoryConsent(false);
+                }}
+              />
               <p>
                 AI가 자동으로 성격이나 핵심 믿음을 저장하지 않습니다. 원하는
                 대화 방식, 목표, 다루고 싶지 않은 주제만 직접 적어 주세요.

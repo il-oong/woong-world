@@ -22,11 +22,18 @@ export type MomentSummary = {
   after: number | null;
   action: string;
 };
-export function momentContext(situation: string, before: number | null) {
+export function momentContext(
+  situation: string,
+  before: number | null,
+  approvedMemory = "",
+) {
   return JSON.stringify({
     situation,
     selfReportedAnxiety: before,
-    scope: "이번 상황만. 과거 대화와 개인 기억은 포함하지 않음.",
+    scope: approvedMemory
+      ? "이번 상황과 사용자가 별도로 선택한 개인 기억. 과거 대화 원문은 포함하지 않음."
+      : "이번 상황만. 과거 대화와 개인 기억은 포함하지 않음.",
+    ...(approvedMemory ? { approvedMemory } : {}),
   });
 }
 export function momentPractice(

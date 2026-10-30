@@ -11,7 +11,7 @@
     "test:housing": "tsx --test tests/housing.test.ts tests/housing-sync.test.ts tests/housing-estimates.test.ts tests/housing-loan.test.ts tests/housing-schedule.test.ts tests/housing-youth.test.ts",
     "test:access": "tsx --test tests/access.test.ts",
     "test:security": "tsx --test tests/security.test.ts",
-    "test:mental-health": "tsx --test tests/mental-health.test.ts tests/mental-health-moment.test.ts",
+    "test:mental-health": "tsx --test tests/mental-health.test.ts tests/mental-health-moment.test.ts tests/mental-health-memory.test.ts",
     "sync:housing": "tsx scripts/sync-housing.ts",
     "test:voice": "tsx --test tests/voice.test.ts",
     "test:calendar": "tsx --test tests/calendar-actions.test.ts"
