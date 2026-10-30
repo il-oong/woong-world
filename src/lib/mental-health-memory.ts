@@ -1,4 +1,4 @@
-export const MEMORY_MAX_LENGTH = 2000;
+export const MEMORY_MAX_LENGTH = 8000;
 export const MEMORY_FILE_MAX_BYTES = 32_000;
 
 export function parseMemoryText(text: string): string {

@@ -22,8 +22,8 @@ export function MemoryImport({
   const generation = useRef(0);
   function errorMessage(error: unknown) {
     return error instanceof Error && error.message === "memory_too_long"
-      ? "합친 기억이 2,000자를 넘습니다. 내용을 줄이거나 기존 기억을 바꾸는 방법을 선택해 주세요."
-      : "비어 있지 않은 2,000자 이내 TXT 파일을 선택해 주세요.";
+      ? `합친 기억이 ${MEMORY_MAX_LENGTH.toLocaleString()}자를 넘습니다. 내용을 줄이거나 기존 기억을 바꾸는 방법을 선택해 주세요.`
+      : `비어 있지 않은 ${MEMORY_MAX_LENGTH.toLocaleString()}자 이내 TXT 파일을 선택해 주세요.`;
   }
   async function readFile(file: File | undefined) {
     const id = ++generation.current;

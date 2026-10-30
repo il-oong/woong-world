@@ -18,6 +18,7 @@ import {
 import styles from "./mental-health.module.css";
 import { MomentSupport } from "./MomentSupport";
 import { MemoryImport } from "./MemoryImport";
+import { MEMORY_MAX_LENGTH } from "@/lib/mental-health-memory";
 
 const tabs = [
   "오늘의 마음",
@@ -1120,6 +1121,7 @@ export function MentalHealthApp({ owner }: { owner: string }) {
               </p>
               <TextField
                 label="내가 정한 기억"
+                maxLength={MEMORY_MAX_LENGTH}
                 value={data.memory}
                 onChange={(memory) => update({ ...data, memory })}
               />

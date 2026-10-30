@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { MEMORY_MAX_LENGTH } from "./mental-health-memory";
 
 const short = z.string().max(2000);
 const score = z.number().int().min(0).max(10);
@@ -49,7 +50,7 @@ export const workspaceSchema = z
     moods: z.array(moodSchema).max(90),
     thoughts: z.array(thoughtSchema).max(30),
     practices: z.array(practiceSchema).max(60),
-    memory: z.string().max(2000),
+    memory: z.string().max(MEMORY_MAX_LENGTH),
   })
   .strict();
 export type Workspace = z.infer<typeof workspaceSchema>;

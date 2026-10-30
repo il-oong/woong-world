@@ -77,7 +77,7 @@ test("동의 없음, 위조 역할, 과도한 입력, 범위 밖 점수를 거�
     false,
   );
   assert.equal(
-    workspaceSchema.safeParse({ ...emptyWorkspace(), memory: "a".repeat(2001) })
+    workspaceSchema.safeParse({ ...emptyWorkspace(), memory: "a".repeat(8001) })
       .success,
     false,
   );
