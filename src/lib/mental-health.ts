@@ -7,6 +7,7 @@ export const messageSchema = z
   .object({
     role: z.enum(["user", "assistant"]),
     text: z.string().min(1).max(12000),
+    savedAt: z.string().max(40).optional(),
   })
   .strict();
 export const moodSchema = z
@@ -16,6 +17,7 @@ export const moodSchema = z
     mood: score,
     anxiety: score,
     note: short,
+    savedAt: z.string().max(40).optional(),
   })
   .strict();
 export const thoughtSchema = z
@@ -30,6 +32,7 @@ export const thoughtSchema = z
     alternative: short,
     before: score,
     after: score,
+    savedAt: z.string().max(40).optional(),
   })
   .strict();
 export const practiceSchema = z
@@ -40,6 +43,7 @@ export const practiceSchema = z
     plan: short,
     reflection: short,
     done: z.boolean(),
+    savedAt: z.string().max(40).optional(),
   })
   .strict();
 export const workspaceSchema = z
@@ -51,6 +55,7 @@ export const workspaceSchema = z
     practices: z.array(practiceSchema).max(60),
     memory: z.string().max(2000),
     relationship: z.string().max(50000).default(""),
+    relationshipSavedAt: z.string().max(40).optional(),
     relationshipLog: z
       .array(
         z
@@ -58,6 +63,7 @@ export const workspaceSchema = z
             id: z.string().uuid(),
             date,
             text: z.string().min(1).max(5000),
+            savedAt: z.string().max(40).optional(),
           })
           .strict(),
       )
