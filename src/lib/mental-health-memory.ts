@@ -1,5 +1,5 @@
 export const MEMORY_MAX_LENGTH = 2000;
-export const MEMORY_FILE_MAX_BYTES = 32_000;
+export const MEMORY_FILE_MAX_BYTES = 700_000;
 
 export function parseMemoryText(text: string): string {
   const memory = text.replace(/^\uFEFF/, "").trim();
@@ -17,4 +17,28 @@ export function combineMemory(
   if (current.trim() === memory || current.trim().endsWith("\n\n" + memory))
     return current.trim();
   return parseMemoryText(current.trim() + "\n\n" + memory);
+}
+
+export const RELATIONSHIP_MAX_LENGTH = 50_000;
+export const RELATIONSHIP_FILE_MAX_BYTES = 700_000;
+// Sent to the AI: all of it when short, otherwise the opening (background) and the most recent part.
+export const RELATIONSHIP_AI_MAX = 30_000;
+export function relationshipForAi(text: string): string {
+  const t = text.trim();
+  if (t.length <= RELATIONSHIP_AI_MAX) return t;
+  const head = 6_000;
+  return `${t.slice(0, head)}\n…(중간 생략)…\n${t.slice(-(RELATIONSHIP_AI_MAX - head))}`;
+}
+import type { Workspace } from "./mental-health";
+export const relationshipChars = (w: Workspace) =>
+  w.relationship.length +
+  w.relationshipLog.reduce((n, e) => n + e.text.length, 0);
+export function relationshipText(w: Workspace): string {
+  const log = [...w.relationshipLog]
+    .sort((a, b) => a.date.localeCompare(b.date))
+    .map((e) => `[${e.date}] ${e.text}`)
+    .join("\n");
+  return [w.relationship.trim(), log && `날짜별 기록:\n${log}`]
+    .filter(Boolean)
+    .join("\n\n");
 }

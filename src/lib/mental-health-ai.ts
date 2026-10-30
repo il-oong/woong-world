@@ -3,6 +3,7 @@ import {
   SYSTEM_PROMPT,
   CHAT_REPLY_SCHEMA,
   CHAT_FORMAT_PROMPT,
+  RELATIONSHIP_REPORT_PROMPT,
   enforceOneQuestion,
   tooManyQuestions,
 } from "./mental-health";
@@ -25,7 +26,7 @@ type Input = z.infer<typeof aiRequestSchema>;
 export async function generateSupport(
   input: Input,
 ): Promise<{ text: string; crisis: boolean }> {
-  if (input.mode === "report")
+  if (input.mode === "report" || input.mode === "relationship")
     return { text: await callGemini(input, false), crisis: false };
   const parse = async (hint?: string) => {
     const raw = await callGemini(input, true, hint);
@@ -81,6 +82,9 @@ async function callGemini(
               text:
                 SYSTEM_PROMPT +
                 (json ? "\n" + CHAT_FORMAT_PROMPT : "") +
+                (input.mode === "relationship"
+                  ? "\n" + RELATIONSHIP_REPORT_PROMPT
+                  : "") +
                 (input.mode === "moment" ? "\n" + MOMENT_SYSTEM_PROMPT : ""),
             },
           ],
@@ -92,11 +96,13 @@ async function callGemini(
               {
                 text: JSON.stringify({
                   task:
-                    input.mode === "report"
-                      ? "선택된 기록만 사용해 자기관리 보고서를 작성해 줘."
-                      : input.mode === "moment"
-                        ? "불안한 지금 이 순간에 맞춰 짧게 도와줘. 마지막 사용자 말에 답하고 안전한 다음 행동 하나를 함께 정해줘."
-                        : "아래 대화의 마지막 사용자 말에 답해 줘.",
+                    input.mode === "relationship"
+                      ? "관계 기록만 근거로 관계 분석 보고서를 작성해 줘."
+                      : input.mode === "report"
+                        ? "선택된 기록만 사용해 자기관리 보고서를 작성해 줘."
+                        : input.mode === "moment"
+                          ? "불안한 지금 이 순간에 맞춰 짧게 도와줘. 마지막 사용자 말에 답하고 안전한 다음 행동 하나를 함께 정해줘."
+                          : "아래 대화의 마지막 사용자 말에 답해 줘.",
                   selectedContext: input.context,
                   conversation: input.messages,
                   ...(hint ? { systemNotice: hint } : {}),
@@ -107,7 +113,7 @@ async function callGemini(
         ],
         generationConfig: {
           temperature: 0.4,
-          maxOutputTokens: 3000,
+          maxOutputTokens: input.mode === "relationship" ? 6000 : 3000,
           ...(json
             ? {
                 responseMimeType: "application/json",

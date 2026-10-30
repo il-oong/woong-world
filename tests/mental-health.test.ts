@@ -255,19 +255,54 @@ test("relationship record defaults for old data and is bounded", () => {
   delete legacy.relationship;
   assert.equal(workspaceSchema.parse(legacy).relationship, "");
   assert.throws(() =>
-    workspaceSchema.parse({ ...emptyWorkspace(), relationship: "가".repeat(20001) }),
+    workspaceSchema.parse({
+      ...emptyWorkspace(),
+      relationship: "가".repeat(50001),
+    }),
   );
-  const saved = workspaceSchema.parse({ ...emptyWorkspace(), relationship: "기록" });
+  const saved = workspaceSchema.parse({
+    ...emptyWorkspace(),
+    relationship: "기록",
+  });
   assert.equal(saved.relationship, "기록");
 });
 
 test("reply format keeps exactly one question and splits bubbles", async () => {
-  const { enforceOneQuestion, tooManyQuestions, splitBubbles } = await import(
-    "../src/lib/mental-health"
-  );
-  const o = { reply_text: "많이 힘들었겠어요. 왜 그랬을까요?", question: "그때 어땠나요?" };
+  const { enforceOneQuestion, tooManyQuestions, splitBubbles } =
+    await import("../src/lib/mental-health");
+  const o = {
+    reply_text: "많이 힘들었겠어요. 왜 그랬을까요?",
+    question: "그때 어땠나요?",
+  };
   assert.ok(tooManyQuestions(o));
   const fixed = enforceOneQuestion(o);
-  assert.equal((`${fixed.reply}${fixed.question}`.match(/\?/g) ?? []).length, 1);
+  assert.equal(
+    (`${fixed.reply}${fixed.question}`.match(/\?/g) ?? []).length,
+    1,
+  );
   assert.deepEqual(splitBubbles("가\n\n나\n다"), ["가", "나", "다"]);
+});
+
+test("long relationship record is trimmed for the AI but kept whole for storage", async () => {
+  const { relationshipForAi, RELATIONSHIP_AI_MAX } =
+    await import("../src/lib/mental-health-memory");
+  const long = "가".repeat(40000);
+  assert.ok(relationshipForAi(long).length < RELATIONSHIP_AI_MAX + 50);
+  assert.equal(relationshipForAi("짧은 기록"), "짧은 기록");
+  assert.doesNotThrow(() =>
+    workspaceSchema.parse({ ...emptyWorkspace(), relationship: long }),
+  );
+});
+
+test("relationship report mode requires context and uses the report prompt", async () => {
+  const base = { consent: true, messages: [] as never[] };
+  assert.throws(() =>
+    aiRequestSchema.parse({ ...base, mode: "relationship", context: " " }),
+  );
+  assert.doesNotThrow(() =>
+    aiRequestSchema.parse({ ...base, mode: "relationship", context: "기록" }),
+  );
+  const { RELATIONSHIP_REPORT_PROMPT } = await import("../src/lib/mental-health");
+  assert.match(RELATIONSHIP_REPORT_PROMPT, /조심해야 할 행동/);
+  assert.match(RELATIONSHIP_REPORT_PROMPT, /만들지 않는다/);
 });
