@@ -29,3 +29,16 @@ export function relationshipForAi(text: string): string {
   const head = 6_000;
   return `${t.slice(0, head)}\n…(중간 생략)…\n${t.slice(-(RELATIONSHIP_AI_MAX - head))}`;
 }
+import type { Workspace } from "./mental-health";
+export const relationshipChars = (w: Workspace) =>
+  w.relationship.length +
+  w.relationshipLog.reduce((n, e) => n + e.text.length, 0);
+export function relationshipText(w: Workspace): string {
+  const log = [...w.relationshipLog]
+    .sort((a, b) => a.date.localeCompare(b.date))
+    .map((e) => `[${e.date}] ${e.text}`)
+    .join("\n");
+  return [w.relationship.trim(), log && `날짜별 기록:\n${log}`]
+    .filter(Boolean)
+    .join("\n\n");
+}

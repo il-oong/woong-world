@@ -20,6 +20,8 @@ import {
   RELATIONSHIP_FILE_MAX_BYTES,
   RELATIONSHIP_MAX_LENGTH,
   relationshipForAi,
+  relationshipText,
+  relationshipChars,
 } from "@/lib/mental-health-memory";
 import styles from "./mental-health.module.css";
 import { MomentSupport } from "./MomentSupport";
@@ -149,6 +151,8 @@ export function MentalHealthApp({ owner }: { owner: string }) {
   const [expiry, setExpiry] = useState<number | null>(null);
   const [dirty, setDirty] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [logText, setLogText] = useState("");
+  const [logDate, setLogDate] = useState(todayKorea());
   const [pending, setPending] = useState<string | null>(null);
   const [reveal, setReveal] = useState<{ at: number; n: number } | null>(null);
   const [momentBusy, setMomentBusy] = useState(false);
@@ -358,8 +362,8 @@ export function MentalHealthApp({ owner }: { owner: string }) {
   }
   const context = [
     memoryConsent && data.memory ? `내가 직접 작성한 기억: ${data.memory}` : "",
-    relationshipConsent && data.relationship
-      ? `내가 직접 정리한 연애 관계 기록(이미 아는 사실로 쓰고 처음부터 다시 묻지 말 것):\n<자료>\n${relationshipForAi(data.relationship).replace(/<\/?자료>/g, "")}\n</자료>`
+    relationshipConsent && (data.relationship || data.relationshipLog.length)
+      ? `내가 직접 정리한 연애 관계 기록(이미 아는 사실로 쓰고 처음부터 다시 묻지 말 것):\n<자료>\n${relationshipForAi(relationshipText(data)).replace(/<\/?자료>/g, "")}\n</자료>`
       : "",
     recordConsent ? recordContext(data, todayKorea(), todayKorea()) : "",
   ]
@@ -739,7 +743,7 @@ export function MentalHealthApp({ owner }: { owner: string }) {
                 />
                 내가 작성한 기억도 포함
               </label>
-              {data.relationship && (
+              {(data.relationship || data.relationshipLog.length > 0) && (
                 <label>
                   <input
                     type="checkbox"
@@ -1261,6 +1265,109 @@ export function MentalHealthApp({ owner }: { owner: string }) {
                   onClick={() => update({ ...data, relationship: "" })}
                 >
                   관계 기록 비우기
+                </button>
+              </div>
+            </section>
+            <section className={styles.card}>
+              <h2>날짜별 기록</h2>
+              <p>
+                그날 있었던 일이나 마음을 날짜와 함께 남겨 두세요. 목록에서 보고
+                지울 수 있고, 상담 때 함께 전달됩니다. (최대 40개, 한 개
+                5,000자)
+              </p>
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  const text = logText.trim();
+                  if (!text) return;
+                  if (relationshipChars(data) + text.length > 50000) {
+                    setNotice("관계 기록 전체 50,000자 한도를 넘습니다.");
+                    return;
+                  }
+                  update({
+                    ...data,
+                    relationshipLog: [
+                      ...data.relationshipLog,
+                      { id: crypto.randomUUID(), date: logDate, text },
+                    ],
+                  });
+                  setLogText("");
+                }}
+              >
+                <Field label="날짜">
+                  <input
+                    type="date"
+                    value={logDate}
+                    onChange={(e) => setLogDate(e.target.value)}
+                  />
+                </Field>
+                <Field label="기록">
+                  <textarea
+                    value={logText}
+                    onChange={(e) => setLogText(e.target.value)}
+                    maxLength={5000}
+                    rows={5}
+                  />
+                </Field>
+                <div className={styles.actions}>
+                  <button
+                    type="submit"
+                    disabled={
+                      !logText.trim() ||
+                      !logDate ||
+                      data.relationshipLog.length >= 40
+                    }
+                  >
+                    기록 추가
+                  </button>
+                </div>
+              </form>
+              {data.relationshipLog.length === 0 ? (
+                <p className={styles.small}>아직 날짜별 기록이 없어요.</p>
+              ) : (
+                <ul>
+                  {[...data.relationshipLog]
+                    .sort((a, b) => b.date.localeCompare(a.date))
+                    .map((entry) => (
+                      <li key={entry.id}>
+                        <details>
+                          <summary>
+                            {entry.date} · {entry.text.slice(0, 40)}
+                            {entry.text.length > 40 ? "…" : ""}
+                          </summary>
+                          <p style={{ whiteSpace: "pre-wrap" }}>{entry.text}</p>
+                          <button
+                            className={styles.danger}
+                            type="button"
+                            onClick={() => {
+                              if (!confirm(`${entry.date} 기록을 삭제할까요?`))
+                                return;
+                              update({
+                                ...data,
+                                relationshipLog: data.relationshipLog.filter(
+                                  (x) => x.id !== entry.id,
+                                ),
+                              });
+                            }}
+                          >
+                            이 기록 삭제
+                          </button>
+                        </details>
+                      </li>
+                    ))}
+                </ul>
+              )}
+              <p className={styles.small}>
+                {data.relationshipLog.length}/40개 · 전체{" "}
+                {relationshipChars(data).toLocaleString()} / 50,000자 ·
+                추가하거나 삭제한 뒤에는 ‘암호화 저장’을 눌러야 서버에
+                반영됩니다.
+                {expiry &&
+                  ` 마지막 저장: ${new Date(expiry - 30 * 86400000).toLocaleString("ko-KR")}`}
+              </p>
+              <div className={styles.actions}>
+                <button disabled={!storage || busy} onClick={save}>
+                  암호화 저장
                 </button>
               </div>
             </section>

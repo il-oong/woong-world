@@ -51,8 +51,27 @@ export const workspaceSchema = z
     practices: z.array(practiceSchema).max(60),
     memory: z.string().max(2000),
     relationship: z.string().max(50000).default(""),
+    relationshipLog: z
+      .array(
+        z
+          .object({
+            id: z.string().uuid(),
+            date,
+            text: z.string().min(1).max(5000),
+          })
+          .strict(),
+      )
+      .max(40)
+      .default([]),
   })
-  .strict();
+  .strict()
+  .refine(
+    (w) =>
+      w.relationship.length +
+        w.relationshipLog.reduce((n, e) => n + e.text.length, 0) <=
+      50000,
+    { message: "relationship_too_long" },
+  );
 export type Workspace = z.infer<typeof workspaceSchema>;
 export type Mood = z.infer<typeof moodSchema>;
 export type Thought = z.infer<typeof thoughtSchema>;
@@ -66,6 +85,7 @@ export const emptyWorkspace = (): Workspace => ({
   practices: [],
   memory: "",
   relationship: "",
+  relationshipLog: [],
 });
 export const todayKorea = () =>
   new Intl.DateTimeFormat("en-CA", {
