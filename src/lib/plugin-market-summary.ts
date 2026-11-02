@@ -23,23 +23,29 @@ function redis(): Redis | null {
 
 const key = (repo: string) => `${PREFIX}${repo.toLowerCase()}`;
 
-/** 캐시된 요약만 조회 (repo → 요약). Redis 미설정/오류 시 빈 맵. */
+/**
+ * 캐시된 요약만 조회 (repo → 요약).
+ * `available`이 false면 캐시를 쓸 수 없는 상태(Redis 미설정/읽기 실패)다 —
+ * 이때 생성하면 매 방문마다 유료 호출이 반복되므로 호출자는 생성을 건너뛴다.
+ */
 export async function getCachedSummaries(
   repos: string[],
-): Promise<Map<string, string>> {
+): Promise<{ map: Map<string, string>; available: boolean }> {
   const out = new Map<string, string>();
   const r = redis();
-  if (!r || repos.length === 0) return out;
+  if (!r) return { map: out, available: false };
+  if (repos.length === 0) return { map: out, available: true };
   try {
     const vals = await r.mget<(string | null)[]>(...repos.map(key));
     repos.forEach((repo, i) => {
       const v = vals[i];
       if (typeof v === "string" && v) out.set(repo, v);
     });
+    return { map: out, available: true };
   } catch {
     /* 요약은 부가 정보 */
+    return { map: out, available: false };
   }
-  return out;
 }
 
 type Input = Pick<MarketItem, "repo" | "description" | "topics" | "language">;
@@ -49,7 +55,9 @@ export async function ensureSummaries(
   items: Input[],
 ): Promise<Map<string, string>> {
   const repos = items.map((i) => i.repo);
-  const result = await getCachedSummaries(repos);
+  const { map: result, available } = await getCachedSummaries(repos);
+  // 캐시를 쓸 수 없으면 생성하지 않는다 (설명만 보이는 폴백 유지).
+  if (!available) return result;
   const missing = items.filter((i) => !result.has(i.repo)).slice(0, 30);
   const apiKey = process.env.GEMINI_API_KEY;
   if (missing.length === 0 || !apiKey) return result;
