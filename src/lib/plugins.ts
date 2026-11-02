@@ -73,6 +73,7 @@ export function pluginGitHubUrl(p: Plugin): string {
 const RESERVED_PLUGIN_IDS = new Set([
   "status",
   "github-meta",
+  "market",
   "routine",
   "subscription",
 ]);
