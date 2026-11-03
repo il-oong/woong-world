@@ -6,6 +6,7 @@ import {
   type MarketCategoryId,
   type MarketSort,
 } from "@/lib/plugin-market";
+import { translateDescriptions } from "@/lib/plugin-market-translate";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -26,7 +27,9 @@ export async function GET(req: NextRequest) {
     return Response.json({ error: "invalid_sort" }, { status: 400 });
   }
   try {
-    const items = await fetchMarket(category, sort);
+    const items = await translateDescriptions(
+      await fetchMarket(category, sort),
+    );
     return Response.json({ items });
   } catch (e) {
     const msg = e instanceof Error ? e.message : "market_failed";
