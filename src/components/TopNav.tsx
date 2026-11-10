@@ -80,10 +80,20 @@ export function TopNav() {
     if (!confirm("로그아웃하시겠어요? 다시 사용하려면 구글 로그인이 필요합니다.")) return;
     setLoggingOut(true);
     try {
-      await fetch("/api/google/disconnect", { method: "POST" });
+      // credentials: "same-origin" is the fetch default in current browsers,
+      // but naming it keeps cookies attached even if a PWA shell or proxy
+      // changes the default. cache: "no-store" keeps the Set-Cookie response
+      // out of any HTTP cache so the next page load really is logged out.
+      await fetch("/api/google/disconnect", {
+        method: "POST",
+        credentials: "same-origin",
+        cache: "no-store",
+      });
     } finally {
-      // Hard reload to clear all client state (calendar widgets, plans, etc.)
-      window.location.href = "/";
+      // Hard reload to clear all client state (calendar widgets, plans, etc.).
+      // location.replace instead of href so back-button cannot restore the
+      // logged-in page from bfcache.
+      window.location.replace("/");
     }
   };
 
