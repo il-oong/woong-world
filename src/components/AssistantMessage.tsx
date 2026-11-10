@@ -136,6 +136,11 @@ function ActionCard({
             )}
             {action.type === "update_event" && <UpdateEventBody params={action.params} />}
             {action.type === "delete_event" && <DeleteEventBody params={action.params} />}
+            {action.type === "send_email" && <SendEmailBody params={action.params} />}
+            {action.type === "trash_email" && <TrashEmailBody params={action.params} />}
+            {action.type === "modify_email_labels" && (
+              <ModifyEmailLabelsBody params={action.params} />
+            )}
             {action.type === "dev_task" && (
               <DevTaskBody params={action.params} approved={action.status === "approved"} />
             )}
@@ -163,7 +168,9 @@ function ActionCard({
               {action.type !== "manage_workspace" &&
                 action.type !== "dev_task" &&
                 action.type !== "update_event" &&
-                action.type !== "delete_event" && (
+                action.type !== "delete_event" &&
+                action.type !== "trash_email" &&
+                action.type !== "modify_email_labels" && (
                 <button
                   type="button"
                   onClick={() => setEditing(true)}
@@ -204,6 +211,14 @@ function ActionCard({
           )}
           {action.type === "update_plan" && (
             <UpdatePlanEdit
+              params={action.params}
+              busy={busy}
+              onApprove={(p) => void decide("approve", p)}
+              onCancel={() => setEditing(false)}
+            />
+          )}
+          {action.type === "send_email" && (
+            <SendEmailEdit
               params={action.params}
               busy={busy}
               onApprove={(p) => void decide("approve", p)}
@@ -818,7 +833,160 @@ function labelForType(type: ProposedAction["type"]): string {
       return "JARVIS workspace control";
     case "dev_task":
       return "⚙ 클라우드 개발 요청";
+    case "send_email":
+      return "✉ 메일 보내기";
+    case "trash_email":
+      return "🗑 메일 삭제";
+    case "modify_email_labels":
+      return "🏷 메일 라벨 변경";
   }
+}
+
+const EMAIL_LABEL_LABELS: Record<string, string> = {
+  UNREAD: "안읽음",
+  STARRED: "별표",
+  IMPORTANT: "중요",
+  INBOX: "받은편지함",
+  SPAM: "스팸",
+  TRASH: "휴지통",
+};
+
+function labelName(id: string): string {
+  return EMAIL_LABEL_LABELS[id] ?? id;
+}
+
+function SendEmailBody({
+  params,
+}: {
+  params: Extract<ProposedAction, { type: "send_email" }>["params"];
+}) {
+  return (
+    <div className="flex flex-col gap-1">
+      <div className="font-mono text-[10px] text-[var(--muted)]">
+        {params.replyToMessageId ? "답장" : "새 메일"} · to {params.to}
+        {params.cc && <span> · cc {params.cc}</span>}
+      </div>
+      <p className="font-medium">{params.subject}</p>
+      <pre className="mt-1 max-h-48 overflow-y-auto whitespace-pre-wrap rounded bg-black/30 p-2 text-[11px] leading-relaxed text-[var(--muted)]">
+        {params.body}
+      </pre>
+      <p className="text-[10px] text-amber-300/80">
+        승인하면 Gmail로 바로 발송됩니다. 되돌릴 수 없어요.
+      </p>
+    </div>
+  );
+}
+
+function TrashEmailBody({
+  params,
+}: {
+  params: Extract<ProposedAction, { type: "trash_email" }>["params"];
+}) {
+  return (
+    <div className="space-y-1">
+      <p className="font-medium text-foreground">{params.subject}</p>
+      {params.from && (
+        <p className="font-mono text-[10px] text-[var(--muted)]">
+          from {params.from}
+        </p>
+      )}
+      <p className="text-[10px] text-red-300/90">
+        승인하면 이 메일이 Gmail 휴지통으로 이동합니다 (30일 후 자동 영구삭제).
+      </p>
+    </div>
+  );
+}
+
+function ModifyEmailLabelsBody({
+  params,
+}: {
+  params: Extract<ProposedAction, { type: "modify_email_labels" }>["params"];
+}) {
+  return (
+    <div className="space-y-1">
+      <p className="font-medium text-foreground">{params.subject}</p>
+      <div className="flex flex-wrap gap-1 text-[10px]">
+        {params.add?.map((id) => (
+          <span
+            key={`add-${id}`}
+            className="rounded bg-emerald-500/15 px-1.5 py-0.5 text-emerald-200"
+          >
+            + {labelName(id)}
+          </span>
+        ))}
+        {params.remove?.map((id) => (
+          <span
+            key={`rm-${id}`}
+            className="rounded bg-rose-500/15 px-1.5 py-0.5 text-rose-200"
+          >
+            − {labelName(id)}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function SendEmailEdit({
+  params,
+  busy,
+  onApprove,
+  onCancel,
+}: {
+  params: Extract<ProposedAction, { type: "send_email" }>["params"];
+  busy: boolean;
+  onApprove: (p: Record<string, unknown>) => void;
+  onCancel: () => void;
+}) {
+  const [to, setTo] = useState(params.to);
+  const [cc, setCc] = useState(params.cc ?? "");
+  const [bcc, setBcc] = useState(params.bcc ?? "");
+  const [subject, setSubject] = useState(params.subject);
+  const [body, setBody] = useState(params.body);
+
+  const submit = () => {
+    onApprove({
+      to,
+      cc: cc.trim() ? cc : undefined,
+      bcc: bcc.trim() ? bcc : undefined,
+      subject,
+      body,
+      replyToMessageId: params.replyToMessageId,
+    });
+  };
+
+  return (
+    <div className="flex flex-col gap-2 text-xs">
+      <div className="flex flex-col gap-0.5">
+        <span className={labelCls}>받는 사람</span>
+        <input value={to} onChange={(e) => setTo(e.target.value)} className={inputCls} />
+      </div>
+      <div className="grid grid-cols-2 gap-2">
+        <div className="flex flex-col gap-0.5">
+          <span className={labelCls}>Cc (선택)</span>
+          <input value={cc} onChange={(e) => setCc(e.target.value)} className={inputCls} />
+        </div>
+        <div className="flex flex-col gap-0.5">
+          <span className={labelCls}>Bcc (선택)</span>
+          <input value={bcc} onChange={(e) => setBcc(e.target.value)} className={inputCls} />
+        </div>
+      </div>
+      <div className="flex flex-col gap-0.5">
+        <span className={labelCls}>제목</span>
+        <input value={subject} onChange={(e) => setSubject(e.target.value)} className={inputCls} />
+      </div>
+      <div className="flex flex-col gap-0.5">
+        <span className={labelCls}>본문</span>
+        <textarea
+          value={body}
+          onChange={(e) => setBody(e.target.value)}
+          rows={10}
+          className={`${inputCls} resize-y`}
+        />
+      </div>
+      <EditActions busy={busy} onCancel={onCancel} onApprove={submit} />
+    </div>
+  );
 }
 
 const WEEKDAY_LABELS = ["일", "월", "화", "수", "목", "금", "토"];
