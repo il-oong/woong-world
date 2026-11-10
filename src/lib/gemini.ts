@@ -619,12 +619,19 @@ function summarizeEmails(messages: GmailMessageSummary[]): string {
 }
 
 
+// Strip any internal delegation tags that slipped into user-visible text.
+// Pass 2 inherits the system prompt that teaches Gemini to emit
+// <fetch-emails> / <delegate-stocks>, so it can repeat the instruction even
+// though the data is already injected. parseActions must never leak them.
+const DELEGATE_LEFTOVER_REGEX =
+  /<(?:fetch-emails|delegate-stocks)>[\s\S]*?<\/(?:fetch-emails|delegate-stocks)>/g;
+
 function parseActions(text: string): {
   cleanText: string;
   actions: ProposedAction[];
 } {
   const actions: ProposedAction[] = [];
-  const cleanText = text.replace(ACTION_REGEX, (_, json: string) => {
+  const stripped = text.replace(ACTION_REGEX, (_, json: string) => {
     try {
       const action = parseProposedAction(JSON.parse(json) as unknown);
       if (action) actions.push(action);
@@ -633,7 +640,8 @@ function parseActions(text: string): {
     }
     return "";
   });
-  return { cleanText: cleanText.trim(), actions };
+  const cleanText = stripped.replace(DELEGATE_LEFTOVER_REGEX, "").trim();
+  return { cleanText, actions };
 }
 
 async function callChatGemini(
@@ -724,7 +732,7 @@ export async function chatWithAssistant(input: {
         maxResults: emailDelegation.maxResults,
       });
       const emailBlock = summarizeEmails(messages);
-      const pass2System = `${systemText}\n\n[최근 메일 (조회 결과)]\n${emailBlock}\n\n위 메일 목록을 근거로만 답해라. 목록에 없는 메일은 추측하지 마라. 액션을 제안할 때 messageId / replyToMessageId 는 위 [messageId:...] 값을 그대로 쓴다.`;
+      const pass2System = `${systemText}\n\n[최근 메일 (조회 결과)]\n${emailBlock}\n\n위 메일 목록을 근거로만 답해라. 목록에 없는 메일은 추측하지 마라. 액션을 제안할 때 messageId / replyToMessageId 는 위 [messageId:...] 값을 그대로 쓴다.\n\n★ 중요: 메일은 이미 위에 조회돼 있다. 절대로 <fetch-emails>...</fetch-emails> 지시를 다시 출력하지 마라. 그 지시는 조회가 필요할 때만 쓰는 것이고, 지금은 데이터가 이미 있으니 사용자에게 자연어로 답변하거나 <action>...</action> 블록만 내보내라.`;
       const synthesized = await callChatGemini(pass2System, contents, 0.6);
       const final = synthesized.trim();
       if (!final) {
