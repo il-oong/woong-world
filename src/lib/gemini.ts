@@ -4,6 +4,8 @@ import type { Plan } from "./plans";
 import type { ChatMessage, ProposedAction, UploadedFile } from "./assistant";
 import { parseProposedAction } from "./assistant";
 import type { CalendarEvent } from "./google";
+import type { GoogleSession } from "./session";
+import { listGmailMessages, type GmailMessageSummary } from "./gmail";
 import type { Todo } from "./todos";
 import type { Memo } from "./memos";
 import type { Subscription } from "./subscriptions";
@@ -211,6 +213,24 @@ const CHAT_SYSTEM_PROMPT = `너는 사용자의 인생 비서다 ("뇌 대리").
 - 이 액션은 서버에서 실행하지 않는다. UI는 [복사] 버튼과 설명만 보여준다 — 사용자가 직접 터미널에서 실행한다.
 - 한 답변에 명령어는 최대 3개. 한 줄에 너무 많은 단계가 섞이면 단계별로 나눠라.
 - 위험 명령(rm -rf, force push, db drop 등)은 절대 제안하지 말고, 부득이하면 명시적으로 위험성을 설명해라.
+
+메일 관리 (Gmail):
+- 사용자가 메일 관련 질문/지시를 하면 (예: "안 읽은 메일 있어?", "오늘 온 메일 알려줘", "○○한테 답장 보내줘", "스팸 지워줘", "이 메일 읽음 처리해줘"), 먼저 메일을 조회해야 한다. 조회가 필요하면 다른 말 없이 아래 지시 한 줄만 출력해라:
+  <fetch-emails>{"query":"is:unread newer_than:2d","maxResults":10}</fetch-emails>
+- query는 Gmail 검색 문법("from:...", "subject:...", "is:unread", "is:starred", "newer_than:7d", "label:important" 등)을 그대로 쓴다. 전체 받은편지함 최신이 필요하면 query는 빈 문자열로 보내라.
+- maxResults는 1~30. 메일 자체를 요약해 달라는 요청이면 10~15, "그 메일에 답장" 같은 좁은 요청이면 1~5.
+- 서버가 조회 후 [최근 메일] 블록을 주면 네가 받은 질문에 맞춰 답하거나 아래 액션 중 하나를 제안해라.
+
+메일 쓰기/정리 액션 (승인 필요):
+  <action>{"type":"send_email","params":{"to":"foo@example.com","subject":"제목","body":"본문..."}}</action>
+  <action>{"type":"send_email","params":{"to":"foo@example.com","subject":"Re: 원 제목","body":"답장 본문","replyToMessageId":"[messageId: 값]"}}</action>
+  <action>{"type":"trash_email","params":{"messageId":"[messageId: 값]","subject":"메일 제목","from":"보낸사람"}}</action>
+  <action>{"type":"modify_email_labels","params":{"messageId":"[messageId: 값]","subject":"메일 제목","add":["STARRED"],"remove":["UNREAD"]}}</action>
+- replyToMessageId / messageId 는 [최근 메일] 블록의 [messageId:...] 값이다. 사용자에게 그 값을 말하지 마라.
+- 자주 쓰는 라벨: UNREAD(안읽음), STARRED(별표), IMPORTANT(중요), INBOX(받은편지함; 보관할 때 INBOX를 remove). 읽음 처리는 remove:["UNREAD"], 보관(archive)은 remove:["INBOX"].
+- 메일 본문 초안은 간결하고 명료하게. 사용자 어투를 유지. 서명·법적 고지는 사용자가 쓰지 않았다면 넣지 마라.
+- 모호하면 먼저 물어봐라("김과장한테" → 어느 김과장인지, 어떤 내용인지). 사용자가 명시하지 않은 사람에게 임의로 보내지 마라.
+- 삭제/휴지통 액션은 되돌리기 어렵다는 점을 승인 카드가 설명하니, 너는 짧게 "이거 지울게?"만 묻고 액션 제안해라.
 
 주식/투자 질문 (뇌 네트워크 위임):
 - 너는 사용자의 전담 펀드매니저 겸 최상위 뇌 네트워크 총괄(최종 자비스)이다. 주식 분석·매수/매도 판단은 하위 에이전트들(JKP·O'Neil·Lynch·Weinstein·Minervini)이 Yahoo Finance 실시간 데이터로 수행하고, 종합 결과로 명확한 투자 판단을 내린다.
@@ -544,6 +564,61 @@ async function buildContents(
 
 const ACTION_REGEX = /<action>([\s\S]*?)<\/action>/g;
 
+const EMAIL_DELEGATE_REGEX = /<fetch-emails>([\s\S]*?)<\/fetch-emails>/;
+
+type EmailDelegation = { query: string; maxResults: number };
+
+function parseEmailDelegation(text: string): EmailDelegation | null {
+  const m = text.match(EMAIL_DELEGATE_REGEX);
+  if (!m) return null;
+  try {
+    const parsed = JSON.parse(m[1].trim()) as {
+      query?: unknown;
+      maxResults?: unknown;
+    };
+    const rawQuery = typeof parsed.query === "string" ? parsed.query.trim() : "";
+    // Gmail query syntax only. Reject operators that could broaden intent
+    // beyond what the user asked for (e.g. arbitrary "trash:" or multi-user
+    // queries) by capping length and stripping control characters.
+    const query =
+      rawQuery.length <= 500 && !/[\r\n\0]/.test(rawQuery) ? rawQuery : "";
+    const n =
+      typeof parsed.maxResults === "number"
+        ? Math.floor(parsed.maxResults)
+        : 10;
+    const maxResults = Math.min(Math.max(n, 1), 30);
+    return { query, maxResults };
+  } catch {
+    return null;
+  }
+}
+
+function summarizeEmails(messages: GmailMessageSummary[]): string {
+  if (messages.length === 0) return "  (조회된 메일이 없다)";
+  return messages
+    .map((m) => {
+      const flags: string[] = [];
+      if (m.unread) flags.push("안읽음");
+      if (m.labelIds.includes("STARRED")) flags.push("★");
+      if (m.labelIds.includes("IMPORTANT")) flags.push("중요");
+      const flagStr = flags.length ? ` [${flags.join(",")}]` : "";
+      const dateStr = m.date
+        ? new Date(m.date).toISOString().slice(0, 16).replace("T", " ")
+        : "";
+      const snippet = m.snippet.replace(/\s+/g, " ").slice(0, 160);
+      return [
+        `  - ${dateStr} ${m.subject}${flagStr}`,
+        `      from: ${m.from}`,
+        `      [messageId: ${m.id}]`,
+        snippet ? `      ${snippet}` : "",
+      ]
+        .filter(Boolean)
+        .join("\n");
+    })
+    .join("\n");
+}
+
+
 function parseActions(text: string): {
   cleanText: string;
   actions: ProposedAction[];
@@ -623,6 +698,8 @@ export async function chatWithAssistant(input: {
   userMessage: string;
   attachments: UploadedFile[];
   context: AssistantContext;
+  /** When present, enables the Gmail <fetch-emails> delegation. */
+  googleSession?: GoogleSession;
 }): Promise<{ text: string; proposedActions: ProposedAction[] }> {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) throw new Error("GEMINI_API_KEY not set");
@@ -637,6 +714,35 @@ export async function chatWithAssistant(input: {
   // Pass 1 — 라우터/플래너. 평소처럼 답하거나, 주식 질문이면 위임 지시를 낸다.
   const raw = await callChatGemini(systemText, contents, 0.7);
   if (!raw) return { text: "(빈 응답)", proposedActions: [] };
+
+  // Gmail 위임 — 메일 조회가 필요하면 pass 1에서 지시가 나온다.
+  const emailDelegation = parseEmailDelegation(raw);
+  if (emailDelegation && input.googleSession) {
+    try {
+      const messages = await listGmailMessages(input.googleSession, {
+        query: emailDelegation.query,
+        maxResults: emailDelegation.maxResults,
+      });
+      const emailBlock = summarizeEmails(messages);
+      const pass2System = `${systemText}\n\n[최근 메일 (조회 결과)]\n${emailBlock}\n\n위 메일 목록을 근거로만 답해라. 목록에 없는 메일은 추측하지 마라. 액션을 제안할 때 messageId / replyToMessageId 는 위 [messageId:...] 값을 그대로 쓴다.`;
+      const synthesized = await callChatGemini(pass2System, contents, 0.6);
+      const final = synthesized.trim();
+      if (!final) {
+        return {
+          text: "메일 조회는 됐는데 종합에 실패했어. 잠시 후 다시 물어봐.",
+          proposedActions: [],
+        };
+      }
+      const { cleanText, actions } = parseActions(final);
+      return { text: cleanText || final, proposedActions: actions };
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      return {
+        text: `메일을 조회하지 못했어. (사유: ${msg})\nGoogle 계정 재연결이 필요한지 확인해줘.`,
+        proposedActions: [],
+      };
+    }
+  }
 
   // 주식 위임 지시가 있으면 에이전트 네트워크를 돌리고 실데이터로 종합한다.
   const delegation = parseDelegation(raw);

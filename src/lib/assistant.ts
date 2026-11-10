@@ -161,6 +161,44 @@ export type ProposedAction =
         /** GitHub issue number, set after approval so the card can track progress. */
         issue?: number;
       };
+    }
+  | {
+      id: string;
+      // Send a new Gmail message, or reply when replyToMessageId is set.
+      type: "send_email";
+      status: ActionStatus;
+      params: {
+        to: string;
+        subject: string;
+        body: string;
+        cc?: string;
+        bcc?: string;
+        /** When present, the send threads under this message's thread with In-Reply-To/References. */
+        replyToMessageId?: string;
+      };
+    }
+  | {
+      id: string;
+      type: "trash_email";
+      status: ActionStatus;
+      params: {
+        messageId: string;
+        /** Shown on the approval card so the user can see what will be trashed. */
+        subject: string;
+        from?: string;
+      };
+    }
+  | {
+      id: string;
+      // Add/remove Gmail labels. Covers mark-as-read (remove UNREAD), star, archive (remove INBOX).
+      type: "modify_email_labels";
+      status: ActionStatus;
+      params: {
+        messageId: string;
+        subject: string;
+        add?: string[];
+        remove?: string[];
+      };
     };
 
 export type ChatAttachment = {
@@ -302,6 +340,44 @@ function isId(value: unknown, prefix?: string): value is string {
 /** Google event ids are base32hex plus "_" for recurring instances. */
 function isEventId(value: unknown): value is string {
   return typeof value === "string" && /^[a-zA-Z0-9_-]{1,200}$/.test(value);
+}
+
+/** Gmail message/thread ids are hex-ish; keep the shape conservative. */
+function isGmailId(value: unknown): value is string {
+  return typeof value === "string" && /^[a-zA-Z0-9_-]{4,200}$/.test(value);
+}
+
+/**
+ * Accepts a comma-separated address list such as "a@b.com, Foo <foo@b.com>".
+ * Guards against header injection by rejecting CR/LF and the few control
+ * characters that would let a model split a header or body.
+ */
+function isEmailAddressList(value: string): boolean {
+  if (value.length > 2_000) return false;
+  if (/[\r\n\0]/.test(value)) return false;
+  const parts = value.split(",").map((p) => p.trim()).filter(Boolean);
+  if (parts.length === 0 || parts.length > 50) return false;
+  const addrRe = /^(?:[^<>]+<[^<>\s@,]+@[^<>\s@,]+>|[^<>\s@,]+@[^<>\s@,]+)$/;
+  return parts.every((p) => addrRe.test(p));
+}
+
+/**
+ * Gmail label ids: built-ins (INBOX, UNREAD, STARRED, ...) or user-created
+ * ids that look like "Label_12". Reject anything outside the tight shape so
+ * the model cannot aim mutate calls at arbitrary tokens.
+ */
+function parseLabelList(value: unknown): string[] | null | undefined {
+  if (value === undefined) return undefined;
+  if (!Array.isArray(value) || value.length === 0 || value.length > 10) {
+    return null;
+  }
+  const labels: string[] = [];
+  for (const item of value) {
+    if (typeof item !== "string") return null;
+    if (!/^[A-Za-z0-9_]{1,80}$/.test(item)) return null;
+    labels.push(item);
+  }
+  return labels;
 }
 
 /** undefined = primary calendar, null = invalid. */
@@ -651,6 +727,69 @@ export function validateActionParams(
     return title && request ? { title, request } : null;
   }
 
+  if (type === "send_email") {
+    const to = text(value.to, 1_000);
+    const subject = text(value.subject, 500);
+    const body = text(value.body, 50_000);
+    const cc = optionalText(value.cc, 1_000);
+    const bcc = optionalText(value.bcc, 1_000);
+    const replyToMessageId = optionalText(value.replyToMessageId, 200);
+    if (
+      !to ||
+      !subject ||
+      !body ||
+      !isEmailAddressList(to) ||
+      cc === null ||
+      bcc === null ||
+      (cc && !isEmailAddressList(cc)) ||
+      (bcc && !isEmailAddressList(bcc)) ||
+      replyToMessageId === null ||
+      (replyToMessageId !== undefined && !isGmailId(replyToMessageId))
+    ) {
+      return null;
+    }
+    return {
+      to,
+      subject,
+      body,
+      cc: cc ?? undefined,
+      bcc: bcc ?? undefined,
+      replyToMessageId: replyToMessageId ?? undefined,
+    };
+  }
+
+  if (type === "trash_email") {
+    const subject = text(value.subject, 500);
+    const from = optionalText(value.from, 300);
+    if (
+      !subject ||
+      from === null ||
+      !isGmailId(value.messageId)
+    ) {
+      return null;
+    }
+    return {
+      messageId: value.messageId as string,
+      subject,
+      from: from ?? undefined,
+    };
+  }
+
+  if (type === "modify_email_labels") {
+    const subject = text(value.subject, 500);
+    if (!subject || !isGmailId(value.messageId)) return null;
+    const add = parseLabelList(value.add);
+    const remove = parseLabelList(value.remove);
+    if (add === null || remove === null) return null;
+    if ((add?.length ?? 0) + (remove?.length ?? 0) === 0) return null;
+    return {
+      messageId: value.messageId as string,
+      subject,
+      add: add ?? undefined,
+      remove: remove ?? undefined,
+    };
+  }
+
   const cmd = text(value.cmd, 1_000);
   const explanation = text(value.explanation, 2_000);
   const cwd = optionalText(value.cwd, 300);
@@ -679,6 +818,9 @@ export function parseProposedAction(value: unknown): ProposedAction | null {
     type !== "create_routine" &&
     type !== "manage_workspace" &&
     type !== "dev_task" &&
+    type !== "send_email" &&
+    type !== "trash_email" &&
+    type !== "modify_email_labels" &&
     type !== "suggest_command"
   ) {
     return null;

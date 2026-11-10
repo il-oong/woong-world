@@ -9,6 +9,10 @@ export const SCOPES = [
   "openid",
   "email",
   "https://www.googleapis.com/auth/calendar",
+  // Gmail: read + label/trash (modify) and send. modify already covers reads,
+  // so there is no separate gmail.readonly entry.
+  "https://www.googleapis.com/auth/gmail.modify",
+  "https://www.googleapis.com/auth/gmail.send",
 ].join(" ");
 
 type TokenResponse = {
