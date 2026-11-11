@@ -5,6 +5,7 @@ import {
   deleteEntry,
   getDay,
   hasPassword,
+  isCurrentGeneration,
   isJournalStorageConfigured,
   isValidDate,
   listDates,
@@ -17,6 +18,7 @@ import {
   clearJournalUnlock,
   readJournalUnlock,
   writeJournalUnlock,
+  type UnlockRead,
 } from "@/lib/journal-session";
 
 export const dynamic = "force-dynamic";
@@ -46,6 +48,22 @@ function asString(value: unknown, maxLen: number): string | null {
     : null;
 }
 
+/**
+ * Returns the active encryption key only when the cookie's credential
+ * generation still matches what the user has on the server. A stale
+ * cookie (another device reset the password) is cleared immediately so
+ * a write under the dead key cannot corrupt data under the live key.
+ */
+async function requireUnlock(email: string): Promise<UnlockRead | null> {
+  const cookie = await readJournalUnlock(email);
+  if (!cookie) return null;
+  if (!(await isCurrentGeneration(email, cookie.gen))) {
+    await clearJournalUnlock();
+    return null;
+  }
+  return cookie;
+}
+
 export async function GET(req: NextRequest) {
   if (!isJournalStorageConfigured()) return err(503, "storage_not_configured");
   const session = await getValidSession();
@@ -57,18 +75,23 @@ export async function GET(req: NextRequest) {
 
   if (op === "state") {
     const hasPw = await hasPassword(email);
-    const key = hasPw ? await readJournalUnlock(email) : null;
-    const unlocked = Boolean(key);
-    const dates = unlocked && key ? await listDates(email, key) : [];
-    return Response.json({ hasPassword: hasPw, unlocked, dates });
+    const cookie = hasPw ? await requireUnlock(email) : null;
+    const unlocked = Boolean(cookie);
+    const dates = unlocked && cookie ? await listDates(email, cookie.key) : [];
+    return Response.json({
+      hasPassword: hasPw,
+      unlocked,
+      dates,
+      expiresAt: cookie?.expiresAt ?? null,
+    });
   }
 
   if (op === "day") {
     const date = url.searchParams.get("date") ?? "";
     if (!isValidDate(date)) return err(400, "invalid_date");
-    const key = await readJournalUnlock(email);
-    if (!key) return err(401, "locked");
-    const day = await getDay(email, key, date);
+    const cookie = await requireUnlock(email);
+    if (!cookie) return err(401, "locked");
+    const day = await getDay(email, cookie.key, date);
     return Response.json({ day: day ?? { date, entries: [] } });
   }
 
@@ -92,7 +115,7 @@ export async function POST(req: NextRequest) {
     if (!password || password.length < 4) return err(400, "password_too_short");
     const result = await setInitialPassword(email, password);
     if (!result.ok) return err(409, "exists");
-    await writeJournalUnlock(email, result.encKey);
+    await writeJournalUnlock(email, result.encKey, result.gen);
     return Response.json({ ok: true });
   }
 
@@ -101,8 +124,8 @@ export async function POST(req: NextRequest) {
     // previous password. The UI puts a "I understand" gate in front of this.
     const password = asString(body.password, 200);
     if (!password || password.length < 4) return err(400, "password_too_short");
-    const { encKey } = await resetPassword(email, password);
-    await writeJournalUnlock(email, encKey);
+    const { encKey, gen } = await resetPassword(email, password);
+    await writeJournalUnlock(email, encKey, gen);
     return Response.json({ ok: true });
   }
 
@@ -111,7 +134,7 @@ export async function POST(req: NextRequest) {
     if (!password) return err(400, "invalid_input");
     const result = await unlock(email, password);
     if (!result.ok) return err(result.error === "rate_limited" ? 429 : 401, result.error);
-    await writeJournalUnlock(email, result.encKey);
+    await writeJournalUnlock(email, result.encKey, result.gen);
     return Response.json({ ok: true });
   }
 
@@ -120,14 +143,20 @@ export async function POST(req: NextRequest) {
     return Response.json({ ok: true });
   }
 
+  function mutationError(code: string): Response {
+    if (code === "not_found") return err(404, code);
+    if (code === "busy") return err(409, code);
+    return err(400, code);
+  }
+
   if (op === "append") {
     const date = asString(body.date, 20);
     const text = asString(body.text, 20_000);
     if (!date || !isValidDate(date) || !text) return err(400, "invalid_input");
-    const key = await readJournalUnlock(email);
-    if (!key) return err(401, "locked");
-    const result = await appendEntry(email, key, date, text);
-    if ("error" in result) return err(400, result.error);
+    const cookie = await requireUnlock(email);
+    if (!cookie) return err(401, "locked");
+    const result = await appendEntry(email, cookie.key, date, text);
+    if ("error" in result) return mutationError(result.error);
     return Response.json({ day: result });
   }
 
@@ -138,12 +167,10 @@ export async function POST(req: NextRequest) {
     if (!date || !isValidDate(date) || !text || !Number.isFinite(ts)) {
       return err(400, "invalid_input");
     }
-    const key = await readJournalUnlock(email);
-    if (!key) return err(401, "locked");
-    const result = await updateEntry(email, key, date, ts, text);
-    if ("error" in result) {
-      return err(result.error === "not_found" ? 404 : 400, result.error);
-    }
+    const cookie = await requireUnlock(email);
+    if (!cookie) return err(401, "locked");
+    const result = await updateEntry(email, cookie.key, date, ts, text);
+    if ("error" in result) return mutationError(result.error);
     return Response.json({ day: result });
   }
 
@@ -153,12 +180,10 @@ export async function POST(req: NextRequest) {
     if (!date || !isValidDate(date) || !Number.isFinite(ts)) {
       return err(400, "invalid_input");
     }
-    const key = await readJournalUnlock(email);
-    if (!key) return err(401, "locked");
-    const result = await deleteEntry(email, key, date, ts);
-    if ("error" in result) {
-      return err(result.error === "not_found" ? 404 : 400, result.error);
-    }
+    const cookie = await requireUnlock(email);
+    if (!cookie) return err(401, "locked");
+    const result = await deleteEntry(email, cookie.key, date, ts);
+    if ("error" in result) return mutationError(result.error);
     return Response.json(result);
   }
 

@@ -56,6 +56,38 @@ const datesKey = (email: string) => `journal:dates:${email.toLowerCase()}`;
 const dayKey = (email: string, date: string) =>
   `journal:day:${email.toLowerCase()}:${date}`;
 const rateKey = (email: string) => `journal:rate:${email.toLowerCase()}`;
+const mutexKey = (email: string) => `journal:mutex:${email.toLowerCase()}`;
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/**
+ * Serializes mutations per user so concurrent appends from two tabs cannot
+ * both read the same ciphertext and clobber each other. Short NX lock
+ * with bounded retries — fine for a journal (one person, ~rare concurrent
+ * writes). The lock has a 10s TTL in case a crashed request leaves it held.
+ */
+async function withMutationLock<T>(
+  email: string,
+  fn: () => Promise<T>,
+): Promise<T | { error: "busy" }> {
+  const key = mutexKey(email);
+  const token = Math.random().toString(36).slice(2);
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const acquired = await redis().set(key, token, { nx: true, ex: 10 });
+    if (acquired) {
+      try {
+        return await fn();
+      } finally {
+        // Release only if we still hold it, so a lock we lost to TTL
+        // expiry (then re-acquired by someone else) is not nuked.
+        const held = await redis().get<string>(key);
+        if (held === token) await redis().del(key);
+      }
+    }
+    await sleep(50 + attempt * 50);
+  }
+  return { error: "busy" };
+}
 
 // ---- Password + key derivation ----------------------------------------
 
@@ -74,6 +106,13 @@ type JournalCred = {
   encSalt: string;
   /** Rough scrypt cost knob; raise only if you're ready to re-key. */
   n: number;
+  /**
+   * Monotonic generation counter; bumps on every password change. The
+   * unlock cookie carries the generation it was issued under so another
+   * device's older cookie cannot write new ciphertext under the old key
+   * (which would be unreadable with the current password).
+   */
+  gen: number;
   createdAt: number;
   updatedAt: number;
 };
@@ -109,7 +148,10 @@ export async function hasPassword(email: string): Promise<boolean> {
 export async function setInitialPassword(
   email: string,
   password: string,
-): Promise<{ ok: true; encKey: Buffer } | { ok: false; error: "exists" }> {
+): Promise<
+  | { ok: true; encKey: Buffer; gen: number }
+  | { ok: false; error: "exists" }
+> {
   if (await hasPassword(email)) return { ok: false, error: "exists" };
   const authSalt = randomBytes(16).toString("base64");
   const encSalt = randomBytes(16).toString("base64");
@@ -120,11 +162,12 @@ export async function setInitialPassword(
     authHash,
     encSalt,
     n: SCRYPT_N,
+    gen: 1,
     createdAt: Date.now(),
     updatedAt: Date.now(),
   };
   await redis().set(credKey(email), JSON.stringify(cred));
-  return { ok: true, encKey };
+  return { ok: true, encKey, gen: cred.gen };
 }
 
 /**
@@ -135,7 +178,7 @@ export async function setInitialPassword(
 export async function resetPassword(
   email: string,
   password: string,
-): Promise<{ encKey: Buffer }> {
+): Promise<{ encKey: Buffer; gen: number }> {
   const authSalt = randomBytes(16).toString("base64");
   const encSalt = randomBytes(16).toString("base64");
   const authHash = derive(password, authSalt).toString("base64");
@@ -146,6 +189,12 @@ export async function resetPassword(
     authHash,
     encSalt,
     n: SCRYPT_N,
+    // Bump the generation so another device's live cookie is rejected
+    // immediately. Without this, a stale cookie would still decrypt old
+    // ciphertext (it still holds the old key) and worse, a write under
+    // the old key would overwrite a day in a format the new password
+    // cannot read.
+    gen: (previous?.gen ?? 0) + 1,
     createdAt: previous?.createdAt ?? Date.now(),
     updatedAt: Date.now(),
   };
@@ -155,11 +204,11 @@ export async function resetPassword(
   // password; the ciphertext blobs sit idle until Redis garbage-collects
   // them or the user writes something new (the write overwrites the day).
   await redis().del(datesKey(email));
-  return { encKey };
+  return { encKey, gen: cred.gen };
 }
 
 export type UnlockResult =
-  | { ok: true; encKey: Buffer }
+  | { ok: true; encKey: Buffer; gen: number }
   | { ok: false; error: "no_password" | "bad_password" | "rate_limited" };
 
 export async function unlock(
@@ -180,7 +229,16 @@ export async function unlock(
   }
   await clearAttempts(email);
   const encKey = derive(password, cred.encSalt);
-  return { ok: true, encKey };
+  return { ok: true, encKey, gen: cred.gen };
+}
+
+/** Confirms the cookie's generation still matches the current cred. */
+export async function isCurrentGeneration(
+  email: string,
+  gen: number,
+): Promise<boolean> {
+  const cred = await getCred(email);
+  return cred !== null && cred.gen === gen;
 }
 
 // Hard cap of 8 bad attempts per 15-minute window. Resets on a correct
@@ -301,14 +359,16 @@ export async function appendEntry(
   const trimmed = text.trim();
   if (!trimmed) return { error: "empty" };
   if (trimmed.length > MAX_ENTRY_CHARS) return { error: "too_long" };
-  const existing = (await getDay(email, encKey, date))?.entries ?? [];
-  if (existing.length >= MAX_ENTRIES_PER_DAY) {
-    return { error: "day_full" };
-  }
-  const next: JournalEntry[] = [...existing, { ts: nowMs, text: trimmed }];
-  await redis().set(dayKey(email, date), encryptJson(next, encKey));
-  await addDate(email, encKey, date);
-  return { date, entries: next };
+  return withMutationLock(email, async () => {
+    const existing = (await getDay(email, encKey, date))?.entries ?? [];
+    if (existing.length >= MAX_ENTRIES_PER_DAY) {
+      return { error: "day_full" } as const;
+    }
+    const next: JournalEntry[] = [...existing, { ts: nowMs, text: trimmed }];
+    await redis().set(dayKey(email, date), encryptJson(next, encKey));
+    await addDate(email, encKey, date);
+    return { date, entries: next };
+  });
 }
 
 export async function updateEntry(
@@ -322,14 +382,16 @@ export async function updateEntry(
   const trimmed = text.trim();
   if (!trimmed) return { error: "empty" };
   if (trimmed.length > MAX_ENTRY_CHARS) return { error: "too_long" };
-  const day = await getDay(email, encKey, date);
-  if (!day) return { error: "not_found" };
-  const idx = day.entries.findIndex((e) => e.ts === entryTs);
-  if (idx === -1) return { error: "not_found" };
-  const next = day.entries.slice();
-  next[idx] = { ts: entryTs, text: trimmed };
-  await redis().set(dayKey(email, date), encryptJson(next, encKey));
-  return { date, entries: next };
+  return withMutationLock(email, async () => {
+    const day = await getDay(email, encKey, date);
+    if (!day) return { error: "not_found" } as const;
+    const idx = day.entries.findIndex((e) => e.ts === entryTs);
+    if (idx === -1) return { error: "not_found" } as const;
+    const next = day.entries.slice();
+    next[idx] = { ts: entryTs, text: trimmed };
+    await redis().set(dayKey(email, date), encryptJson(next, encKey));
+    return { date, entries: next };
+  });
 }
 
 export async function deleteEntry(
@@ -339,15 +401,17 @@ export async function deleteEntry(
   entryTs: number,
 ): Promise<JournalDay | { error: string } | { deleted: true }> {
   if (!isValidDate(date)) return { error: "invalid_date" };
-  const day = await getDay(email, encKey, date);
-  if (!day) return { error: "not_found" };
-  const next = day.entries.filter((e) => e.ts !== entryTs);
-  if (next.length === day.entries.length) return { error: "not_found" };
-  if (next.length === 0) {
-    await redis().del(dayKey(email, date));
-    await removeDate(email, encKey, date);
-    return { deleted: true };
-  }
-  await redis().set(dayKey(email, date), encryptJson(next, encKey));
-  return { date, entries: next };
+  return withMutationLock(email, async () => {
+    const day = await getDay(email, encKey, date);
+    if (!day) return { error: "not_found" } as const;
+    const next = day.entries.filter((e) => e.ts !== entryTs);
+    if (next.length === day.entries.length) return { error: "not_found" } as const;
+    if (next.length === 0) {
+      await redis().del(dayKey(email, date));
+      await removeDate(email, encKey, date);
+      return { deleted: true } as const;
+    }
+    await redis().set(dayKey(email, date), encryptJson(next, encKey));
+    return { date, entries: next };
+  });
 }

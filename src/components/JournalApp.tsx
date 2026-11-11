@@ -1,11 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 type State = {
   hasPassword: boolean;
   unlocked: boolean;
   dates: string[];
+  /** Epoch ms when the unlock cookie expires. Null when locked. */
+  expiresAt: number | null;
 };
 
 type Entry = { ts: number; text: string };
@@ -24,6 +26,7 @@ const ERRORS: Record<string, string> = {
   day_full: "하루 100개가 꽉 찼어요. 기존 글을 지우고 다시 시도하세요.",
   not_found: "항목을 찾지 못했어요.",
   exists: "이미 패스워드가 있어요.",
+  busy: "다른 곳에서 동시에 저장 중이에요. 잠시 후 다시 시도해 주세요.",
 };
 
 const describe = (code?: string) =>
@@ -45,7 +48,11 @@ export function JournalApp() {
   const refreshState = useCallback(async () => {
     try {
       const res = await fetch("/api/journal?op=state", { cache: "no-store" });
-      const data = (await res.json().catch(() => ({}))) as Partial<State> & {
+      const data = (await res.json().catch(() => ({}))) as {
+        hasPassword?: boolean;
+        unlocked?: boolean;
+        dates?: string[];
+        expiresAt?: number;
         error?: string;
       };
       if (!res.ok) {
@@ -57,6 +64,10 @@ export function JournalApp() {
         hasPassword: Boolean(data.hasPassword),
         unlocked: Boolean(data.unlocked),
         dates: Array.isArray(data.dates) ? data.dates : [],
+        expiresAt:
+          typeof data.expiresAt === "number" && data.expiresAt > 0
+            ? data.expiresAt
+            : null,
       });
     } catch {
       setLoadError("네트워크 오류가 발생했어요.");
@@ -85,6 +96,7 @@ export function JournalApp() {
   return (
     <UnlockedView
       dates={state.dates}
+      expiresAt={state.expiresAt}
       selected={selected}
       onSelect={setSelected}
       onChanged={refreshState}
@@ -317,11 +329,13 @@ function ResetPassword({ onDone }: { onDone: () => void }) {
 
 function UnlockedView({
   dates,
+  expiresAt,
   selected,
   onSelect,
   onChanged,
 }: {
   dates: string[];
+  expiresAt: number | null;
   selected: string;
   onSelect: (date: string) => void;
   onChanged: () => void;
@@ -330,9 +344,13 @@ function UnlockedView({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const datesSet = useMemo(() => new Set(dates), [dates]);
+  // Request id guards against a late response from a previously selected
+  // date overwriting the day the user is now looking at.
+  const requestSeq = useRef(0);
 
   const loadDay = useCallback(
     async (date: string) => {
+      const seq = ++requestSeq.current;
       setLoading(true);
       setError(null);
       try {
@@ -344,25 +362,50 @@ function UnlockedView({
           day?: Day;
           error?: string;
         };
+        if (seq !== requestSeq.current) return; // user already moved on
         if (!res.ok) {
+          // A 401 here means the cookie expired mid-session. Re-fetch state
+          // so the UI returns to the locked view instead of showing a stale
+          // error on top of plaintext entries.
+          if (res.status === 401) {
+            setDay(null);
+            onChanged();
+            return;
+          }
           setError(describe(data.error));
           setDay(null);
         } else {
           setDay(data.day ?? { date, entries: [] });
         }
       } catch {
+        if (seq !== requestSeq.current) return;
         setError("네트워크 오류가 발생했어요.");
       } finally {
-        setLoading(false);
+        if (seq === requestSeq.current) setLoading(false);
       }
     },
-    [],
+    [onChanged],
   );
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void loadDay(selected);
   }, [selected, loadDay]);
+
+  // Auto-lock: when the unlock cookie expires, flip back to the locked
+  // view so plaintext entries stop being visible in an unattended tab.
+  useEffect(() => {
+    if (!expiresAt) return;
+    const ms = expiresAt - Date.now();
+    if (ms <= 0) {
+      onChanged();
+      return;
+    }
+    const id = setTimeout(() => {
+      onChanged();
+    }, ms);
+    return () => clearTimeout(id);
+  }, [expiresAt, onChanged]);
 
   async function lock() {
     await fetch("/api/journal", {
