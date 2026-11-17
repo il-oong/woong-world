@@ -236,7 +236,7 @@ export function Detail({
               공급 위치 요약: {mapSearchQuery(n.address, n.title)}
             </p>
           )}
-          {embed ? (
+          {embed?.precise ? (
             <div>
               <iframe
                 title={`${n.title} 위치 지도`}
@@ -246,18 +246,28 @@ export function Detail({
                 src={embed.url}
               />
               {preview && <p className="mt-2 text-xs text-amber-200">카카오맵에 등록된 예정 단지 위치입니다(2026.10.01. 확인). 공고가 확정한 출입구 좌표는 아닙니다.</p>}
-              {!displayedPoint && !preview && (
-                <p className="mt-2 text-xs text-slate-400">
-                  주소 ‘{n.address}’로 Google 지도에서 검색한 위치입니다. 공고가
-                  확정한 출입구 좌표가 아니라 블록·동 수준의 참고용이에요.
-                </p>
-              )}
             </div>
           ) : n.locationImageUrl ? (
+            // A verified official diagram beats an approximate address search,
+            // so we only fall through to the embed when there's no diagram.
             <div className="rounded-xl bg-white p-3">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={n.locationImageUrl} alt={`${n.title} 공식 위치 안내 · 현장과 견본주택 구분`} className="h-72 w-full object-contain" loading="lazy" referrerPolicy="no-referrer" />
               <p className="mt-2 text-xs text-slate-600">공식 안내도입니다. ‘현장’이 공급 위치이며 견본주택과 다릅니다.</p>
+            </div>
+          ) : embed ? (
+            <div>
+              <iframe
+                title={`${n.title} 위치 지도`}
+                loading="lazy"
+                referrerPolicy="no-referrer"
+                className="h-72 w-full rounded-xl border-0"
+                src={embed.url}
+              />
+              <p className="mt-2 text-xs text-slate-400">
+                주소 ‘{n.address}’로 Google 지도에서 검색한 위치입니다. 공고가
+                확정한 출입구 좌표가 아니라 블록·동 수준의 참고용이에요.
+              </p>
             </div>
           ) : (
             <div className="grid h-56 place-items-center rounded-xl bg-white/5 p-5 text-center text-sm text-slate-400">
