@@ -11,6 +11,12 @@ import {
 } from "@/lib/housing/model";
 import { rankNotices } from "@/lib/housing/scoring";
 import { eventsThroughNextMonth, scheduleWindow } from "@/lib/housing/schedule";
+import {
+  REGION_LABELS,
+  regionOf,
+  regionsPresent,
+  type RegionCode,
+} from "@/lib/housing/region";
 import { Bars, button, HousingHeader, panel, request } from "./shared";
 const eventStyle = {
   notice: "bg-sky-300/15 text-sky-200",
@@ -38,6 +44,7 @@ export function Dashboard({
     [day, setDay] = useState<string | null>(null),
     [filter, setFilter] = useState("all"),
     [housingType, setHousingType] = useState<"all" | "sale" | "youth">("all"),
+    [region, setRegion] = useState<RegionCode | "all">("all"),
     [enabledTypes, setEnabledTypes] = useState<EventType[]>(eventTypes.map((e) => e.type)),
     [favorites, setFavorites] = useState(data.favorites),
     [message, setMessage] = useState(""),
@@ -56,8 +63,13 @@ export function Dashboard({
       )
       .map((r, i) => [r.notice.id, i + 1]),
   );
+  const availableRegions = useMemo(
+    () => regionsPresent(data.notices),
+    [data.notices],
+  );
   const visible = data.notices.filter((n) =>
     (housingType === "all" || (housingType === "youth" ? n.audience === "youth" : n.kind === "sale")) &&
+    (region === "all" || regionOf(n.address) === region) &&
     (filter === "favorites"
       ? favorites.includes(n.id)
       : filter === "recommended"
@@ -162,6 +174,42 @@ export function Dashboard({
             </button>
           ))}
         </div>
+        {availableRegions.length > 1 && (
+          <div className="mb-4 flex flex-wrap items-center gap-2" role="group" aria-label="지역 필터">
+            <span className="mr-1 text-xs text-slate-400">지역</span>
+            <button
+              type="button"
+              aria-pressed={region === "all"}
+              onClick={() => { setRegion("all"); setDay(null); }}
+              className={`rounded-lg border px-2.5 py-1 text-xs ${
+                region === "all"
+                  ? "border-teal-300 bg-teal-300 text-slate-950"
+                  : "border-white/10 text-slate-300 hover:bg-white/5"
+              }`}
+            >
+              전체 ({data.notices.length})
+            </button>
+            {availableRegions.map((code) => {
+              const count = data.notices.filter((n) => regionOf(n.address) === code).length;
+              const active = region === code;
+              return (
+                <button
+                  key={code}
+                  type="button"
+                  aria-pressed={active}
+                  onClick={() => { setRegion(code); setDay(null); }}
+                  className={`rounded-lg border px-2.5 py-1 text-xs ${
+                    active
+                      ? "border-teal-300 bg-teal-300 text-slate-950"
+                      : "border-white/10 text-slate-300 hover:bg-white/5"
+                  }`}
+                >
+                  {REGION_LABELS[code]} ({count})
+                </button>
+              );
+            })}
+          </div>
+        )}
         <div className="mb-5 flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <button
