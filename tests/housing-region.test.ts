@@ -1,7 +1,7 @@
 import { strict as assert } from "node:assert";
 import { test } from "node:test";
-import { REGION_LABELS, regionOf, regionsPresent } from "../src/lib/housing/region.ts";
-import type { Notice } from "../src/lib/housing/model.ts";
+import { REGION_LABELS, regionOf, regionsPresent } from "../src/lib/housing/region";
+import type { Notice } from "../src/lib/housing/model";
 
 test("regionOf parses common address prefixes", () => {
   assert.equal(regionOf("서울특별시 강남구 역삼동 123"), "seoul");
