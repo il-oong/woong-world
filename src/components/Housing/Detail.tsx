@@ -19,7 +19,8 @@ import {
   rankNotices,
 } from "@/lib/housing/scoring";
 import { isClosed } from "@/lib/housing/model";
-import { mapPreview, mapProviderQuery, mapSearchQuery, mapSearchUrl } from "@/lib/housing/map-search";
+import { mapEmbedUrl, mapPreview, mapSearchQuery, mapSearchUrl } from "@/lib/housing/map-search";
+import { floorPlanSearchLinks } from "@/lib/housing/floorplans";
 import { LoanGuide } from "./LoanGuide";
 import {
   Bars,
@@ -57,6 +58,7 @@ export function Detail({
   const flows = funding(unit, data.profile ?? emptyProfile());
   const preview = n.point ? null : mapPreview(n);
   const displayedPoint = n.point ?? preview?.point;
+  const embed = mapEmbedUrl(n);
   const monthly =
     data.profile?.loan !== null && data.profile
       ? monthlyPayment(
@@ -234,26 +236,42 @@ export function Detail({
               공급 위치 요약: {mapSearchQuery(n.address, n.title)}
             </p>
           )}
-          {displayedPoint ? (
+          {embed?.precise ? (
             <div>
               <iframe
                 title={`${n.title} 위치 지도`}
                 loading="lazy"
                 referrerPolicy="no-referrer"
                 className="h-72 w-full rounded-xl border-0"
-                src={`https://maps.google.com/maps?q=${displayedPoint.lat},${displayedPoint.lng}&z=15&output=embed`}
+                src={embed.url}
               />
               {preview && <p className="mt-2 text-xs text-amber-200">카카오맵에 등록된 예정 단지 위치입니다(2026.10.01. 확인). 공고가 확정한 출입구 좌표는 아닙니다.</p>}
             </div>
           ) : n.locationImageUrl ? (
+            // A verified official diagram beats an approximate address search,
+            // so we only fall through to the embed when there's no diagram.
             <div className="rounded-xl bg-white p-3">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={n.locationImageUrl} alt={`${n.title} 공식 위치 안내 · 현장과 견본주택 구분`} className="h-72 w-full object-contain" loading="lazy" referrerPolicy="no-referrer" />
               <p className="mt-2 text-xs text-slate-600">공식 안내도입니다. ‘현장’이 공급 위치이며 견본주택과 다릅니다.</p>
             </div>
+          ) : embed ? (
+            <div>
+              <iframe
+                title={`${n.title} 위치 지도`}
+                loading="lazy"
+                referrerPolicy="no-referrer"
+                className="h-72 w-full rounded-xl border-0"
+                src={embed.url}
+              />
+              <p className="mt-2 text-xs text-slate-400">
+                주소 ‘{n.address}’로 Google 지도에서 검색한 위치입니다. 공고가
+                확정한 출입구 좌표가 아니라 블록·동 수준의 참고용이에요.
+              </p>
+            </div>
           ) : (
             <div className="grid h-56 place-items-center rounded-xl bg-white/5 p-5 text-center text-sm text-slate-400">
-              <p>정확한 공급 블록 좌표는 아직 확인되지 않았습니다.<br />지도에서 ‘{mapProviderQuery(n.address, n.title)}’을 검색해보세요.</p>
+              <p>주소가 공고에 없어 지도를 띄울 수 없습니다.<br />공고 원문에서 위치를 확인하세요.</p>
             </div>
           )}
           <div className="mt-4 flex flex-wrap gap-2">
@@ -320,10 +338,27 @@ export function Detail({
               />
             </a>
           ) : (
-            <div className="grid h-56 place-items-center rounded-xl bg-white/5 p-6 text-center text-sm text-slate-400">
-              등록된 평면도 이미지가 없습니다.
-              <br />
-              공식 자료에서 해당 주택형을 확인해주세요.
+            <div className="rounded-xl bg-white/5 p-5 text-sm text-slate-300">
+              <p className="mb-3 font-medium text-slate-200">
+                앱에 등록된 평면도 이미지는 없어요.
+              </p>
+              <p className="mb-4 text-xs text-slate-400">
+                아래에서 외부 자료를 바로 검색할 수 있습니다. 구조·치수는
+                공고 원문이나 공식 모델하우스 자료로 꼭 교차확인하세요.
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {floorPlanSearchLinks(n, unit).map((link) => (
+                  <a
+                    key={link.label}
+                    href={link.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={button}
+                  >
+                    {link.label}에서 검색 ↗
+                  </a>
+                ))}
+              </div>
             </div>
           )}
           {unit.floorPlanImageUrl && <p className="mt-2 text-xs text-slate-400">이미지를 누르면 큰 크기로 볼 수 있습니다. 구조와 치수는 공식 자료에서 최종 확인하세요.</p>}
