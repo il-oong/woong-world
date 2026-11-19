@@ -25,14 +25,16 @@ export async function POST(req: Request) {
     input.context,
     ...input.messages.filter((m) => m.role === "user").map((m) => m.text),
   ].join("\n");
-  if (hasSafetySignal(safetyText))
+  // Pasted relationship records are third-party text, so only chat-like modes use the keyword check.
+  if (input.mode !== "relationship" && hasSafetySignal(safetyText))
     return privateJson({ text: CRISIS_TEXT, safety: true });
   if (!aiReady() || !storageReady())
     return privateJson({ error: "ai_unavailable" }, 503);
   try {
     if (!(await allowAiRequest(session.email)))
       return privateJson({ error: "rate_limited" }, 429);
-    return privateJson({ text: await generateSupport(input), safety: false });
+    const out = await generateSupport(input);
+    return privateJson({ text: out.text, safety: out.crisis });
   } catch {
     return privateJson({ error: "ai_failed" }, 503);
   }

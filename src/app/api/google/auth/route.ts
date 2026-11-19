@@ -10,6 +10,10 @@ export async function GET(req: NextRequest) {
   }
   const state = crypto.randomUUID();
   await setStateCookie(state);
-  const force = new URL(req.url).searchParams.get("force") === "1";
+  // force=0 lets callers opt out, but the default is force-consent so the
+  // consent screen always covers every scope this app currently requests.
+  // Without it, Google can skip consent for returning users and reissue a
+  // token bound to their older, narrower grant, which 403s on new scopes.
+  const force = new URL(req.url).searchParams.get("force") !== "0";
   return NextResponse.redirect(getAuthUrl(state, force));
 }

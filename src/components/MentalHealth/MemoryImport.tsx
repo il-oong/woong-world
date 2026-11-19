@@ -32,7 +32,7 @@ export function MemoryImport({
     setLoading(false);
     if (!file) return;
     if (!/\.txt$/i.test(file.name) || file.size > MEMORY_FILE_MAX_BYTES) {
-      setNotice("32KB 이하의 TXT 파일만 불러올 수 있습니다.");
+      setNotice("700KB 이하의 TXT 파일만 불러올 수 있습니다.");
       return;
     }
     setLoading(true);

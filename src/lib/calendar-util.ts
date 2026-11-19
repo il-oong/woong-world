@@ -75,7 +75,10 @@ export function isAllDay(ev: { start: { date?: string } }): boolean {
 }
 
 export function eventOnDay(
-  ev: { start: { date?: string; dateTime?: string }; end: { date?: string; dateTime?: string } },
+  ev: {
+    start: { date?: string; dateTime?: string };
+    end: { date?: string; dateTime?: string };
+  },
   isoDay: string,
 ): boolean {
   const startIso = eventStartIso(ev);
@@ -104,7 +107,10 @@ export function formatTimeRange(ev: {
   return `${fmt(ev.start.dateTime)} – ${fmt(ev.end.dateTime)}`;
 }
 
-export function monthRange(year: number, month: number): { from: string; to: string } {
+export function monthRange(
+  year: number,
+  month: number,
+): { from: string; to: string } {
   const from = new Date(year, month - 1, 1).toISOString();
   const to = new Date(year, month + 2, 0, 23, 59, 59).toISOString();
   return { from, to };
@@ -113,6 +119,16 @@ export function monthRange(year: number, month: number): { from: string; to: str
 export const WEEKDAY_LABELS = ["일", "월", "화", "수", "목", "금", "토"];
 
 export const MONTH_LABELS = [
-  "1월", "2월", "3월", "4월", "5월", "6월",
-  "7월", "8월", "9월", "10월", "11월", "12월",
+  "1월",
+  "2월",
+  "3월",
+  "4월",
+  "5월",
+  "6월",
+  "7월",
+  "8월",
+  "9월",
+  "10월",
+  "11월",
+  "12월",
 ];

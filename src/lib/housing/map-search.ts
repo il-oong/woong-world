@@ -51,3 +51,41 @@ export function mapPreview(notice: Pick<Notice, "id" | "address" | "title">) {
     ? place
     : null;
 }
+
+/**
+ * Returns an iframe-embeddable map URL for the notice, in this order:
+ *   1. notice.point (precise lat/lng — best fit)
+ *   2. hardcoded mapPreview place (verified Kakao-registered sites)
+ *   3. Google Maps search embed for the address text (approximate, but
+ *      renders for any notice with an address, which is nearly all of them)
+ *
+ * Returning null only when there is literally nothing to search for.
+ */
+export function mapEmbedUrl(
+  notice: Pick<Notice, "id" | "address" | "title" | "point">,
+): { url: string; precise: boolean } | null {
+  if (notice.point) {
+    return {
+      url: `https://maps.google.com/maps?q=${notice.point.lat},${notice.point.lng}&z=15&output=embed`,
+      precise: true,
+    };
+  }
+  const preview = mapPreview(notice);
+  if (preview) {
+    return {
+      url: `https://maps.google.com/maps?q=${preview.point.lat},${preview.point.lng}&z=15&output=embed`,
+      precise: true,
+    };
+  }
+  const query = notice.address?.trim()
+    ? notice.address.trim()
+    : mapProviderQuery(notice.address ?? "", notice.title);
+  if (!query) return null;
+  // `q=<text>` search renders a Google Maps result map without needing a
+  // geocoded lat/lng or an API key. Not centered on the exact entrance,
+  // but puts the user in the right neighbourhood every time.
+  return {
+    url: `https://maps.google.com/maps?q=${encodeURIComponent(query)}&z=15&output=embed`,
+    precise: false,
+  };
+}

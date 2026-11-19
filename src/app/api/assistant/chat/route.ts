@@ -159,6 +159,7 @@ export async function POST(req: NextRequest) {
       history,
       userMessage: text,
       attachments: attachedFiles,
+      googleSession: session,
       context: {
         email: session.email,
         today: toIsoDate(today),

@@ -73,6 +73,7 @@ export function pluginGitHubUrl(p: Plugin): string {
 const RESERVED_PLUGIN_IDS = new Set([
   "status",
   "github-meta",
+  "market",
   "routine",
   "subscription",
 ]);
@@ -87,4 +88,3 @@ export function isValidPluginId(id: string): boolean {
 export function isValidRepo(repo: string): boolean {
   return /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(repo);
 }
-

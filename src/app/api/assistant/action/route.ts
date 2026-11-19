@@ -1,5 +1,11 @@
 import { type NextRequest } from "next/server";
 import { createEvent, deleteEvent, getEvent, getValidSession, patchEvent } from "@/lib/google";
+import {
+  getReplyContext,
+  modifyGmailLabels,
+  sendGmailMessage,
+  trashGmailMessage,
+} from "@/lib/gmail";
 import { createPlan, updatePlan } from "@/lib/plans";
 import { addRoutine } from "@/lib/routines";
 import { addTodo, removeTodo, updateTodo } from "@/lib/todos";
@@ -227,6 +233,38 @@ export async function POST(req: NextRequest) {
       const issue = await createDevTaskIssue(action.params);
       result = { issue };
       savedParams = { ...action.params, issue: issue.number };
+    } else if (action.type === "send_email") {
+      const { to, subject, body, cc, bcc, replyToMessageId } = action.params;
+      // Reply threading is resolved at send time so the model cannot fabricate
+      // the RFC Message-ID — if the referenced email vanished, send a new
+      // standalone message instead of threading under nothing.
+      const replyCtx = replyToMessageId
+        ? await getReplyContext(session, replyToMessageId)
+        : null;
+      const sent = await sendGmailMessage(session, {
+        to,
+        subject,
+        body,
+        cc,
+        bcc,
+        replyTo: replyCtx
+          ? {
+              threadId: replyCtx.threadId,
+              messageIdHeader: replyCtx.messageIdHeader,
+              references: replyCtx.references,
+            }
+          : undefined,
+      });
+      result = { sent, threaded: Boolean(replyCtx) };
+    } else if (action.type === "trash_email") {
+      await trashGmailMessage(session, action.params.messageId);
+      result = { trashed: action.params.messageId };
+    } else if (action.type === "modify_email_labels") {
+      await modifyGmailLabels(session, action.params.messageId, {
+        add: action.params.add,
+        remove: action.params.remove,
+      });
+      result = { modified: action.params.messageId };
     }
     // suggest_command is intentionally only acknowledged. It never reaches a shell.
 

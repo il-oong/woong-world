@@ -13,23 +13,44 @@ export type FileKind =
   | "docx"
   | "image";
 
-export type ActionStatus =
-  | "pending"
-  | "approved"
-  | "rejected"
-  | "failed";
+export type ActionStatus = "pending" | "approved" | "rejected" | "failed";
 
 /** Safe, approval-only controls for the user's connected workspace apps. */
 export type WorkspaceOperation =
   | { operation: "add_todo"; text: string; scope: "day" | "week" | "month" }
-  | { operation: "update_todo"; id: string; patch: { text?: string; done?: boolean; scope?: "day" | "week" | "month" } }
+  | {
+      operation: "update_todo";
+      id: string;
+      patch: {
+        text?: string;
+        done?: boolean;
+        scope?: "day" | "week" | "month";
+      };
+    }
   | { operation: "remove_todo"; id: string }
   | { operation: "add_memo"; text: string; title?: string }
-  | { operation: "update_memo"; id: string; patch: { title?: string; text?: string; pinned?: boolean } }
+  | {
+      operation: "update_memo";
+      id: string;
+      patch: { title?: string; text?: string; pinned?: boolean };
+    }
   | { operation: "remove_memo"; id: string }
-  | { operation: "add_subscription"; name: string; amount: number; paymentDay: number; cycle: "monthly" | "yearly"; monthOfYear?: number }
+  | {
+      operation: "add_subscription";
+      name: string;
+      amount: number;
+      paymentDay: number;
+      cycle: "monthly" | "yearly";
+      monthOfYear?: number;
+    }
   | { operation: "remove_subscription"; id: string }
-  | { operation: "add_watch_item"; ticker: string; name: string; market: "KR" | "US"; memo?: string }
+  | {
+      operation: "add_watch_item";
+      ticker: string;
+      name: string;
+      market: "KR" | "US";
+      memo?: string;
+    }
   | { operation: "remove_watch_item"; id: string }
   | { operation: "sync_vault" }
   | { operation: "create_vault_backup" };
@@ -140,6 +161,44 @@ export type ProposedAction =
         /** GitHub issue number, set after approval so the card can track progress. */
         issue?: number;
       };
+    }
+  | {
+      id: string;
+      // Send a new Gmail message, or reply when replyToMessageId is set.
+      type: "send_email";
+      status: ActionStatus;
+      params: {
+        to: string;
+        subject: string;
+        body: string;
+        cc?: string;
+        bcc?: string;
+        /** When present, the send threads under this message's thread with In-Reply-To/References. */
+        replyToMessageId?: string;
+      };
+    }
+  | {
+      id: string;
+      type: "trash_email";
+      status: ActionStatus;
+      params: {
+        messageId: string;
+        /** Shown on the approval card so the user can see what will be trashed. */
+        subject: string;
+        from?: string;
+      };
+    }
+  | {
+      id: string;
+      // Add/remove Gmail labels. Covers mark-as-read (remove UNREAD), star, archive (remove INBOX).
+      type: "modify_email_labels";
+      status: ActionStatus;
+      params: {
+        messageId: string;
+        subject: string;
+        add?: string[];
+        remove?: string[];
+      };
     };
 
 export type ChatAttachment = {
@@ -185,8 +244,7 @@ const MAX_FILES = 100;
 const MAX_ACTION_AUDIT = 200;
 
 function getRedisCreds(): { url: string; token: string } | null {
-  const url =
-    process.env.UPSTASH_REDIS_REST_URL ?? process.env.KV_REST_API_URL;
+  const url = process.env.UPSTASH_REDIS_REST_URL ?? process.env.KV_REST_API_URL;
   const token =
     process.env.UPSTASH_REDIS_REST_TOKEN ?? process.env.KV_REST_API_TOKEN;
   if (!url || !token) return null;
@@ -212,7 +270,8 @@ function redis(): Redis {
 
 const chatKey = (email: string) => `chat:${email.toLowerCase()}`;
 const filesKey = (email: string) => `files:${email.toLowerCase()}`;
-const actionAuditKey = (email: string) => `assistant-action-audit:${email.toLowerCase()}`;
+const actionAuditKey = (email: string) =>
+  `assistant-action-audit:${email.toLowerCase()}`;
 const actionLockKey = (email: string, messageId: string, actionId: string) =>
   `assistant-action-lock:${email.toLowerCase()}:${messageId}:${actionId}`;
 const rateLimitKey = (email: string, bucket: string) =>
@@ -283,10 +342,50 @@ function isEventId(value: unknown): value is string {
   return typeof value === "string" && /^[a-zA-Z0-9_-]{1,200}$/.test(value);
 }
 
+/** Gmail message/thread ids are hex-ish; keep the shape conservative. */
+function isGmailId(value: unknown): value is string {
+  return typeof value === "string" && /^[a-zA-Z0-9_-]{4,200}$/.test(value);
+}
+
+/**
+ * Accepts a comma-separated address list such as "a@b.com, Foo <foo@b.com>".
+ * Guards against header injection by rejecting CR/LF and the few control
+ * characters that would let a model split a header or body.
+ */
+function isEmailAddressList(value: string): boolean {
+  if (value.length > 2_000) return false;
+  if (/[\r\n\0]/.test(value)) return false;
+  const parts = value.split(",").map((p) => p.trim()).filter(Boolean);
+  if (parts.length === 0 || parts.length > 50) return false;
+  const addrRe = /^(?:[^<>]+<[^<>\s@,]+@[^<>\s@,]+>|[^<>\s@,]+@[^<>\s@,]+)$/;
+  return parts.every((p) => addrRe.test(p));
+}
+
+/**
+ * Gmail label ids: built-ins (INBOX, UNREAD, STARRED, ...) or user-created
+ * ids that look like "Label_12". Reject anything outside the tight shape so
+ * the model cannot aim mutate calls at arbitrary tokens.
+ */
+function parseLabelList(value: unknown): string[] | null | undefined {
+  if (value === undefined) return undefined;
+  if (!Array.isArray(value) || value.length === 0 || value.length > 10) {
+    return null;
+  }
+  const labels: string[] = [];
+  for (const item of value) {
+    if (typeof item !== "string") return null;
+    if (!/^[A-Za-z0-9_]{1,80}$/.test(item)) return null;
+    labels.push(item);
+  }
+  return labels;
+}
+
 /** undefined = primary calendar, null = invalid. */
 function optionalCalendarId(value: unknown): string | undefined | null {
   if (value === undefined) return undefined;
-  return typeof value === "string" && /^[\w.@#%+-]{1,200}$/.test(value) ? value : null;
+  return typeof value === "string" && /^[\w.@#%+-]{1,200}$/.test(value)
+    ? value
+    : null;
 }
 
 function parsePlanPatch(value: unknown): UpdatePlanInput | null {
@@ -306,16 +405,21 @@ function parsePlanPatch(value: unknown): UpdatePlanInput | null {
     patch.categoryId = categoryId;
   }
   if (value.notes !== undefined) {
-    const notes = typeof value.notes === "string" && value.notes.length <= 10_000
-      ? value.notes.trim()
-      : null;
+    const notes =
+      typeof value.notes === "string" && value.notes.length <= 10_000
+        ? value.notes.trim()
+        : null;
     if (notes === null) return null;
     patch.notes = notes;
   }
   if (value.items !== undefined) {
     if (!Array.isArray(value.items) || value.items.length > 100) return null;
     const items = value.items.map((item) => {
-      if (!isRecord(item) || !isId(item.id, "it_") || typeof item.done !== "boolean") {
+      if (
+        !isRecord(item) ||
+        !isId(item.id, "it_") ||
+        typeof item.done !== "boolean"
+      ) {
         return null;
       }
       const itemText = text(item.text, 500);
@@ -334,17 +438,24 @@ function isSafeCommandSuggestion(command: string): boolean {
   );
 }
 
-function parseWorkspaceOperation(value: Record<string, unknown>): WorkspaceOperation | null {
+function parseWorkspaceOperation(
+  value: Record<string, unknown>,
+): WorkspaceOperation | null {
   const operation = value.operation;
   if (operation === "add_todo") {
     const todoText = text(value.text, 500);
     const scope = value.scope;
-    if (!todoText || (scope !== "day" && scope !== "week" && scope !== "month")) return null;
+    if (!todoText || (scope !== "day" && scope !== "week" && scope !== "month"))
+      return null;
     return { operation, text: todoText, scope };
   }
   if (operation === "update_todo") {
     if (!isId(value.id, "td_") || !isRecord(value.patch)) return null;
-    const patch: { text?: string; done?: boolean; scope?: "day" | "week" | "month" } = {};
+    const patch: {
+      text?: string;
+      done?: boolean;
+      scope?: "day" | "week" | "month";
+    } = {};
     if (value.patch.text !== undefined) {
       const todoText = text(value.patch.text, 500);
       if (!todoText) return null;
@@ -355,10 +466,13 @@ function parseWorkspaceOperation(value: Record<string, unknown>): WorkspaceOpera
       patch.done = value.patch.done;
     }
     if (value.patch.scope !== undefined) {
-      if (!["day", "week", "month"].includes(String(value.patch.scope))) return null;
+      if (!["day", "week", "month"].includes(String(value.patch.scope)))
+        return null;
       patch.scope = value.patch.scope as "day" | "week" | "month";
     }
-    return Object.keys(patch).length ? { operation, id: value.id, patch } : null;
+    return Object.keys(patch).length
+      ? { operation, id: value.id, patch }
+      : null;
   }
   if (operation === "remove_todo") {
     return isId(value.id, "td_") ? { operation, id: value.id } : null;
@@ -366,7 +480,8 @@ function parseWorkspaceOperation(value: Record<string, unknown>): WorkspaceOpera
   if (operation === "add_memo") {
     const memoText = text(value.text, 5_000);
     if (!memoText) return null;
-    if (value.title === undefined || value.title === "") return { operation, text: memoText };
+    if (value.title === undefined || value.title === "")
+      return { operation, text: memoText };
     const title = text(value.title, 200);
     return title ? { operation, text: memoText, title } : null;
   }
@@ -374,7 +489,11 @@ function parseWorkspaceOperation(value: Record<string, unknown>): WorkspaceOpera
     if (!isId(value.id, "mm_") || !isRecord(value.patch)) return null;
     const patch: { title?: string; text?: string; pinned?: boolean } = {};
     if (value.patch.title !== undefined) {
-      if (typeof value.patch.title !== "string" || value.patch.title.length > 200) return null;
+      if (
+        typeof value.patch.title !== "string" ||
+        value.patch.title.length > 200
+      )
+        return null;
       patch.title = value.patch.title.trim();
     }
     if (value.patch.text !== undefined) {
@@ -386,7 +505,9 @@ function parseWorkspaceOperation(value: Record<string, unknown>): WorkspaceOpera
       if (typeof value.patch.pinned !== "boolean") return null;
       patch.pinned = value.patch.pinned;
     }
-    return Object.keys(patch).length ? { operation, id: value.id, patch } : null;
+    return Object.keys(patch).length
+      ? { operation, id: value.id, patch }
+      : null;
   }
   if (operation === "remove_memo") {
     return isId(value.id, "mm_") ? { operation, id: value.id } : null;
@@ -399,15 +520,32 @@ function parseWorkspaceOperation(value: Record<string, unknown>): WorkspaceOpera
     const monthOfYear = value.monthOfYear;
     if (
       !name ||
-      typeof amount !== "number" || !Number.isFinite(amount) || amount < 0 || amount > 100_000_000 ||
-      typeof paymentDay !== "number" || !Number.isInteger(paymentDay) || paymentDay < 1 || paymentDay > 31 ||
+      typeof amount !== "number" ||
+      !Number.isFinite(amount) ||
+      amount < 0 ||
+      amount > 100_000_000 ||
+      typeof paymentDay !== "number" ||
+      !Number.isInteger(paymentDay) ||
+      paymentDay < 1 ||
+      paymentDay > 31 ||
       (cycle !== "monthly" && cycle !== "yearly") ||
-      (monthOfYear !== undefined && (typeof monthOfYear !== "number" || !Number.isInteger(monthOfYear) || monthOfYear < 1 || monthOfYear > 12)) ||
+      (monthOfYear !== undefined &&
+        (typeof monthOfYear !== "number" ||
+          !Number.isInteger(monthOfYear) ||
+          monthOfYear < 1 ||
+          monthOfYear > 12)) ||
       (cycle === "yearly" && monthOfYear === undefined)
     ) {
       return null;
     }
-    return { operation, name, amount, paymentDay, cycle, monthOfYear: monthOfYear as number | undefined };
+    return {
+      operation,
+      name,
+      amount,
+      paymentDay,
+      cycle,
+      monthOfYear: monthOfYear as number | undefined,
+    };
   }
   if (operation === "remove_subscription") {
     return isId(value.id, "sub_") ? { operation, id: value.id } : null;
@@ -416,8 +554,20 @@ function parseWorkspaceOperation(value: Record<string, unknown>): WorkspaceOpera
     const ticker = text(value.ticker, 40);
     const name = text(value.name, 200);
     const memo = optionalText(value.memo, 1_000);
-    if (!ticker || !name || memo === null || (value.market !== "KR" && value.market !== "US")) return null;
-    return { operation, ticker: ticker.toUpperCase(), name, market: value.market, memo: memo ?? undefined };
+    if (
+      !ticker ||
+      !name ||
+      memo === null ||
+      (value.market !== "KR" && value.market !== "US")
+    )
+      return null;
+    return {
+      operation,
+      ticker: ticker.toUpperCase(),
+      name,
+      market: value.market,
+      memo: memo ?? undefined,
+    };
   }
   if (operation === "remove_watch_item") {
     return isId(value.id, "a_") ? { operation, id: value.id } : null;
@@ -442,14 +592,18 @@ export function validateActionParams(
     const summary = text(value.summary, 300);
     const description = optionalText(value.description, 10_000);
     const categoryRaw = value.categoryId;
-    const categoryId = categoryRaw === undefined ? undefined : text(categoryRaw, 100);
+    const categoryId =
+      categoryRaw === undefined ? undefined : text(categoryRaw, 100);
     const reminder = value.reminderMinutes;
     const reminderMinutes =
       reminder === undefined
         ? undefined
         : reminder === null
           ? null
-          : typeof reminder === "number" && Number.isInteger(reminder) && reminder >= 0 && reminder <= 10_080
+          : typeof reminder === "number" &&
+              Number.isInteger(reminder) &&
+              reminder >= 0 &&
+              reminder <= 10_080
             ? reminder
             : undefined;
     if (
@@ -488,8 +642,19 @@ export function validateActionParams(
     const summary = text(value.summary, 300);
     const calendarId = optionalCalendarId(value.calendarId);
     const start = optionalText(value.start, 80);
-    if (!summary || !isEventId(value.eventId) || calendarId === null || start === null) return null;
-    return { eventId: value.eventId, calendarId, summary, start: start ?? undefined };
+    if (
+      !summary ||
+      !isEventId(value.eventId) ||
+      calendarId === null ||
+      start === null
+    )
+      return null;
+    return {
+      eventId: value.eventId,
+      calendarId,
+      summary,
+      start: start ?? undefined,
+    };
   }
 
   if (type === "create_plan") {
@@ -503,7 +668,9 @@ export function validateActionParams(
       itemsRaw === undefined
         ? undefined
         : Array.isArray(itemsRaw) && itemsRaw.length <= 100
-          ? itemsRaw.map((item) => (isRecord(item) ? text(item.text, 500) : null))
+          ? itemsRaw.map((item) =>
+              isRecord(item) ? text(item.text, 500) : null,
+            )
           : null;
     if (
       !title ||
@@ -540,7 +707,9 @@ export function validateActionParams(
       (weekdays !== undefined &&
         (!Array.isArray(weekdays) ||
           weekdays.length > 7 ||
-          weekdays.some((day) => !Number.isInteger(day) || day < 0 || day > 6) ||
+          weekdays.some(
+            (day) => !Number.isInteger(day) || day < 0 || day > 6,
+          ) ||
           new Set(weekdays).size !== weekdays.length))
     ) {
       return null;
@@ -558,11 +727,80 @@ export function validateActionParams(
     return title && request ? { title, request } : null;
   }
 
+  if (type === "send_email") {
+    const to = text(value.to, 1_000);
+    const subject = text(value.subject, 500);
+    const body = text(value.body, 50_000);
+    const cc = optionalText(value.cc, 1_000);
+    const bcc = optionalText(value.bcc, 1_000);
+    const replyToMessageId = optionalText(value.replyToMessageId, 200);
+    if (
+      !to ||
+      !subject ||
+      !body ||
+      !isEmailAddressList(to) ||
+      cc === null ||
+      bcc === null ||
+      (cc && !isEmailAddressList(cc)) ||
+      (bcc && !isEmailAddressList(bcc)) ||
+      replyToMessageId === null ||
+      (replyToMessageId !== undefined && !isGmailId(replyToMessageId))
+    ) {
+      return null;
+    }
+    return {
+      to,
+      subject,
+      body,
+      cc: cc ?? undefined,
+      bcc: bcc ?? undefined,
+      replyToMessageId: replyToMessageId ?? undefined,
+    };
+  }
+
+  if (type === "trash_email") {
+    const subject = text(value.subject, 500);
+    const from = optionalText(value.from, 300);
+    if (
+      !subject ||
+      from === null ||
+      !isGmailId(value.messageId)
+    ) {
+      return null;
+    }
+    return {
+      messageId: value.messageId as string,
+      subject,
+      from: from ?? undefined,
+    };
+  }
+
+  if (type === "modify_email_labels") {
+    const subject = text(value.subject, 500);
+    if (!subject || !isGmailId(value.messageId)) return null;
+    const add = parseLabelList(value.add);
+    const remove = parseLabelList(value.remove);
+    if (add === null || remove === null) return null;
+    if ((add?.length ?? 0) + (remove?.length ?? 0) === 0) return null;
+    return {
+      messageId: value.messageId as string,
+      subject,
+      add: add ?? undefined,
+      remove: remove ?? undefined,
+    };
+  }
+
   const cmd = text(value.cmd, 1_000);
   const explanation = text(value.explanation, 2_000);
   const cwd = optionalText(value.cwd, 300);
   const pluginId = optionalText(value.pluginId, 100);
-  if (!cmd || !explanation || cwd === null || pluginId === null || !isSafeCommandSuggestion(cmd)) {
+  if (
+    !cmd ||
+    !explanation ||
+    cwd === null ||
+    pluginId === null ||
+    !isSafeCommandSuggestion(cmd)
+  ) {
     return null;
   }
   return { cmd, cwd, explanation, pluginId };
@@ -580,13 +818,21 @@ export function parseProposedAction(value: unknown): ProposedAction | null {
     type !== "create_routine" &&
     type !== "manage_workspace" &&
     type !== "dev_task" &&
+    type !== "send_email" &&
+    type !== "trash_email" &&
+    type !== "modify_email_labels" &&
     type !== "suggest_command"
   ) {
     return null;
   }
   const params = validateActionParams(type, value.params);
   if (!params) return null;
-  return { id: newId("act"), type, status: "pending", params } as ProposedAction;
+  return {
+    id: newId("act"),
+    type,
+    status: "pending",
+    params,
+  } as ProposedAction;
 }
 
 type ActionClaim =
@@ -645,7 +891,9 @@ export async function finishAssistantAction(
   const idx = all.findIndex((m) => m.id === messageId);
   if (idx === -1 || !all[idx].proposedActions) return null;
   const message = all[idx];
-  const actionIndex = message.proposedActions!.findIndex((a) => a.id === actionId);
+  const actionIndex = message.proposedActions!.findIndex(
+    (a) => a.id === actionId,
+  );
   if (actionIndex === -1) return null;
   const previous = message.proposedActions![actionIndex];
   const action = { ...previous, status, params } as ProposedAction;
@@ -661,7 +909,9 @@ export async function appendAssistantActionAudit(
   email: string,
   audit: Omit<AssistantActionAudit, "id" | "at">,
 ): Promise<void> {
-  const existing = await redis().get<AssistantActionAudit[]>(actionAuditKey(email));
+  const existing = await redis().get<AssistantActionAudit[]>(
+    actionAuditKey(email),
+  );
   const entry: AssistantActionAudit = {
     ...audit,
     id: newId("audit"),

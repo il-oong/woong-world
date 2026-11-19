@@ -102,7 +102,10 @@ export async function updateRoutine(
   return next;
 }
 
-export async function removeRoutine(email: string, id: string): Promise<boolean> {
+export async function removeRoutine(
+  email: string,
+  id: string,
+): Promise<boolean> {
   const all = await listRoutines(email);
   const next = all.filter((r) => r.id !== id);
   if (next.length === all.length) return false;
@@ -110,7 +113,10 @@ export async function removeRoutine(email: string, id: string): Promise<boolean>
   return true;
 }
 
-export async function getChecks(email: string, dateIso: string): Promise<string[]> {
+export async function getChecks(
+  email: string,
+  dateIso: string,
+): Promise<string[]> {
   const data = await redis().get<string[]>(checkKey(email, dateIso));
   return Array.isArray(data) ? data : [];
 }
@@ -131,8 +137,8 @@ export async function toggleCheck(
 }
 
 export type WeeklyStat = {
-  date: string;        // YYYY-MM-DD
-  weekday: string;     // 월/화/수...
+  date: string; // YYYY-MM-DD
+  weekday: string; // 월/화/수...
   completed: number;
   total: number;
 };
@@ -154,8 +160,8 @@ export async function weeklyStats(
 
 export type MonthStat = {
   date: string;
-  day: number;          // 1..31
-  weekday: number;      // 0=Sun .. 6=Sat (JS getDay)
+  day: number; // 1..31
+  weekday: number; // 0=Sun .. 6=Sat (JS getDay)
   completed: number;
   total: number;
   isFuture: boolean;
@@ -163,7 +169,7 @@ export type MonthStat = {
 
 export type MonthlyStats = {
   year: number;
-  month: number;        // 1..12
+  month: number; // 1..12
   daysInMonth: number;
   firstWeekday: number; // weekday (0=Sun) of day 1
   days: MonthStat[];
@@ -209,10 +215,14 @@ async function collectDailyStats(
       `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}-${String(dt.getDate()).padStart(2, "0")}`,
   );
   // 병렬 조회로 N개 날짜를 한 라운드트립처럼 처리.
-  const allChecks = await Promise.all(isoList.map((iso) => getChecks(email, iso)));
+  const allChecks = await Promise.all(
+    isoList.map((iso) => getChecks(email, iso)),
+  );
   return dates.map((dt, idx) => {
     const activeIds = new Set(
-      routines.filter((r) => isRoutineActiveOn(r, dt.getDay())).map((r) => r.id),
+      routines
+        .filter((r) => isRoutineActiveOn(r, dt.getDay()))
+        .map((r) => r.id),
     );
     const completed = allChecks[idx].filter((id) => activeIds.has(id)).length;
     return {

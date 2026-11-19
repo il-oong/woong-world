@@ -25,7 +25,8 @@ export function detectKind(name: string, mime?: string): FileKind {
   if (lower.endsWith(".pdf") || m === "application/pdf") return "pdf";
   if (
     lower.endsWith(".docx") ||
-    m === "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    m ===
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
   ) {
     return "docx";
   }
@@ -45,7 +46,9 @@ async function extractPdf(buf: Uint8Array): Promise<string> {
   for (let pageNumber = 1; pageNumber <= doc.numPages; pageNumber += 1) {
     const page = await doc.getPage(pageNumber);
     const content = await page.getTextContent();
-    out.push(content.items.map((item) => ("str" in item ? item.str : "")).join(" "));
+    out.push(
+      content.items.map((item) => ("str" in item ? item.str : "")).join(" "),
+    );
   }
   return out.join("\n\n").trim();
 }
@@ -70,16 +73,23 @@ function stripHtml(html: string): string {
     .trim();
 }
 
-export async function processUploadedFile(
-  file: File,
-): Promise<UploadedFile> {
+export async function processUploadedFile(file: File): Promise<UploadedFile> {
   if (file.size > MAX_BLOB_BYTES) {
-    throw new Error(`File is too large (maximum ${MAX_BLOB_BYTES / 1_000_000} MB)`);
+    throw new Error(
+      `File is too large (maximum ${MAX_BLOB_BYTES / 1_000_000} MB)`,
+    );
   }
   const kind = detectKind(file.name, file.type);
-  if (kind === "image" &&
-    (file.size > MAX_IMAGE_BYTES || !["image/png", "image/jpeg", "image/webp", "image/gif"].includes(file.type.toLowerCase()))) {
-    throw new Error("Only PNG, JPEG, WebP, or GIF images up to 5 MB are allowed");
+  if (
+    kind === "image" &&
+    (file.size > MAX_IMAGE_BYTES ||
+      !["image/png", "image/jpeg", "image/webp", "image/gif"].includes(
+        file.type.toLowerCase(),
+      ))
+  ) {
+    throw new Error(
+      "Only PNG, JPEG, WebP, or GIF images up to 5 MB are allowed",
+    );
   }
   const id = newId("f");
   const now = Date.now();
@@ -117,7 +127,10 @@ export async function processUploadedFile(
     }
   } else if (kind === "docx") {
     try {
-      out.textContent = (await extractDocx(Buffer.from(buf))).slice(0, MAX_INLINE_TEXT);
+      out.textContent = (await extractDocx(Buffer.from(buf))).slice(
+        0,
+        MAX_INLINE_TEXT,
+      );
     } catch {
       out.textContent = "(DOCX text extraction failed)";
     }
@@ -144,7 +157,8 @@ function isPrivateAddress(address: string): boolean {
   }
   if (family === 6) {
     const normalized = address.toLowerCase();
-    if (normalized.startsWith("::ffff:")) return isPrivateAddress(normalized.slice(7));
+    if (normalized.startsWith("::ffff:"))
+      return isPrivateAddress(normalized.slice(7));
     return (
       normalized === "::" ||
       normalized === "::1" ||
@@ -161,15 +175,19 @@ function hostnameOf(url: URL): string {
   return url.hostname.replace(/^\[|\]$/g, "");
 }
 
-async function resolvePublicAddress(url: URL): Promise<{ address: string; family: 4 | 6 }> {
-  if (url.username || url.password) throw new Error("URL user info is not allowed");
+async function resolvePublicAddress(
+  url: URL,
+): Promise<{ address: string; family: 4 | 6 }> {
+  if (url.username || url.password)
+    throw new Error("URL user info is not allowed");
   if (url.port && url.port !== "80" && url.port !== "443") {
     throw new Error("Only standard web ports are allowed");
   }
   const hostname = hostnameOf(url);
   const directFamily = isIP(hostname);
   if (directFamily === 4 || directFamily === 6) {
-    if (isPrivateAddress(hostname)) throw new Error("Private network URLs are not allowed");
+    if (isPrivateAddress(hostname))
+      throw new Error("Private network URLs are not allowed");
     return { address: hostname, family: directFamily };
   }
   const addresses = await lookup(hostname, { all: true, verbatim: true });
@@ -181,7 +199,12 @@ async function resolvePublicAddress(url: URL): Promise<{ address: string; family
 async function requestRemoteText(
   url: URL,
   destination: { address: string; family: 4 | 6 },
-): Promise<{ status: number; location?: string; contentType: string; body: Buffer }> {
+): Promise<{
+  status: number;
+  location?: string;
+  contentType: string;
+  body: Buffer;
+}> {
   const request = url.protocol === "https:" ? httpsRequest : httpRequest;
   return new Promise((resolve, reject) => {
     const client = request(
@@ -198,7 +221,10 @@ async function requestRemoteText(
       (response) => {
         const status = response.statusCode ?? 0;
         const contentLength = Number(response.headers["content-length"] ?? 0);
-        if (Number.isFinite(contentLength) && contentLength > MAX_REMOTE_BYTES) {
+        if (
+          Number.isFinite(contentLength) &&
+          contentLength > MAX_REMOTE_BYTES
+        ) {
           response.resume();
           reject(new Error("URL content is too large"));
           return;
@@ -217,20 +243,29 @@ async function requestRemoteText(
         response.on("end", () => {
           resolve({
             status,
-            location: typeof response.headers.location === "string" ? response.headers.location : undefined,
-            contentType: String(response.headers["content-type"] ?? "").toLowerCase(),
+            location:
+              typeof response.headers.location === "string"
+                ? response.headers.location
+                : undefined,
+            contentType: String(
+              response.headers["content-type"] ?? "",
+            ).toLowerCase(),
             body: Buffer.concat(chunks),
           });
         });
       },
     );
-    client.setTimeout(8_000, () => client.destroy(new Error("URL request timed out")));
+    client.setTimeout(8_000, () =>
+      client.destroy(new Error("URL request timed out")),
+    );
     client.on("error", reject);
     client.end();
   });
 }
 
-async function fetchSafeRemoteText(rawUrl: string): Promise<{ url: URL; html: string }> {
+async function fetchSafeRemoteText(
+  rawUrl: string,
+): Promise<{ url: URL; html: string }> {
   let url: URL;
   try {
     url = new URL(rawUrl);
@@ -241,9 +276,13 @@ async function fetchSafeRemoteText(rawUrl: string): Promise<{ url: URL; html: st
     if (url.protocol !== "http:" && url.protocol !== "https:") {
       throw new Error("Only http(s) URLs are allowed");
     }
-    const response = await requestRemoteText(url, await resolvePublicAddress(url));
+    const response = await requestRemoteText(
+      url,
+      await resolvePublicAddress(url),
+    );
     if (response.status >= 300 && response.status < 400 && response.location) {
-      if (redirects === MAX_REMOTE_REDIRECTS) throw new Error("Too many URL redirects");
+      if (redirects === MAX_REMOTE_REDIRECTS)
+        throw new Error("Too many URL redirects");
       url = new URL(response.location, url);
       continue;
     }
@@ -269,7 +308,9 @@ export async function fetchUrlAsFile(
   void email;
   const { url, html } = await fetchSafeRemoteText(rawUrl);
   const titleMatch = html.match(/<title>([^<]*)<\/title>/i);
-  const title = titleMatch ? stripHtml(titleMatch[1]).slice(0, 200) : url.hostname;
+  const title = titleMatch
+    ? stripHtml(titleMatch[1]).slice(0, 200)
+    : url.hostname;
   const text = stripHtml(html).slice(0, MAX_INLINE_TEXT);
   return {
     id: newId("f"),

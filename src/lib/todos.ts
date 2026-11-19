@@ -45,7 +45,9 @@ export async function listTodos(email: string): Promise<Todo[]> {
   const data = await redis().get<Todo[]>(listKey(email));
   if (!Array.isArray(data)) return [];
   // open items first (sorted by createdAt asc), done items last (by doneAt desc).
-  const open = data.filter((t) => !t.done).sort((a, b) => a.createdAt - b.createdAt);
+  const open = data
+    .filter((t) => !t.done)
+    .sort((a, b) => a.createdAt - b.createdAt);
   const done = data
     .filter((t) => t.done)
     .sort((a, b) => (b.doneAt ?? b.createdAt) - (a.doneAt ?? a.createdAt));

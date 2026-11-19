@@ -1,7 +1,13 @@
 const GH_API = "https://api.github.com";
 export const DEV_TASK_LABEL = "jarvis-dev";
 
-export type DevTaskPhase = "queued" | "working" | "pr_open" | "merged" | "failed" | "closed";
+export type DevTaskPhase =
+  | "queued"
+  | "working"
+  | "pr_open"
+  | "merged"
+  | "failed"
+  | "closed";
 
 export type DevTaskStatus = {
   number: number;
@@ -123,18 +129,26 @@ async function gh<T>(path: string): Promise<T | null> {
 }
 
 function buildStatus(issue: Issue, pulls: Pull[], runs: Run[]): DevTaskStatus {
-  const ref = new RegExp(`(^|[^\\d])#${issue.number}(?!\\d)|issue-${issue.number}(?!\\d)`);
-  const pull = pulls.find((p) => ref.test(`${p.title}\n${p.body ?? ""}\n${p.head.ref}`));
+  const ref = new RegExp(
+    `(^|[^\\d])#${issue.number}(?!\\d)|issue-${issue.number}(?!\\d)`,
+  );
+  const pull = pulls.find((p) =>
+    ref.test(`${p.title}\n${p.body ?? ""}\n${p.head.ref}`),
+  );
   const created = Date.parse(issue.created_at) - 5_000;
   const run = runs
-    .filter((r) => r.display_title === issue.title && Date.parse(r.created_at) >= created)
+    .filter(
+      (r) =>
+        r.display_title === issue.title && Date.parse(r.created_at) >= created,
+    )
     .sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at))[0];
 
   let phase: DevTaskPhase = "queued";
   if (pull?.merged_at) phase = "merged";
   else if (pull?.state === "open") phase = "pr_open";
   else if (pull) phase = "closed";
-  else if (run && run.status === "completed" && run.conclusion !== "success") phase = "failed";
+  else if (run && run.status === "completed" && run.conclusion !== "success")
+    phase = "failed";
   else if (run && run.status !== "queued") phase = "working";
   else if (issue.state === "closed") phase = "closed";
 
@@ -163,21 +177,29 @@ function buildStatus(issue: Issue, pulls: Pull[], runs: Run[]): DevTaskStatus {
 async function loadContext() {
   const [pulls, runs] = await Promise.all([
     gh<Pull[]>("/pulls?state=all&per_page=50&sort=created&direction=desc"),
-    gh<{ workflow_runs: Run[] }>("/actions/workflows/jarvis-dev.yml/runs?per_page=30"),
+    gh<{ workflow_runs: Run[] }>(
+      "/actions/workflows/jarvis-dev.yml/runs?per_page=30",
+    ),
   ]);
   return { pulls: pulls ?? [], runs: runs?.workflow_runs ?? [] };
 }
 
 /** Recent dev tasks with phase (queued/working/pr_open/merged/failed) and the PR the agent opened. */
 export async function listDevTasks(limit = 20): Promise<DevTaskStatus[]> {
-  const issues = await gh<Issue[]>(`/issues?labels=${DEV_TASK_LABEL}&state=all&per_page=${limit}`);
+  const issues = await gh<Issue[]>(
+    `/issues?labels=${DEV_TASK_LABEL}&state=all&per_page=${limit}`,
+  );
   if (!issues) throw new Error("github_issues_failed");
   const { pulls, runs } = await loadContext();
-  return issues.filter((i) => !i.pull_request).map((i) => buildStatus(i, pulls, runs));
+  return issues
+    .filter((i) => !i.pull_request)
+    .map((i) => buildStatus(i, pulls, runs));
 }
 
 /** One task, with diff stats on its PR for the completion report. */
-export async function getDevTask(number: number): Promise<DevTaskStatus | null> {
+export async function getDevTask(
+  number: number,
+): Promise<DevTaskStatus | null> {
   const issue = await gh<Issue>(`/issues/${number}`);
   if (!issue || issue.pull_request) return null;
   if (!issue.labels?.some((l) => l.name === DEV_TASK_LABEL)) return null;
@@ -195,13 +217,16 @@ export async function getDevTask(number: number): Promise<DevTaskStatus | null> 
 }
 
 /** Merges a PR the JARVIS agent opened. Only claude/issue-N branches of jarvis-dev issues qualify. */
-export async function mergeDevTaskPr(prNumber: number): Promise<{ sha: string }> {
+export async function mergeDevTaskPr(
+  prNumber: number,
+): Promise<{ sha: string }> {
   const pr = await gh<Pull>(`/pulls/${prNumber}`);
   if (!pr) throw new Error("pr_not_found");
   const m = /^claude\/issue-(\d+)$/.exec(pr.head.ref);
   if (!m) throw new Error("not_a_jarvis_pr");
   const issue = await gh<Issue>(`/issues/${m[1]}`);
-  if (!issue?.labels?.some((l) => l.name === DEV_TASK_LABEL)) throw new Error("not_a_jarvis_pr");
+  if (!issue?.labels?.some((l) => l.name === DEV_TASK_LABEL))
+    throw new Error("not_a_jarvis_pr");
   if (pr.merged_at) throw new Error("already_merged");
   if (pr.state !== "open") throw new Error("pr_closed");
   if (pr.draft) throw new Error("pr_is_draft");

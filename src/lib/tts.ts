@@ -6,7 +6,10 @@ export function isTtsConfigured(): boolean {
   return Boolean(process.env.GOOGLE_TTS_API_KEY);
 }
 
-export async function synthesize(text: string, voiceId: VoiceId): Promise<Buffer> {
+export async function synthesize(
+  text: string,
+  voiceId: VoiceId,
+): Promise<Buffer> {
   const apiKey = process.env.GOOGLE_TTS_API_KEY;
   if (!apiKey) throw new Error("GOOGLE_TTS_API_KEY not set");
 

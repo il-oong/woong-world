@@ -23,14 +23,18 @@ function redis(): Redis {
 const SESSION_TTL = 60 * 60 * 24 * 60; // 60일
 const sessKey = (email: string) => `google:session:${email.toLowerCase()}`;
 
-export async function saveSessionToRedis(session: GoogleSession): Promise<void> {
+export async function saveSessionToRedis(
+  session: GoogleSession,
+): Promise<void> {
   if (!session.email) return;
   const r = redis();
   await r.set(sessKey(session.email), session, { ex: SESSION_TTL });
   await r.sadd("google:sessions", session.email.toLowerCase());
 }
 
-export async function updateSessionInRedis(session: GoogleSession): Promise<void> {
+export async function updateSessionInRedis(
+  session: GoogleSession,
+): Promise<void> {
   if (!session.email) return;
   await redis().set(sessKey(session.email), session, { ex: SESSION_TTL });
 }

@@ -58,7 +58,17 @@ export async function writeSession(s: GoogleSession): Promise<void> {
 
 export async function clearSession(): Promise<void> {
   const c = await cookies();
-  c.delete(COOKIE);
+  // delete(name) alone sends Set-Cookie without the attributes the browser
+  // used to key the stored cookie, so some browsers keep the httpOnly/secure
+  // cookie around. Overwriting with matching path/secure/sameSite and
+  // maxAge: 0 force-expires it on every browser.
+  c.set(COOKIE, "", {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    path: "/",
+    maxAge: 0,
+  });
 }
 
 export async function setStateCookie(state: string): Promise<void> {
@@ -79,5 +89,11 @@ export async function readStateCookie(): Promise<string | null> {
 
 export async function clearStateCookie(): Promise<void> {
   const c = await cookies();
-  c.delete(STATE_COOKIE);
+  c.set(STATE_COOKIE, "", {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    path: "/",
+    maxAge: 0,
+  });
 }

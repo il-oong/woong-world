@@ -1,13 +1,11 @@
 import { CATEGORIES, getCategory } from "./categories";
 import type { DevTaskStatus } from "./jarvis-dev";
 import type { Plan } from "./plans";
-import type {
-  ChatMessage,
-  ProposedAction,
-  UploadedFile,
-} from "./assistant";
+import type { ChatMessage, ProposedAction, UploadedFile } from "./assistant";
 import { parseProposedAction } from "./assistant";
 import type { CalendarEvent } from "./google";
+import type { GoogleSession } from "./session";
+import { listGmailMessages, type GmailMessageSummary } from "./gmail";
 import type { Todo } from "./todos";
 import type { Memo } from "./memos";
 import type { Subscription } from "./subscriptions";
@@ -62,7 +60,11 @@ const SYSTEM_PROMPT = `너는 사용자의 인생 비서다. 사용자의 계획
 function buildUserPrompt(plan: Plan): string {
   const cat = plan.categoryId ? getCategory(plan.categoryId).label : "전체";
   const periodLabel =
-    plan.period === "weekly" ? "주간" : plan.period === "monthly" ? "월간" : "연간";
+    plan.period === "weekly"
+      ? "주간"
+      : plan.period === "monthly"
+        ? "월간"
+        : "연간";
   const itemList = plan.items.length
     ? plan.items
         .map((i, idx) => `  ${idx + 1}. [${i.done ? "x" : " "}] ${i.text}`)
@@ -212,6 +214,24 @@ const CHAT_SYSTEM_PROMPT = `너는 사용자의 인생 비서다 ("뇌 대리").
 - 한 답변에 명령어는 최대 3개. 한 줄에 너무 많은 단계가 섞이면 단계별로 나눠라.
 - 위험 명령(rm -rf, force push, db drop 등)은 절대 제안하지 말고, 부득이하면 명시적으로 위험성을 설명해라.
 
+메일 관리 (Gmail):
+- 사용자가 메일 관련 질문/지시를 하면 (예: "안 읽은 메일 있어?", "오늘 온 메일 알려줘", "○○한테 답장 보내줘", "스팸 지워줘", "이 메일 읽음 처리해줘"), 먼저 메일을 조회해야 한다. 조회가 필요하면 다른 말 없이 아래 지시 한 줄만 출력해라:
+  <fetch-emails>{"query":"is:unread newer_than:2d","maxResults":10}</fetch-emails>
+- query는 Gmail 검색 문법("from:...", "subject:...", "is:unread", "is:starred", "newer_than:7d", "label:important" 등)을 그대로 쓴다. 전체 받은편지함 최신이 필요하면 query는 빈 문자열로 보내라.
+- maxResults는 1~30. 메일 자체를 요약해 달라는 요청이면 10~15, "그 메일에 답장" 같은 좁은 요청이면 1~5.
+- 서버가 조회 후 [최근 메일] 블록을 주면 네가 받은 질문에 맞춰 답하거나 아래 액션 중 하나를 제안해라.
+
+메일 쓰기/정리 액션 (승인 필요):
+  <action>{"type":"send_email","params":{"to":"foo@example.com","subject":"제목","body":"본문..."}}</action>
+  <action>{"type":"send_email","params":{"to":"foo@example.com","subject":"Re: 원 제목","body":"답장 본문","replyToMessageId":"[messageId: 값]"}}</action>
+  <action>{"type":"trash_email","params":{"messageId":"[messageId: 값]","subject":"메일 제목","from":"보낸사람"}}</action>
+  <action>{"type":"modify_email_labels","params":{"messageId":"[messageId: 값]","subject":"메일 제목","add":["STARRED"],"remove":["UNREAD"]}}</action>
+- replyToMessageId / messageId 는 [최근 메일] 블록의 [messageId:...] 값이다. 사용자에게 그 값을 말하지 마라.
+- 자주 쓰는 라벨: UNREAD(안읽음), STARRED(별표), IMPORTANT(중요), INBOX(받은편지함; 보관할 때 INBOX를 remove). 읽음 처리는 remove:["UNREAD"], 보관(archive)은 remove:["INBOX"].
+- 메일 본문 초안은 간결하고 명료하게. 사용자 어투를 유지. 서명·법적 고지는 사용자가 쓰지 않았다면 넣지 마라.
+- 모호하면 먼저 물어봐라("김과장한테" → 어느 김과장인지, 어떤 내용인지). 사용자가 명시하지 않은 사람에게 임의로 보내지 마라.
+- 삭제/휴지통 액션은 되돌리기 어렵다는 점을 승인 카드가 설명하니, 너는 짧게 "이거 지울게?"만 묻고 액션 제안해라.
+
 주식/투자 질문 (뇌 네트워크 위임):
 - 너는 사용자의 전담 펀드매니저 겸 최상위 뇌 네트워크 총괄(최종 자비스)이다. 주식 분석·매수/매도 판단은 하위 에이전트들(JKP·O'Neil·Lynch·Weinstein·Minervini)이 Yahoo Finance 실시간 데이터로 수행하고, 종합 결과로 명확한 투자 판단을 내린다.
 - 사용자가 특정 종목·지수·매크로·포트폴리오·매수/매도 타이밍 등을 물으면, 다른 말 없이 아래 위임 지시 한 줄만 출력해라:
@@ -274,7 +294,9 @@ function summarizeEvents(events: CalendarEvent[], today: string): string {
     if (onDay.length === 0) continue;
     lines.push(`  ${iso}:`);
     for (const ev of onDay.slice(0, 6)) {
-      lines.push(`    - ${ev.summary ?? "(제목 없음)"} (${formatTimeRange(ev)}) [id:${ev.id}]`);
+      lines.push(
+        `    - ${ev.summary ?? "(제목 없음)"} (${formatTimeRange(ev)}) [id:${ev.id}]`,
+      );
     }
   }
   return lines.length ? lines.join("\n") : "  (없음)";
@@ -314,7 +336,13 @@ function summarizePlugins(
 ): string {
   if (entries.length === 0) return "  (없음)";
   const lightOf = (lvl: PluginStatus["level"]) =>
-    lvl === "green" ? "🟢" : lvl === "yellow" ? "🟡" : lvl === "red" ? "🔴" : "⚪";
+    lvl === "green"
+      ? "🟢"
+      : lvl === "yellow"
+        ? "🟡"
+        : lvl === "red"
+          ? "🔴"
+          : "⚪";
   return entries
     .map(({ plugin, status }) => {
       const parts = [
@@ -349,15 +377,26 @@ function summarizeStock(s: StockContext): string {
   }
   if (s.watchlist.length) {
     lines.push(
-      "관심 종목: " + s.watchlist.slice(0, 30).map((w) => `${w.name}(${w.ticker})`).join(", "),
+      "관심 종목: " +
+        s.watchlist
+          .slice(0, 30)
+          .map((w) => `${w.name}(${w.ticker})`)
+          .join(", "),
     );
   }
   const today = toIso(new Date());
-  const upcoming = s.econEvents.filter((ev) => ev.eventDate >= today).slice(0, 10);
+  const upcoming = s.econEvents
+    .filter((ev) => ev.eventDate >= today)
+    .slice(0, 10);
   if (upcoming.length) {
     lines.push("다가오는 경제 일정:");
     for (const ev of upcoming) {
-      const imp = ev.importance === "high" ? "고" : ev.importance === "medium" ? "중" : "저";
+      const imp =
+        ev.importance === "high"
+          ? "고"
+          : ev.importance === "medium"
+            ? "중"
+            : "저";
       lines.push(`  - ${ev.eventDate} [${imp}] ${ev.title} (${ev.market})`);
     }
   }
@@ -365,7 +404,8 @@ function summarizeStock(s: StockContext): string {
   lines.push(
     `트레이더 가중치: Livermore ${w.livermore} / O'Neil ${w.oneil} / Weinstein ${w.weinstein} / Minervini ${w.minervini} / Lynch ${w.lynch}`,
   );
-  if (s.settings.focusThemes?.trim()) lines.push(`집중 테마: ${s.settings.focusThemes.trim()}`);
+  if (s.settings.focusThemes?.trim())
+    lines.push(`집중 테마: ${s.settings.focusThemes.trim()}`);
   return lines.join("\n");
 }
 
@@ -385,7 +425,10 @@ function summarizeWorkspace(workspace: WorkspaceContext): string {
   );
   lines.push(
     workspace.subscriptions.length
-      ? `Subscriptions: ${workspace.subscriptions.slice(0, 30).map((sub) => `${sub.id}=${sub.name} ${sub.amount}KRW/${sub.cycle}`).join(" | ")}`
+      ? `Subscriptions: ${workspace.subscriptions
+          .slice(0, 30)
+          .map((sub) => `${sub.id}=${sub.name} ${sub.amount}KRW/${sub.cycle}`)
+          .join(" | ")}`
       : "Subscriptions: none",
   );
   return lines.join("\n");
@@ -437,7 +480,9 @@ function buildContextBlock(ctx: AssistantContext): string {
     blocks.push(
       "",
       "[클라우드 개발 작업 (실시간 GitHub 상태)]",
-      ctx.devTasks.length ? summarizeDevTasks(ctx.devTasks) : "  (최근 개발 요청 없음)",
+      ctx.devTasks.length
+        ? summarizeDevTasks(ctx.devTasks)
+        : "  (최근 개발 요청 없음)",
       "",
       "관리자가 개발 진행 상황을 묻거든 위 목록만 근거로 답해라. 이슈가 있다는 것은 이미 승인되어 시작됐다는 뜻이다. 목록에 없는 내용은 추측하지 말고 모른다고 말해라. 머지는 사용자가 카드의 머지 버튼을 눌러야 한다.",
     );
@@ -519,12 +564,74 @@ async function buildContents(
 
 const ACTION_REGEX = /<action>([\s\S]*?)<\/action>/g;
 
+const EMAIL_DELEGATE_REGEX = /<fetch-emails>([\s\S]*?)<\/fetch-emails>/;
+
+type EmailDelegation = { query: string; maxResults: number };
+
+function parseEmailDelegation(text: string): EmailDelegation | null {
+  const m = text.match(EMAIL_DELEGATE_REGEX);
+  if (!m) return null;
+  try {
+    const parsed = JSON.parse(m[1].trim()) as {
+      query?: unknown;
+      maxResults?: unknown;
+    };
+    const rawQuery = typeof parsed.query === "string" ? parsed.query.trim() : "";
+    // Gmail query syntax only. Reject operators that could broaden intent
+    // beyond what the user asked for (e.g. arbitrary "trash:" or multi-user
+    // queries) by capping length and stripping control characters.
+    const query =
+      rawQuery.length <= 500 && !/[\r\n\0]/.test(rawQuery) ? rawQuery : "";
+    const n =
+      typeof parsed.maxResults === "number"
+        ? Math.floor(parsed.maxResults)
+        : 10;
+    const maxResults = Math.min(Math.max(n, 1), 30);
+    return { query, maxResults };
+  } catch {
+    return null;
+  }
+}
+
+function summarizeEmails(messages: GmailMessageSummary[]): string {
+  if (messages.length === 0) return "  (조회된 메일이 없다)";
+  return messages
+    .map((m) => {
+      const flags: string[] = [];
+      if (m.unread) flags.push("안읽음");
+      if (m.labelIds.includes("STARRED")) flags.push("★");
+      if (m.labelIds.includes("IMPORTANT")) flags.push("중요");
+      const flagStr = flags.length ? ` [${flags.join(",")}]` : "";
+      const dateStr = m.date
+        ? new Date(m.date).toISOString().slice(0, 16).replace("T", " ")
+        : "";
+      const snippet = m.snippet.replace(/\s+/g, " ").slice(0, 160);
+      return [
+        `  - ${dateStr} ${m.subject}${flagStr}`,
+        `      from: ${m.from}`,
+        `      [messageId: ${m.id}]`,
+        snippet ? `      ${snippet}` : "",
+      ]
+        .filter(Boolean)
+        .join("\n");
+    })
+    .join("\n");
+}
+
+
+// Strip any internal delegation tags that slipped into user-visible text.
+// Pass 2 inherits the system prompt that teaches Gemini to emit
+// <fetch-emails> / <delegate-stocks>, so it can repeat the instruction even
+// though the data is already injected. parseActions must never leak them.
+const DELEGATE_LEFTOVER_REGEX =
+  /<(?:fetch-emails|delegate-stocks)>[\s\S]*?<\/(?:fetch-emails|delegate-stocks)>/g;
+
 function parseActions(text: string): {
   cleanText: string;
   actions: ProposedAction[];
 } {
   const actions: ProposedAction[] = [];
-  const cleanText = text.replace(ACTION_REGEX, (_, json: string) => {
+  const stripped = text.replace(ACTION_REGEX, (_, json: string) => {
     try {
       const action = parseProposedAction(JSON.parse(json) as unknown);
       if (action) actions.push(action);
@@ -533,7 +640,8 @@ function parseActions(text: string): {
     }
     return "";
   });
-  return { cleanText: cleanText.trim(), actions };
+  const cleanText = stripped.replace(DELEGATE_LEFTOVER_REGEX, "").trim();
+  return { cleanText, actions };
 }
 
 async function callChatGemini(
@@ -548,7 +656,8 @@ async function callChatGemini(
 
   const generationConfig: Record<string, unknown> = { temperature };
   if (maxOutputTokens) generationConfig.maxOutputTokens = maxOutputTokens;
-  if (thinkingBudget !== undefined) generationConfig.thinkingConfig = { thinkingBudget };
+  if (thinkingBudget !== undefined)
+    generationConfig.thinkingConfig = { thinkingBudget };
 
   const res = await fetch(`${ENDPOINT}?key=${apiKey}`, {
     method: "POST",
@@ -597,6 +706,8 @@ export async function chatWithAssistant(input: {
   userMessage: string;
   attachments: UploadedFile[];
   context: AssistantContext;
+  /** When present, enables the Gmail <fetch-emails> delegation. */
+  googleSession?: GoogleSession;
 }): Promise<{ text: string; proposedActions: ProposedAction[] }> {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) throw new Error("GEMINI_API_KEY not set");
@@ -611,6 +722,35 @@ export async function chatWithAssistant(input: {
   // Pass 1 — 라우터/플래너. 평소처럼 답하거나, 주식 질문이면 위임 지시를 낸다.
   const raw = await callChatGemini(systemText, contents, 0.7);
   if (!raw) return { text: "(빈 응답)", proposedActions: [] };
+
+  // Gmail 위임 — 메일 조회가 필요하면 pass 1에서 지시가 나온다.
+  const emailDelegation = parseEmailDelegation(raw);
+  if (emailDelegation && input.googleSession) {
+    try {
+      const messages = await listGmailMessages(input.googleSession, {
+        query: emailDelegation.query,
+        maxResults: emailDelegation.maxResults,
+      });
+      const emailBlock = summarizeEmails(messages);
+      const pass2System = `${systemText}\n\n[최근 메일 (조회 결과)]\n${emailBlock}\n\n위 메일 목록을 근거로만 답해라. 목록에 없는 메일은 추측하지 마라. 액션을 제안할 때 messageId / replyToMessageId 는 위 [messageId:...] 값을 그대로 쓴다.\n\n★ 중요: 메일은 이미 위에 조회돼 있다. 절대로 <fetch-emails>...</fetch-emails> 지시를 다시 출력하지 마라. 그 지시는 조회가 필요할 때만 쓰는 것이고, 지금은 데이터가 이미 있으니 사용자에게 자연어로 답변하거나 <action>...</action> 블록만 내보내라.`;
+      const synthesized = await callChatGemini(pass2System, contents, 0.6);
+      const final = synthesized.trim();
+      if (!final) {
+        return {
+          text: "메일 조회는 됐는데 종합에 실패했어. 잠시 후 다시 물어봐.",
+          proposedActions: [],
+        };
+      }
+      const { cleanText, actions } = parseActions(final);
+      return { text: cleanText || final, proposedActions: actions };
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      return {
+        text: `메일을 조회하지 못했어. (사유: ${msg})\nGoogle 계정 재연결이 필요한지 확인해줘.`,
+        proposedActions: [],
+      };
+    }
+  }
 
   // 주식 위임 지시가 있으면 에이전트 네트워크를 돌리고 실데이터로 종합한다.
   const delegation = parseDelegation(raw);
@@ -656,7 +796,13 @@ export async function chatWithAssistant(input: {
 // =====================================================================
 
 const DEFAULT_INVEST_SETTINGS: InvestSettings = {
-  traderWeights: { livermore: 20, oneil: 20, weinstein: 20, minervini: 20, lynch: 20 },
+  traderWeights: {
+    livermore: 20,
+    oneil: 20,
+    weinstein: 20,
+    minervini: 20,
+    lynch: 20,
+  },
   defaultStopLossRate: 7,
   focusThemes: "",
 };
@@ -730,7 +876,10 @@ function buildGroundingQuery(
   targets: { name: string }[],
 ): string {
   const today = toIso(new Date());
-  const names = targets.map((t) => t.name).filter(Boolean).join(", ");
+  const names = targets
+    .map((t) => t.name)
+    .filter(Boolean)
+    .join(", ");
   const focus = d.focus ? ` 사용자 관심: ${d.focus}.` : "";
   if (d.intent === "market" || !names) {
     return `오늘(${today}) 글로벌·한국 증시의 최신 흐름과, 이번 주~다음 주 예정된 주요 경제 이벤트(FOMC, CPI, 고용지표, 주요 실적 등)를 날짜와 함께 정리.${focus}`;
@@ -823,7 +972,11 @@ async function runStockNetwork(
   // 분석 대상 결정 — portfolio면 보유 종목 전체로 채운다.
   let targets: { name: string; ticker?: string; market?: string }[] = d.queries;
   if (d.intent === "portfolio" && holdings.length) {
-    targets = holdings.map((h) => ({ name: h.name, ticker: h.ticker, market: h.market }));
+    targets = holdings.map((h) => ({
+      name: h.name,
+      ticker: h.ticker,
+      market: h.market,
+    }));
   }
   targets = targets.slice(0, 3); // 지연/비용 상한 (최대 3종목)
 
@@ -844,7 +997,9 @@ async function runStockNetwork(
 
   return {
     perTicker,
-    macro: macroSnapshot.ok ? { text: macroSnapshot.text, asOf: macroSnapshot.asOf } : null,
+    macro: macroSnapshot.ok
+      ? { text: macroSnapshot.text, asOf: macroSnapshot.asOf }
+      : null,
     grounded,
   };
 }
@@ -950,7 +1105,10 @@ async function screenCandidate(
 function buildScreenGroundingQuery(d: StockDelegation): string {
   const today = toIso(new Date());
   const theme = d.theme || d.focus || "관심 테마";
-  const names = d.queries.map((q) => q.name).filter(Boolean).join(", ");
+  const names = d.queries
+    .map((q) => q.name)
+    .filter(Boolean)
+    .join(", ");
   return `오늘(${today}) 기준 "${theme}" 테마의 최신 시장 흐름·수급·정책/실적 모멘텀과, 관련 종목(${names})에 영향을 줄 예정 이벤트를 날짜와 함께 정리. 테마 자체의 단기·중기·장기 전망도 한 단락으로.`;
 }
 
@@ -963,7 +1121,9 @@ async function runScreen(
   const candidatesIn = d.queries.slice(0, 6); // 비용·지연 상한 (최대 6 후보)
 
   const [candidates, macro, grounded] = await Promise.all([
-    Promise.all(candidatesIn.map((t) => screenCandidate(t, settings, holdings))),
+    Promise.all(
+      candidatesIn.map((t) => screenCandidate(t, settings, holdings)),
+    ),
     fetchMarketSnapshot()
       .then((s) => (s.ok ? { text: s.text, asOf: s.asOf } : null))
       .catch(() => null),
@@ -996,15 +1156,19 @@ function buildScreenReportText(r: ScreenReport, ctx: AssistantContext): string {
     );
     lines.push(`  펀더멘털: ${c.fundamentals}`);
     if (c.holding) {
-      lines.push(`  사용자 보유: ${c.holding.qty}주 @평단 ${c.holding.avgBuyPrice}`);
+      lines.push(
+        `  사용자 보유: ${c.holding.qty}주 @평단 ${c.holding.avgBuyPrice}`,
+      );
     }
     if (c.jkp) {
       const j = c.jkp;
       lines.push(
         `  [JKP] 결론=${j.final_action} (확신 ${j.confidence}) / 매수구간 ${j.buy_zone?.entry_price} / 목표1 ${j.target_price?.target_1} / 목표2 ${j.target_price?.target_2} / 손절 ${j.stop_loss} / 손익비 ${j.risk_reward_ratio} / 기간 ${j.time_horizon}`,
       );
-      if (j.key_catalysts?.length) lines.push(`    촉매: ${j.key_catalysts.join("; ")}`);
-      if (j.key_risks?.length) lines.push(`    리스크: ${j.key_risks.join("; ")}`);
+      if (j.key_catalysts?.length)
+        lines.push(`    촉매: ${j.key_catalysts.join("; ")}`);
+      if (j.key_risks?.length)
+        lines.push(`    리스크: ${j.key_risks.join("; ")}`);
     } else {
       lines.push("  [JKP] 분석 없음 (실데이터 부족)");
     }
@@ -1036,7 +1200,10 @@ function buildScreenReportText(r: ScreenReport, ctx: AssistantContext): string {
     blocks.push(
       "### 사용자 등록 경제 일정\n" +
         upcoming
-          .map((ev) => `  - ${ev.eventDate} [${ev.importance}] ${ev.title} (${ev.market})`)
+          .map(
+            (ev) =>
+              `  - ${ev.eventDate} [${ev.importance}] ${ev.title} (${ev.market})`,
+          )
           .join("\n"),
     );
   }
@@ -1185,7 +1352,9 @@ function buildReportText(r: StockAgentReport, ctx: AssistantContext): string {
     lines.push(
       `현재가: ${t.price !== null ? t.price : "데이터 없음"}${chg} — Yahoo Finance, ${fmtKDateTime(t.asOf)} 기준`,
     );
-    lines.push(`실데이터 수집: ${t.dataOk ? "성공" : "실패 (수치 없음 — 추정 금지)"}`);
+    lines.push(
+      `실데이터 수집: ${t.dataOk ? "성공" : "실패 (수치 없음 — 추정 금지)"}`,
+    );
 
     if (t.holding) {
       const h = t.holding;
@@ -1223,8 +1392,10 @@ function buildReportText(r: StockAgentReport, ctx: AssistantContext): string {
       lines.push(
         `[JKP 분석] 결론=${j.final_action} (확신 ${j.confidence}) / 매수구간 ${j.buy_zone?.entry_price} / 목표1 ${j.target_price?.target_1} / 목표2 ${j.target_price?.target_2} / 손절 ${j.stop_loss} / 손익비 ${j.risk_reward_ratio} / 기간 ${j.time_horizon}`,
       );
-      if (j.key_catalysts?.length) lines.push(`  촉매: ${j.key_catalysts.join("; ")}`);
-      if (j.key_risks?.length) lines.push(`  리스크: ${j.key_risks.join("; ")}`);
+      if (j.key_catalysts?.length)
+        lines.push(`  촉매: ${j.key_catalysts.join("; ")}`);
+      if (j.key_risks?.length)
+        lines.push(`  리스크: ${j.key_risks.join("; ")}`);
       if (j.jkp_comment) lines.push(`  JKP 코멘트: ${j.jkp_comment}`);
     } else {
       lines.push("[JKP 분석] 생성 실패");
@@ -1236,7 +1407,9 @@ function buildReportText(r: StockAgentReport, ctx: AssistantContext): string {
         `[5인 합의] 컨센서스=${v.consensus} (${v.consensusScore}/100) / 밸류에이션 ${v.valuation?.view}`,
       );
       for (const a of v.agents ?? []) {
-        lines.push(`  - ${a.agent}(${a.style}): ${a.verdict} ${a.score} — ${a.key_point}`);
+        lines.push(
+          `  - ${a.agent}(${a.style}): ${a.verdict} ${a.score} — ${a.key_point}`,
+        );
       }
       if (v.buyTiming) {
         lines.push(
@@ -1264,16 +1437,23 @@ function buildReportText(r: StockAgentReport, ctx: AssistantContext): string {
           .map((s, i) => `  [${i + 1}] ${s.title || s.uri} — ${s.uri}`)
           .join("\n")
       : "";
-    blocks.push(`### 최신 시장/이벤트 브리핑 (Google 검색 그라운딩)\n${r.grounded.text}${src}`);
+    blocks.push(
+      `### 최신 시장/이벤트 브리핑 (Google 검색 그라운딩)\n${r.grounded.text}${src}`,
+    );
   }
 
   const today = toIso(new Date());
-  const upcoming = (ctx.stock?.econEvents ?? []).filter((ev) => ev.eventDate >= today).slice(0, 8);
+  const upcoming = (ctx.stock?.econEvents ?? [])
+    .filter((ev) => ev.eventDate >= today)
+    .slice(0, 8);
   if (upcoming.length) {
     blocks.push(
       "### 사용자 등록 경제 일정\n" +
         upcoming
-          .map((ev) => `  - ${ev.eventDate} [${ev.importance}] ${ev.title} (${ev.market})`)
+          .map(
+            (ev) =>
+              `  - ${ev.eventDate} [${ev.importance}] ${ev.title} (${ev.market})`,
+          )
           .join("\n"),
     );
   }
@@ -1308,7 +1488,13 @@ ${reportText}
 ========================================
 
 위 에이전트 리포트와 원본 데이터만 근거로, 사용자 질문에 종합 답변하라. 제공되지 않은 수치는 절대 만들지 마라.`;
-  return callChatGemini(`${systemText}\n${THREE_AGENT_SYNTHESIS_GUARD}`, [{ role: "user", parts: [{ text: userPrompt }] }], 0.2, 2000, 0);
+  return callChatGemini(
+    `${systemText}\n${THREE_AGENT_SYNTHESIS_GUARD}`,
+    [{ role: "user", parts: [{ text: userPrompt }] }],
+    0.2,
+    2000,
+    0,
+  );
 }
 
 // =====================================================================
@@ -1317,14 +1503,17 @@ ${reportText}
 
 export type ParsedEvent = {
   summary: string;
-  date: string;       // YYYY-MM-DD
+  date: string; // YYYY-MM-DD
   startTime?: string; // HH:mm
-  endTime?: string;   // HH:mm
+  endTime?: string; // HH:mm
   category?: string;
   location?: string;
 };
 
-export async function parseEventsFromSheet(rawText: string, correction?: string): Promise<ParsedEvent[]> {
+export async function parseEventsFromSheet(
+  rawText: string,
+  correction?: string,
+): Promise<ParsedEvent[]> {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) throw new Error("GEMINI_API_KEY not set");
 
@@ -1373,7 +1562,10 @@ ${rawText.slice(0, 8000)}`;
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       contents: [{ role: "user", parts: [{ text: prompt }] }],
-      generationConfig: { temperature: 0.1, responseMimeType: "application/json" },
+      generationConfig: {
+        temperature: 0.1,
+        responseMimeType: "application/json",
+      },
     }),
   });
 
@@ -1391,7 +1583,9 @@ ${rawText.slice(0, 8000)}`;
   try {
     const cleaned = text.replace(/^```(?:json)?\s*|\s*```$/g, "").trim();
     const parsed = JSON.parse(cleaned) as ParsedEvent[];
-    return Array.isArray(parsed) ? parsed.filter((e) => e.summary && e.date) : [];
+    return Array.isArray(parsed)
+      ? parsed.filter((e) => e.summary && e.date)
+      : [];
   } catch {
     throw new Error("Gemini 응답 파싱 실패");
   }
@@ -1419,7 +1613,11 @@ function fmtEventList(evs: CalendarEvent[]): string {
     .join("\n");
 }
 
-function eventsInRange(events: CalendarEvent[], from: string, to: string): CalendarEvent[] {
+function eventsInRange(
+  events: CalendarEvent[],
+  from: string,
+  to: string,
+): CalendarEvent[] {
   return events.filter((ev) => {
     const d = ev.start.date ?? ev.start.dateTime?.slice(0, 10) ?? "";
     return d >= from && d <= to;
@@ -1432,16 +1630,24 @@ function isoOffset(base: Date, days: number): string {
   return toIso(d);
 }
 
-function buildDailyBlock(events: CalendarEvent[], plans: Plan[], now: Date): string {
+function buildDailyBlock(
+  events: CalendarEvent[],
+  plans: Plan[],
+  now: Date,
+): string {
   const today = toIso(now);
   const tomorrow = isoOffset(now, 1);
   const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"];
 
-  const activePlans = plans
-    .filter((p) => !p.items.every((i) => i.done))
-    .slice(0, 5)
-    .map((p) => `  · [${p.period}] ${p.title} (${p.items.filter((i) => !i.done).length}개 남음)`)
-    .join("\n") || "  없음";
+  const activePlans =
+    plans
+      .filter((p) => !p.items.every((i) => i.done))
+      .slice(0, 5)
+      .map(
+        (p) =>
+          `  · [${p.period}] ${p.title} (${p.items.filter((i) => !i.done).length}개 남음)`,
+      )
+      .join("\n") || "  없음";
 
   return `[오늘: ${today} ${WEEKDAYS[now.getDay()]}요일]
 오늘 일정:
@@ -1454,20 +1660,25 @@ ${fmtEventList(events.filter((ev) => eventOnDay(ev, tomorrow)))}
 ${activePlans}`;
 }
 
-function buildWeeklyBlock(events: CalendarEvent[], plans: Plan[], now: Date): string {
+function buildWeeklyBlock(
+  events: CalendarEvent[],
+  plans: Plan[],
+  now: Date,
+): string {
   const mon = new Date(now);
   mon.setDate(now.getDate() - ((now.getDay() + 6) % 7));
   const sun = isoOffset(mon, 6);
   const weekEvents = eventsInRange(events, toIso(mon), sun);
 
-  const weeklyPlans = plans
-    .filter((p) => p.period === "weekly" && !p.items.every((i) => i.done))
-    .slice(0, 5)
-    .map((p) => {
-      const done = p.items.filter((i) => i.done).length;
-      return `  · ${p.title} (${done}/${p.items.length} 완료)`;
-    })
-    .join("\n") || "  없음";
+  const weeklyPlans =
+    plans
+      .filter((p) => p.period === "weekly" && !p.items.every((i) => i.done))
+      .slice(0, 5)
+      .map((p) => {
+        const done = p.items.filter((i) => i.done).length;
+        return `  · ${p.title} (${done}/${p.items.length} 완료)`;
+      })
+      .join("\n") || "  없음";
 
   return `[이번 주: ${toIso(mon)} ~ ${sun}]
 이번 주 일정:
@@ -1477,21 +1688,30 @@ ${fmtEventList(weekEvents)}
 ${weeklyPlans}`;
 }
 
-function buildMonthlyBlock(events: CalendarEvent[], plans: Plan[], now: Date): string {
+function buildMonthlyBlock(
+  events: CalendarEvent[],
+  plans: Plan[],
+  now: Date,
+): string {
   const y = now.getFullYear();
   const m = now.getMonth();
   const firstDay = toIso(new Date(y, m, 1));
   const lastDay = toIso(new Date(y, m + 1, 0));
   const monthEvents = eventsInRange(events, firstDay, lastDay);
 
-  const monthlyPlans = plans
-    .filter((p) => (p.period === "monthly" || p.period === "yearly") && !p.items.every((i) => i.done))
-    .slice(0, 5)
-    .map((p) => {
-      const done = p.items.filter((i) => i.done).length;
-      return `  · [${p.period}] ${p.title} (${done}/${p.items.length} 완료)`;
-    })
-    .join("\n") || "  없음";
+  const monthlyPlans =
+    plans
+      .filter(
+        (p) =>
+          (p.period === "monthly" || p.period === "yearly") &&
+          !p.items.every((i) => i.done),
+      )
+      .slice(0, 5)
+      .map((p) => {
+        const done = p.items.filter((i) => i.done).length;
+        return `  · [${p.period}] ${p.title} (${done}/${p.items.length} 완료)`;
+      })
+      .join("\n") || "  없음";
 
   return `[이번 달: ${y}년 ${m + 1}월]
 이달 주요 일정:
@@ -1502,16 +1722,25 @@ ${monthlyPlans}`;
 }
 
 export type BriefingPerformance = {
-  yesterdayHabitRate: number | null;    // 0–100
+  yesterdayHabitRate: number | null; // 0–100
   yesterdayHabitChecked: number | null;
   yesterdayHabitTotal: number | null;
-  weekHabitRate: number | null;         // 0–100
-  weekRoutineRate: number | null;       // 0–100
+  weekHabitRate: number | null; // 0–100
+  weekRoutineRate: number | null; // 0–100
   openTodos: number | null;
   doneTodosToday: number | null;
-  portfolioAlerts: { name: string; ticker: string; alertType: string; message: string }[] | null;
+  portfolioAlerts:
+    | { name: string; ticker: string; alertType: string; message: string }[]
+    | null;
   watchlistItems: { name: string; ticker: string; memo: string }[] | null;
-  upcomingEconEvents: { title: string; eventDate: string; importance: string; daysLeft: number }[] | null;
+  upcomingEconEvents:
+    | {
+        title: string;
+        eventDate: string;
+        importance: string;
+        daysLeft: number;
+      }[]
+    | null;
 };
 
 export async function generateBriefingScript(
@@ -1528,19 +1757,25 @@ export async function generateBriefingScript(
   const resolvedMode = mode ?? getBriefingMode(now);
 
   const sections: string[] = [];
-  if (resolvedMode === "monthly") sections.push(buildMonthlyBlock(events, plans, now));
-  if (resolvedMode === "monthly" || resolvedMode === "weekly") sections.push(buildWeeklyBlock(events, plans, now));
+  if (resolvedMode === "monthly")
+    sections.push(buildMonthlyBlock(events, plans, now));
+  if (resolvedMode === "monthly" || resolvedMode === "weekly")
+    sections.push(buildWeeklyBlock(events, plans, now));
   sections.push(buildDailyBlock(events, plans, now));
 
   const modeLabel =
-    resolvedMode === "monthly" ? "월간+주간+일간" :
-    resolvedMode === "weekly" ? "주간+일간" : "일간";
+    resolvedMode === "monthly"
+      ? "월간+주간+일간"
+      : resolvedMode === "weekly"
+        ? "주간+일간"
+        : "일간";
 
   // Gemini 2.5 Flash는 "thinking" 토큰이 maxOutputTokens에 함께 잡힌다.
   // 브리핑은 추론보다 자연스러운 글쓰기가 필요하므로 thinking은 끄고, 한국어 출력을
   // 충분히 담을 수 있게 상한을 넉넉하게 잡는다. (이전 400/500/700에서 스크립트가
   // 끊기는 원인.)
-  const maxTokens = resolvedMode === "monthly" ? 4000 : resolvedMode === "weekly" ? 2500 : 2000;
+  const maxTokens =
+    resolvedMode === "monthly" ? 4000 : resolvedMode === "weekly" ? 2500 : 2000;
 
   // Build performance feedback instruction
   let performanceInstruction = "";
@@ -1548,25 +1783,41 @@ export async function generateBriefingScript(
     const p = performance;
     const lines: string[] = [];
 
-    if (p.yesterdayHabitRate !== null && p.yesterdayHabitTotal !== null && p.yesterdayHabitTotal > 0) {
+    if (
+      p.yesterdayHabitRate !== null &&
+      p.yesterdayHabitTotal !== null &&
+      p.yesterdayHabitTotal > 0
+    ) {
       const r = p.yesterdayHabitRate;
-      lines.push(`어제 습관 달성률: ${r}% (${p.yesterdayHabitChecked}/${p.yesterdayHabitTotal}개)`);
+      lines.push(
+        `어제 습관 달성률: ${r}% (${p.yesterdayHabitChecked}/${p.yesterdayHabitTotal}개)`,
+      );
       if (r < 30) {
-        lines.push("→ 어제 습관이 심각하게 부진했다. 강하게 야단치되, 포기하지 말라는 메시지를 줘.");
+        lines.push(
+          "→ 어제 습관이 심각하게 부진했다. 강하게 야단치되, 포기하지 말라는 메시지를 줘.",
+        );
       } else if (r < 60) {
-        lines.push("→ 어제 습관이 절반도 안 됐다. 날카롭게 지적하고 오늘은 반드시 달라져야 한다고 강조해.");
+        lines.push(
+          "→ 어제 습관이 절반도 안 됐다. 날카롭게 지적하고 오늘은 반드시 달라져야 한다고 강조해.",
+        );
       } else if (r < 80) {
-        lines.push("→ 어제 습관이 아쉬웠다. 부드럽게 독려하고 조금만 더 하면 된다고 동기부여해.");
+        lines.push(
+          "→ 어제 습관이 아쉬웠다. 부드럽게 독려하고 조금만 더 하면 된다고 동기부여해.",
+        );
       } else {
-        lines.push("→ 어제 습관을 잘 지켰다. 진심으로 칭찬하고 오늘도 유지하라고 격려해.");
+        lines.push(
+          "→ 어제 습관을 잘 지켰다. 진심으로 칭찬하고 오늘도 유지하라고 격려해.",
+        );
       }
     }
 
     if (p.weekHabitRate !== null) {
       const r = p.weekHabitRate;
       lines.push(`이번주 습관 달성률: ${r}%`);
-      if (r < 40) lines.push("→ 이번 주 전반적으로 습관이 무너지고 있다. 경각심을 줘.");
-      else if (r >= 80) lines.push("→ 이번 주 습관이 훌륭하다. 한 번 더 칭찬해줘.");
+      if (r < 40)
+        lines.push("→ 이번 주 전반적으로 습관이 무너지고 있다. 경각심을 줘.");
+      else if (r >= 80)
+        lines.push("→ 이번 주 습관이 훌륭하다. 한 번 더 칭찬해줘.");
     }
 
     if (p.weekRoutineRate !== null) {
@@ -1578,8 +1829,10 @@ export async function generateBriefingScript(
 
     if (p.openTodos !== null) {
       lines.push(`미완료 할 일: ${p.openTodos}개`);
-      if (p.openTodos > 10) lines.push("→ 할 일이 쌓여 있다. 우선순위를 정하라고 촉구해.");
-      else if (p.openTodos === 0) lines.push("→ 할 일을 모두 처리했다. 칭찬해줘.");
+      if (p.openTodos > 10)
+        lines.push("→ 할 일이 쌓여 있다. 우선순위를 정하라고 촉구해.");
+      else if (p.openTodos === 0)
+        lines.push("→ 할 일을 모두 처리했다. 칭찬해줘.");
     }
 
     if (p.doneTodosToday !== null && p.doneTodosToday > 0) {
@@ -1591,7 +1844,9 @@ export async function generateBriefingScript(
       for (const a of p.portfolioAlerts) {
         lines.push(`- ${a.name}(${a.ticker}): ${a.alertType} — ${a.message}`);
       }
-      lines.push("→ 위 포트폴리오 신호들을 브리핑에 포함해. JKP처럼 단호하게 매도/보유 판단을 언급해줘.");
+      lines.push(
+        "→ 위 포트폴리오 신호들을 브리핑에 포함해. JKP처럼 단호하게 매도/보유 판단을 언급해줘.",
+      );
     }
 
     if (p.watchlistItems && p.watchlistItems.length > 0) {
@@ -1599,16 +1854,27 @@ export async function generateBriefingScript(
       for (const w of p.watchlistItems) {
         lines.push(`- ${w.name}(${w.ticker})${w.memo ? `: ${w.memo}` : ""}`);
       }
-      lines.push("→ 관심종목들을 짧게 언급하며 오늘 주의 깊게 봐야 할 종목이라고 언급해줘.");
+      lines.push(
+        "→ 관심종목들을 짧게 언급하며 오늘 주의 깊게 봐야 할 종목이라고 언급해줘.",
+      );
     }
 
     if (p.upcomingEconEvents && p.upcomingEconEvents.length > 0) {
       lines.push(`\n[다가오는 경제 일정]`);
       for (const e of p.upcomingEconEvents) {
-        const dayStr = e.daysLeft === 0 ? "오늘" : e.daysLeft === 1 ? "내일" : `D-${e.daysLeft}`;
-        lines.push(`- ${dayStr} ${e.title} (${e.importance === "high" ? "고중요도" : e.importance === "medium" ? "중요도 보통" : "저중요도"})`);
+        const dayStr =
+          e.daysLeft === 0
+            ? "오늘"
+            : e.daysLeft === 1
+              ? "내일"
+              : `D-${e.daysLeft}`;
+        lines.push(
+          `- ${dayStr} ${e.title} (${e.importance === "high" ? "고중요도" : e.importance === "medium" ? "중요도 보통" : "저중요도"})`,
+        );
       }
-      lines.push("→ 경제 일정들을 브리핑에 포함하고, 고중요도 이벤트는 포지션에 미치는 영향을 JKP 스타일로 간략히 언급해.");
+      lines.push(
+        "→ 경제 일정들을 브리핑에 포함하고, 고중요도 이벤트는 포지션에 미치는 영향을 JKP 스타일로 간략히 언급해.",
+      );
     }
 
     if (lines.length > 0) {
@@ -1654,5 +1920,8 @@ export async function generateBriefingScript(
   const data = (await res.json()) as {
     candidates?: { content?: { parts?: { text?: string }[] } }[];
   };
-  return data.candidates?.[0]?.content?.parts?.[0]?.text ?? "(브리핑을 생성할 수 없습니다)";
+  return (
+    data.candidates?.[0]?.content?.parts?.[0]?.text ??
+    "(브리핑을 생성할 수 없습니다)"
+  );
 }

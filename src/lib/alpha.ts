@@ -25,7 +25,13 @@ export type WatchItem = {
   addedAt: number;
 };
 
-export type PositionAction = "매수" | "매도" | "추매" | "절반매도" | "보유" | "관망";
+export type PositionAction =
+  | "매수"
+  | "매도"
+  | "추매"
+  | "절반매도"
+  | "보유"
+  | "관망";
 
 export type EconEvent = {
   id: string;
@@ -76,9 +82,9 @@ export type JkpAnalysisResult = {
     target_2_reason: string;
   };
   sell_plan: {
-    partial_exit: string;       // 1차 목표 도달 시 부분 매도 전략
-    full_exit: string;          // 완전 청산 조건
-    trailing_stop: string;      // 트레일링 스탑 기준
+    partial_exit: string; // 1차 목표 도달 시 부분 매도 전략
+    full_exit: string; // 완전 청산 조건
+    trailing_stop: string; // 트레일링 스탑 기준
   };
   stop_loss: string;
   stop_loss_reason: string;
@@ -95,7 +101,8 @@ let _redis: Redis | null = null;
 function redis(): Redis {
   if (_redis) return _redis;
   const url = process.env.UPSTASH_REDIS_REST_URL ?? process.env.KV_REST_API_URL;
-  const token = process.env.UPSTASH_REDIS_REST_TOKEN ?? process.env.KV_REST_API_TOKEN;
+  const token =
+    process.env.UPSTASH_REDIS_REST_TOKEN ?? process.env.KV_REST_API_TOKEN;
   if (!url || !token) throw new Error("Redis credentials not configured");
   _redis = new Redis({ url, token });
   return _redis;
@@ -110,7 +117,13 @@ const calendarKey = (email: string) => `alpha:calendar:${e(email)}`;
 const settingsKey = (email: string) => `alpha:settings:${e(email)}`;
 
 const DEFAULT_SETTINGS: InvestSettings = {
-  traderWeights: { livermore: 20, oneil: 20, weinstein: 20, minervini: 20, lynch: 20 },
+  traderWeights: {
+    livermore: 20,
+    oneil: 20,
+    weinstein: 20,
+    minervini: 20,
+    lynch: 20,
+  },
   defaultStopLossRate: 7,
   focusThemes: "",
 };
@@ -126,7 +139,10 @@ export async function listHoldings(email: string): Promise<StockHolding[]> {
   return Array.isArray(data) ? data.sort((a, b) => b.addedAt - a.addedAt) : [];
 }
 
-export async function saveHoldings(email: string, holdings: StockHolding[]): Promise<void> {
+export async function saveHoldings(
+  email: string,
+  holdings: StockHolding[],
+): Promise<void> {
   await redis().set(portfolioKey(email), holdings);
 }
 
@@ -135,7 +151,11 @@ export async function addHolding(
   input: Omit<StockHolding, "id" | "addedAt">,
 ): Promise<StockHolding> {
   const holdings = await listHoldings(email);
-  const holding: StockHolding = { ...input, id: newAlphaId(), addedAt: Date.now() };
+  const holding: StockHolding = {
+    ...input,
+    id: newAlphaId(),
+    addedAt: Date.now(),
+  };
   await saveHoldings(email, [...holdings, holding]);
   return holding;
 }
@@ -153,7 +173,10 @@ export async function updateHolding(
   return true;
 }
 
-export async function deleteHolding(email: string, id: string): Promise<boolean> {
+export async function deleteHolding(
+  email: string,
+  id: string,
+): Promise<boolean> {
   const holdings = await listHoldings(email);
   const next = holdings.filter((h) => h.id !== id);
   if (next.length === holdings.length) return false;
@@ -168,7 +191,10 @@ export async function listWatchlist(email: string): Promise<WatchItem[]> {
   return Array.isArray(data) ? data.sort((a, b) => b.addedAt - a.addedAt) : [];
 }
 
-export async function saveWatchlist(email: string, items: WatchItem[]): Promise<void> {
+export async function saveWatchlist(
+  email: string,
+  items: WatchItem[],
+): Promise<void> {
   await redis().set(watchlistKey(email), items);
 }
 
@@ -182,7 +208,10 @@ export async function addWatchItem(
   return item;
 }
 
-export async function deleteWatchItem(email: string, id: string): Promise<boolean> {
+export async function deleteWatchItem(
+  email: string,
+  id: string,
+): Promise<boolean> {
   const items = await listWatchlist(email);
   const next = items.filter((i) => i.id !== id);
   if (next.length === items.length) return false;
@@ -194,10 +223,15 @@ export async function deleteWatchItem(email: string, id: string): Promise<boolea
 
 export async function listEvents(email: string): Promise<EconEvent[]> {
   const data = await redis().get<EconEvent[]>(calendarKey(email));
-  return Array.isArray(data) ? data.sort((a, b) => a.eventDate.localeCompare(b.eventDate)) : [];
+  return Array.isArray(data)
+    ? data.sort((a, b) => a.eventDate.localeCompare(b.eventDate))
+    : [];
 }
 
-export async function saveEvents(email: string, events: EconEvent[]): Promise<void> {
+export async function saveEvents(
+  email: string,
+  events: EconEvent[],
+): Promise<void> {
   await redis().set(calendarKey(email), events);
 }
 
@@ -206,7 +240,12 @@ export async function addEvent(
   input: Omit<EconEvent, "id" | "addedAt" | "positionAdvice">,
 ): Promise<EconEvent> {
   const events = await listEvents(email);
-  const ev: EconEvent = { ...input, id: newAlphaId(), positionAdvice: null, addedAt: Date.now() };
+  const ev: EconEvent = {
+    ...input,
+    id: newAlphaId(),
+    positionAdvice: null,
+    addedAt: Date.now(),
+  };
   await saveEvents(email, [...events, ev]);
   return ev;
 }
@@ -239,6 +278,9 @@ export async function getSettings(email: string): Promise<InvestSettings> {
   return data ?? DEFAULT_SETTINGS;
 }
 
-export async function saveSettings(email: string, settings: InvestSettings): Promise<void> {
+export async function saveSettings(
+  email: string,
+  settings: InvestSettings,
+): Promise<void> {
   await redis().set(settingsKey(email), settings);
 }

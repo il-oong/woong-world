@@ -40,7 +40,9 @@ function redis(): Redis {
 
 const subKey = (email: string) => `subscription:${email.toLowerCase()}`;
 
-export async function listSubscriptions(email: string): Promise<Subscription[]> {
+export async function listSubscriptions(
+  email: string,
+): Promise<Subscription[]> {
   const data = await redis().get<Subscription[]>(subKey(email));
   if (!Array.isArray(data)) return [];
   return data.sort((a, b) => a.paymentDay - b.paymentDay);
@@ -72,7 +74,8 @@ export async function addSubscription(
     name: input.name,
     amount: Math.max(0, Math.round(input.amount)),
     paymentDay: clampDay(input.paymentDay),
-    monthOfYear: input.cycle === "yearly" ? clampMonth(input.monthOfYear ?? 1) : undefined,
+    monthOfYear:
+      input.cycle === "yearly" ? clampMonth(input.monthOfYear ?? 1) : undefined,
     cycle: input.cycle,
     createdAt: Date.now(),
   };

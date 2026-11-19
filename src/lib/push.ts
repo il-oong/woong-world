@@ -13,8 +13,8 @@ export type PushRecord = {
 export function isVapidConfigured(): boolean {
   return Boolean(
     process.env.VAPID_PUBLIC_KEY &&
-      process.env.VAPID_PRIVATE_KEY &&
-      process.env.VAPID_EMAIL,
+    process.env.VAPID_PRIVATE_KEY &&
+    process.env.VAPID_EMAIL,
   );
 }
 
@@ -54,8 +54,13 @@ function redis(): Redis {
 const subKey = (deviceId: string) => `push:sub:${deviceId}`;
 const hourKey = (h: number) => `push:hour:${h}`;
 
-export function isSubscriptionOwner(record: PushRecord | null, email: string): boolean {
-  return Boolean(record?.ownerEmail && record.ownerEmail === email.trim().toLowerCase());
+export function isSubscriptionOwner(
+  record: PushRecord | null,
+  email: string,
+): boolean {
+  return Boolean(
+    record?.ownerEmail && record.ownerEmail === email.trim().toLowerCase(),
+  );
 }
 
 export async function saveSubscription(
@@ -64,7 +69,8 @@ export async function saveSubscription(
 ): Promise<void> {
   const r = redis();
   const existing = await r.get<PushRecord>(subKey(deviceId));
-  if (existing?.ownerEmail && !isSubscriptionOwner(existing, record.ownerEmail)) throw new Error("forbidden");
+  if (existing?.ownerEmail && !isSubscriptionOwner(existing, record.ownerEmail))
+    throw new Error("forbidden");
   await r.set(subKey(deviceId), record);
   if (existing && existing.briefingHour !== record.briefingHour) {
     await r.srem(hourKey(existing.briefingHour), deviceId);

@@ -81,19 +81,16 @@ export type Finance = {
 let _redis: Redis | null = null;
 function redis(): Redis {
   if (_redis) return _redis;
-  const url =
-    process.env.UPSTASH_REDIS_REST_URL ?? process.env.KV_REST_API_URL;
+  const url = process.env.UPSTASH_REDIS_REST_URL ?? process.env.KV_REST_API_URL;
   const token =
     process.env.UPSTASH_REDIS_REST_TOKEN ?? process.env.KV_REST_API_TOKEN;
-  if (!url || !token)
-    throw new Error("Redis credentials not configured");
+  if (!url || !token) throw new Error("Redis credentials not configured");
   _redis = new Redis({ url, token });
   return _redis;
 }
 
 export function isStorageConfigured(): boolean {
-  const url =
-    process.env.UPSTASH_REDIS_REST_URL ?? process.env.KV_REST_API_URL;
+  const url = process.env.UPSTASH_REDIS_REST_URL ?? process.env.KV_REST_API_URL;
   const token =
     process.env.UPSTASH_REDIS_REST_TOKEN ?? process.env.KV_REST_API_TOKEN;
   return Boolean(url && token);
@@ -115,7 +112,10 @@ export async function listHabits(email: string): Promise<Habit[]> {
   return Array.isArray(data) ? data.sort((a, b) => a.order - b.order) : [];
 }
 
-export async function saveHabits(email: string, habits: Habit[]): Promise<void> {
+export async function saveHabits(
+  email: string,
+  habits: Habit[],
+): Promise<void> {
   await redis().set(habitKey(email), habits);
 }
 
@@ -138,13 +138,18 @@ export async function addHabit(
 
 export async function deleteHabit(email: string, id: string): Promise<boolean> {
   const habits = await listHabits(email);
-  const next = habits.filter((h) => h.id !== id).map((h, i) => ({ ...h, order: i }));
+  const next = habits
+    .filter((h) => h.id !== id)
+    .map((h, i) => ({ ...h, order: i }));
   if (next.length === habits.length) return false;
   await saveHabits(email, next);
   return true;
 }
 
-export async function reorderHabits(email: string, ids: string[]): Promise<void> {
+export async function reorderHabits(
+  email: string,
+  ids: string[],
+): Promise<void> {
   const habits = await listHabits(email);
   const map = new Map(habits.map((h) => [h.id, h]));
   const reordered = ids.flatMap((id, i) => {
@@ -194,10 +199,17 @@ export function computeStats(
       if (logs[`${d}-${h.id}`]) count++;
     }
     checked += count;
-    return { habitId: h.id, name: h.name, color: h.color, count, rate: daysInMonth > 0 ? count / daysInMonth : 0 };
+    return {
+      habitId: h.id,
+      name: h.name,
+      color: h.color,
+      count,
+      rate: daysInMonth > 0 ? count / daysInMonth : 0,
+    };
   });
   const overallRate = total > 0 ? checked / total : 0;
-  const topMissed = [...habitStats].sort((a, b) => a.count - b.count)[0] ?? null;
+  const topMissed =
+    [...habitStats].sort((a, b) => a.count - b.count)[0] ?? null;
 
   // streak: consecutive days (from today backwards) where ALL habits are checked
   // simplified: just return per-habit streaks
@@ -229,7 +241,10 @@ export async function getRoadmap(email: string): Promise<Roadmap | null> {
   return redis().get<Roadmap>(roadmapKey(email));
 }
 
-export async function saveRoadmap(email: string, roadmap: Roadmap): Promise<void> {
+export async function saveRoadmap(
+  email: string,
+  roadmap: Roadmap,
+): Promise<void> {
   await redis().set(roadmapKey(email), roadmap);
 }
 
@@ -239,6 +254,9 @@ export async function getFinance(email: string): Promise<Finance | null> {
   return redis().get<Finance>(financeKey(email));
 }
 
-export async function saveFinance(email: string, finance: Finance): Promise<void> {
+export async function saveFinance(
+  email: string,
+  finance: Finance,
+): Promise<void> {
   await redis().set(financeKey(email), finance);
 }

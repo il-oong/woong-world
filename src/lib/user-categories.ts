@@ -3,7 +3,8 @@ import { DEFAULT_CATEGORIES, buildCategory, type Category } from "./categories";
 
 function redis(): Redis {
   const url = process.env.UPSTASH_REDIS_REST_URL ?? process.env.KV_REST_API_URL;
-  const token = process.env.UPSTASH_REDIS_REST_TOKEN ?? process.env.KV_REST_API_TOKEN;
+  const token =
+    process.env.UPSTASH_REDIS_REST_TOKEN ?? process.env.KV_REST_API_TOKEN;
   if (!url || !token) throw new Error("Redis credentials not set");
   return new Redis({ url, token });
 }
@@ -22,6 +23,9 @@ export async function getUserCategories(email: string): Promise<Category[]> {
   }
 }
 
-export async function saveUserCategories(email: string, cats: RawCategory[]): Promise<void> {
+export async function saveUserCategories(
+  email: string,
+  cats: RawCategory[],
+): Promise<void> {
   await redis().set(key(email), cats);
 }

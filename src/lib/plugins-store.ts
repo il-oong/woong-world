@@ -51,7 +51,10 @@ export async function loadPlugins(): Promise<Plugin[]> {
       // Key absent — seed once with defaults.
       const defaults = seed as Plugin[];
       await r.set(KEY, defaults);
-      await r.set(SEEDED_KEY, defaults.map((p) => p.id));
+      await r.set(
+        SEEDED_KEY,
+        defaults.map((p) => p.id),
+      );
       return withoutRetired(defaults);
     }
     // Auto-introduce any brand-new built-in seed apps the registry has never

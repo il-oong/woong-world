@@ -5,16 +5,27 @@ import {
   DISCLAIMER,
   CRISIS_TEXT,
   emptyWorkspace,
+  splitBubbles,
   workspaceSchema,
   todayKorea,
   recordContext,
   reportText,
   reportHtml,
+  relationshipReportHtml,
+  relationshipReportBody,
+  type RelationshipReport,
   type Workspace,
   type Message,
   type Thought,
   type Practice,
 } from "@/lib/mental-health";
+import {
+  RELATIONSHIP_FILE_MAX_BYTES,
+  RELATIONSHIP_MAX_LENGTH,
+  relationshipForAi,
+  relationshipText,
+  relationshipChars,
+} from "@/lib/mental-health-memory";
 import styles from "./mental-health.module.css";
 import { MomentSupport } from "./MomentSupport";
 import { MemoryImport } from "./MemoryImport";
@@ -27,6 +38,7 @@ const tabs = [
   "사고기록",
   "작은 실천",
   "보고서",
+  "관계 기록",
   "기억·개인정보",
 ] as const;
 const errors: Record<string, string> = {
@@ -74,6 +86,22 @@ function TextField({
         rows={3}
       />
     </Field>
+  );
+}
+function Typing({ label }: { label: boolean }) {
+  return (
+    <article
+      className={`${styles.aiMessage} ${styles.typing}`}
+      aria-label="마음결이 입력 중"
+      role="status"
+    >
+      {label && <strong>마음결 · AI</strong>}
+      <span className={styles.dots} aria-hidden="true">
+        <i />
+        <i />
+        <i />
+      </span>
+    </article>
   );
 }
 function Score({
@@ -127,6 +155,13 @@ export function MentalHealthApp({ owner }: { owner: string }) {
   const [expiry, setExpiry] = useState<number | null>(null);
   const [dirty, setDirty] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [relReport, setRelReport] = useState<RelationshipReport | null>(null);
+  const [relConsent, setRelConsent] = useState(false);
+  const [pickDays, setPickDays] = useState<string[]>([]);
+  const [logText, setLogText] = useState("");
+  const [logDate, setLogDate] = useState(todayKorea());
+  const [pending, setPending] = useState<string | null>(null);
+  const [reveal, setReveal] = useState<{ at: number; n: number } | null>(null);
   const [momentBusy, setMomentBusy] = useState(false);
   const [momentDirty, setMomentDirty] = useState(false);
   const [momentVersion, setMomentVersion] = useState(0);
@@ -134,6 +169,7 @@ export function MentalHealthApp({ owner }: { owner: string }) {
   const [consent, setConsent] = useState(false);
   const [memoryConsent, setMemoryConsent] = useState(false);
   const [recordConsent, setRecordConsent] = useState(false);
+  const [relationshipConsent, setRelationshipConsent] = useState(true);
   const [help, setHelp] = useState(false);
   const [draft, setDraft] = useState("");
   const [mood, setMood] = useState(5);
@@ -279,7 +315,27 @@ export function MentalHealthApp({ owner }: { owner: string }) {
       return;
     setBusy(true);
     try {
-      const result = await api("", "PUT", { consent: true, data, revision });
+      const at = new Date().toISOString();
+      const stamp = <T extends { savedAt?: string }>(x: T): T =>
+        x.savedAt ? x : { ...x, savedAt: at };
+      const stamped: Workspace = {
+        ...data,
+        messages: data.messages.map(stamp),
+        moods: data.moods.map(stamp),
+        thoughts: data.thoughts.map(stamp),
+        practices: data.practices.map(stamp),
+        relationshipLog: data.relationshipLog.map(stamp),
+        relationshipSavedAt:
+          data.relationship && !data.relationshipSavedAt
+            ? at
+            : data.relationshipSavedAt,
+      };
+      const result = await api("", "PUT", {
+        consent: true,
+        data: stamped,
+        revision,
+      });
+      setData(stamped);
       setRevision(result.revision);
       setExpiry(result.expiresAt);
       setDirty(false);
@@ -318,6 +374,7 @@ export function MentalHealthApp({ owner }: { owner: string }) {
       setReportPreview(false);
       setConsent(false);
       setMemoryConsent(false);
+      setReveal(null);
       setRecordConsent(false);
       setTimerEnd(null);
       setSeconds(0);
@@ -332,11 +389,25 @@ export function MentalHealthApp({ owner }: { owner: string }) {
   }
   const context = [
     memoryConsent && data.memory ? `내가 직접 작성한 기억: ${data.memory}` : "",
+    relationshipConsent && (data.relationship || data.relationshipLog.length)
+      ? `내가 직접 정리한 연애 관계 기록(이미 아는 사실로 쓰고 처음부터 다시 묻지 말 것):\n<자료>\n${relationshipForAi(relationshipText(data)).replace(/<\/?자료>/g, "")}\n</자료>`
+      : "",
     recordConsent ? recordContext(data, todayKorea(), todayKorea()) : "",
   ]
     .filter(Boolean)
     .join("\n");
   const report = reportText(data, from, to, analysis);
+  const revealText = reveal ? (data.messages[reveal.at]?.text ?? "") : "";
+  useEffect(() => {
+    if (!reveal) return;
+    const parts = splitBubbles(revealText);
+    if (reveal.n >= parts.length) return;
+    const t = setTimeout(
+      () => setReveal({ at: reveal.at, n: reveal.n + 1 }),
+      Math.min(2200, 700 + (parts[reveal.n] ?? "").length * 28),
+    );
+    return () => clearTimeout(t);
+  }, [reveal, revealText]);
   async function send(event: FormEvent) {
     event.preventDefault();
     if (!draft.trim() || busy || !consent) return;
@@ -350,8 +421,11 @@ export function MentalHealthApp({ owner }: { owner: string }) {
       ...data.messages,
       { role: "user", text: draft.trim() },
     ];
+    const sent = draft;
     setBusy(true);
     setNotice("");
+    setPending(draft.trim());
+    setDraft("");
     try {
       const result = await api("/ai", "POST", {
         mode: "chat",
@@ -363,7 +437,32 @@ export function MentalHealthApp({ owner }: { owner: string }) {
         ...data,
         messages: [...messages, { role: "assistant", text: result.text }],
       });
-      setDraft("");
+      setReveal({ at: messages.length, n: 0 });
+      if (result.safety) setHelp(true);
+    } catch (e) {
+      setDraft(sent);
+      setNotice((e as Error).message);
+    } finally {
+      setPending(null);
+      setBusy(false);
+    }
+  }
+  async function analyzeRelationship() {
+    if (!relConsent || busy) return;
+    setBusy(true);
+    setNotice("");
+    try {
+      const result = await api("/ai", "POST", {
+        mode: "relationship",
+        consent: true,
+        messages: [],
+        context: `<자료>\n${relationshipForAi(relationshipText(data)).replace(/<\/?자료>/g, "")}\n</자료>`,
+      });
+      try {
+        setRelReport(JSON.parse(result.text) as RelationshipReport);
+      } catch {
+        throw new Error("보고서 형식이 올바르지 않아요. 다시 분석해 주세요.");
+      }
       if (result.safety) setHelp(true);
     } catch (e) {
       setNotice((e as Error).message);
@@ -672,7 +771,8 @@ export function MentalHealthApp({ owner }: { owner: string }) {
               <p className={styles.help}>
                 AI 연결 준비가 필요합니다. 아래에서 입력을 준비하고 다른 메뉴의
                 기록 기능을 이용할 수 있어요.
-                {aiMissing.length > 0 && ` (서버 설정 필요: ${aiMissing.join(", ")})`}
+                {aiMissing.length > 0 &&
+                  ` (서버 설정 필요: ${aiMissing.join(", ")})`}
               </p>
             )}
             <div className={styles.choices}>
@@ -693,6 +793,16 @@ export function MentalHealthApp({ owner }: { owner: string }) {
                 />
                 내가 작성한 기억도 포함
               </label>
+              {(data.relationship || data.relationshipLog.length > 0) && (
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={relationshipConsent}
+                    onChange={(e) => setRelationshipConsent(e.target.checked)}
+                  />
+                  관계 기록도 포함 (매번 처음부터 설명하지 않아도 돼요)
+                </label>
+              )}
               <label>
                 <input
                   type="checkbox"
@@ -730,17 +840,41 @@ export function MentalHealthApp({ owner }: { owner: string }) {
                   </div>
                 </div>
               )}
-              {data.messages.map((m, i) => (
-                <article
-                  className={
-                    m.role === "user" ? styles.userMessage : styles.aiMessage
-                  }
-                  key={i}
-                >
-                  <strong>{m.role === "user" ? "나" : "마음결 · AI"}</strong>
-                  <p>{m.text}</p>
-                </article>
-              ))}
+              {data.messages.map((m, i) => {
+                if (m.role === "user")
+                  return (
+                    <article className={styles.userMessage} key={i}>
+                      <strong>나</strong>
+                      <p>{m.text}</p>
+                    </article>
+                  );
+                const parts = splitBubbles(m.text);
+                const revealing = reveal?.at === i && reveal.n < parts.length;
+                const shown =
+                  reveal?.at === i ? parts.slice(0, reveal.n) : parts;
+                return (
+                  <div className={styles.aiGroup} key={i}>
+                    {shown.map((part, j) => (
+                      <article className={styles.aiMessage} key={j}>
+                        {j === 0 && <strong>마음결 · AI</strong>}
+                        <p>{part}</p>
+                      </article>
+                    ))}
+                    {revealing && <Typing label={shown.length === 0} />}
+                  </div>
+                );
+              })}
+              {pending && (
+                <>
+                  <article className={styles.userMessage}>
+                    <strong>나</strong>
+                    <p>{pending}</p>
+                  </article>
+                  <div className={styles.aiGroup}>
+                    <Typing label />
+                  </div>
+                </>
+              )}
             </div>
             <form onSubmit={send}>
               <TextField
@@ -1101,6 +1235,280 @@ export function MentalHealthApp({ owner }: { owner: string }) {
             <pre className={styles.report}>{report}</pre>
           </section>
         )}
+        {tab === "관계 기록" && (
+          <div className={styles.grid}>
+            <section className={styles.card}>
+              <p className={styles.eyebrow}>MY RELATIONSHIP RECORD</p>
+              <h2>연애 관계 기록</h2>
+              <p>
+                상대와의 관계, 반복되는 갈등, 사건 경과, 내 감정을 한 번 정리해
+                두면 상담 대화에서 AI가 이미 알고 있는 사실로 쓰고 처음부터 다시
+                묻지 않습니다. 사실, 내 해석, 상대의 실제 발언을 구분해 쓰면 더
+                정확해요.
+              </p>
+              <Field label="TXT 파일에서 불러오기 (700KB 이하)">
+                <input
+                  type="file"
+                  accept=".txt,text/plain"
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    e.target.value = "";
+                    if (!file) return;
+                    if (
+                      !/\.txt$/i.test(file.name) ||
+                      file.size > RELATIONSHIP_FILE_MAX_BYTES
+                    ) {
+                      setNotice("700KB 이하의 TXT 파일만 불러올 수 있습니다.");
+                      return;
+                    }
+                    let text = (await file.text())
+                      .replace(/\r\n?/g, "\n")
+                      .trim();
+                    if (!text) return setNotice("빈 파일입니다.");
+                    if (text.length > RELATIONSHIP_MAX_LENGTH) {
+                      if (
+                        !confirm(
+                          `파일이 ${text.length.toLocaleString()}자입니다. 저장 한도는 ${RELATIONSHIP_MAX_LENGTH.toLocaleString()}자라서 가장 최근 부분만 가져옵니다. 계속할까요?`,
+                        )
+                      )
+                        return;
+                      text = text.slice(-RELATIONSHIP_MAX_LENGTH);
+                    }
+                    if (
+                      data.relationship.trim() &&
+                      !confirm("기존 관계 기록을 파일 내용으로 바꿀까요?")
+                    )
+                      return;
+                    update({ ...data, relationship: text });
+                    setNotice(
+                      "관계 기록에 불러왔어요. 서버에 보관하려면 암호화 저장을 눌러 주세요.",
+                    );
+                  }}
+                />
+              </Field>
+              <Field label="관계 기록 (최대 50,000자)">
+                <textarea
+                  value={data.relationship}
+                  onChange={(e) =>
+                    update({ ...data, relationship: e.target.value })
+                  }
+                  maxLength={50000}
+                  rows={18}
+                  placeholder={
+                    "예) 기본 정보 / 상대의 성향(내가 관찰한 모습) / 나의 연애 성향 / 반복된 갈등 / 날짜별 사건 경과 / 최근 화해 시도"
+                  }
+                />
+              </Field>
+              <p className={styles.small}>
+                {data.relationship.length.toLocaleString()} / 50,000자 · 이
+                내용은 ‘암호화 저장’을 누른 뒤에만 서버에 남고, 상담에서 ‘관계
+                기록도 포함’을 켜 둘 때만 Google Gemini로 전송됩니다. 상대의
+                실제 생각과 의도는 기록과 다를 수 있다는 점을 AI에게도 알려
+                줍니다.
+              </p>
+              <div className={styles.actions}>
+                <button disabled={!storage || busy} onClick={save}>
+                  암호화 저장
+                </button>
+                <button
+                  className={styles.danger}
+                  onClick={() => update({ ...data, relationship: "" })}
+                >
+                  관계 기록 비우기
+                </button>
+              </div>
+            </section>
+            <section className={styles.card}>
+              <h2>날짜별 기록</h2>
+              <p>
+                그날 있었던 일이나 마음을 날짜와 함께 남겨 두세요. 목록에서 보고
+                지울 수 있고, 상담 때 함께 전달됩니다. (최대 40개, 한 개
+                5,000자)
+              </p>
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  const text = logText.trim();
+                  if (!text) return;
+                  if (relationshipChars(data) + text.length > 50000) {
+                    setNotice("관계 기록 전체 50,000자 한도를 넘습니다.");
+                    return;
+                  }
+                  update({
+                    ...data,
+                    relationshipLog: [
+                      ...data.relationshipLog,
+                      { id: crypto.randomUUID(), date: logDate, text },
+                    ],
+                  });
+                  setLogText("");
+                }}
+              >
+                <Field label="날짜">
+                  <input
+                    type="date"
+                    value={logDate}
+                    onChange={(e) => setLogDate(e.target.value)}
+                  />
+                </Field>
+                <Field label="기록">
+                  <textarea
+                    value={logText}
+                    onChange={(e) => setLogText(e.target.value)}
+                    maxLength={5000}
+                    rows={5}
+                  />
+                </Field>
+                <div className={styles.actions}>
+                  <button
+                    type="submit"
+                    disabled={
+                      !logText.trim() ||
+                      !logDate ||
+                      data.relationshipLog.length >= 40
+                    }
+                  >
+                    기록 추가
+                  </button>
+                </div>
+              </form>
+              {data.relationshipLog.length === 0 ? (
+                <p className={styles.small}>아직 날짜별 기록이 없어요.</p>
+              ) : (
+                <ul>
+                  {[...data.relationshipLog]
+                    .sort((a, b) => b.date.localeCompare(a.date))
+                    .map((entry) => (
+                      <li key={entry.id}>
+                        <details>
+                          <summary>
+                            {entry.date} · {entry.text.slice(0, 40)}
+                            {entry.text.length > 40 ? "…" : ""}
+                          </summary>
+                          <p style={{ whiteSpace: "pre-wrap" }}>{entry.text}</p>
+                          <button
+                            className={styles.danger}
+                            type="button"
+                            onClick={() => {
+                              if (!confirm(`${entry.date} 기록을 삭제할까요?`))
+                                return;
+                              update({
+                                ...data,
+                                relationshipLog: data.relationshipLog.filter(
+                                  (x) => x.id !== entry.id,
+                                ),
+                              });
+                            }}
+                          >
+                            이 기록 삭제
+                          </button>
+                        </details>
+                      </li>
+                    ))}
+                </ul>
+              )}
+              <p className={styles.small}>
+                {data.relationshipLog.length}/40개 · 전체{" "}
+                {relationshipChars(data).toLocaleString()} / 50,000자 ·
+                추가하거나 삭제한 뒤에는 ‘암호화 저장’을 눌러야 서버에
+                반영됩니다.
+                {expiry &&
+                  ` 마지막 저장: ${new Date(expiry - 30 * 86400000).toLocaleString("ko-KR")}`}
+              </p>
+              <div className={styles.actions}>
+                <button disabled={!storage || busy} onClick={save}>
+                  암호화 저장
+                </button>
+              </div>
+            </section>
+            <section className={styles.card}>
+              <p className={styles.eyebrow}>RELATIONSHIP REPORT</p>
+              <h2>관계 분석 보고서</h2>
+              <p>
+                위의 관계 기록과 날짜별 기록만 근거로, 앞으로 관계가 좋아지려면
+                어떤 노력이 필요한지와 조심해야 할 행동을 정리합니다. 상대의
+                마음을 단정하지 않고, 기록에 없는 내용은 만들지 않습니다.
+              </p>
+              <label>
+                <input
+                  type="checkbox"
+                  checked={relConsent}
+                  onChange={(e) => setRelConsent(e.target.checked)}
+                />
+                관계 기록 전체를 Google Gemini로 전송하는 데 동의합니다.
+              </label>
+              <div className={styles.actions}>
+                <button
+                  className={styles.primary}
+                  disabled={
+                    busy || !ai || !relConsent || relationshipChars(data) === 0
+                  }
+                  onClick={analyzeRelationship}
+                >
+                  {relReport ? "다시 분석하기" : "관계 분석 보고서 만들기"}
+                </button>
+                {relReport && (
+                  <>
+                    <button
+                      onClick={() => {
+                        const w = window.open("", "_blank");
+                        if (!w) {
+                          setNotice(
+                            "팝업이 막혀 있어요. 허용한 뒤 다시 눌러 주세요.",
+                          );
+                          return;
+                        }
+                        w.document.open();
+                        w.document.write(
+                          relationshipReportHtml(relReport, todayKorea()),
+                        );
+                        w.document.close();
+                        w.focus();
+                        setTimeout(() => w.print(), 400);
+                      }}
+                    >
+                      PDF로 저장
+                    </button>
+                    <button
+                      onClick={() =>
+                        download(
+                          `관계분석보고서-${todayKorea()}.html`,
+                          relationshipReportHtml(relReport, todayKorea()),
+                          "text/html;charset=utf-8",
+                        )
+                      }
+                    >
+                      HTML 내려받기
+                    </button>
+                  </>
+                )}
+              </div>
+              {!ai && (
+                <p className={styles.small}>
+                  AI 설정이 준비되지 않아 지금은 사용할 수 없어요.
+                </p>
+              )}
+              {relReport && (
+                <div
+                  className={styles.relReport}
+                  dangerouslySetInnerHTML={{
+                    __html: relationshipReportBody(relReport),
+                  }}
+                />
+              )}
+              {relReport && (
+                <p className={styles.small}>
+                  ‘PDF로 저장’을 누르면 인쇄 창이 열려요. 프린터를 ‘PDF로
+                  저장’으로 고르면 PDF 파일이 됩니다.
+                </p>
+              )}
+              <p className={styles.small}>
+                AI의 참고 의견이며 전문 상담을 대신하지 않습니다. 보고서는
+                화면에만 있고 저장되지 않으니 필요하면 내려받아 주세요.
+              </p>
+            </section>
+          </div>
+        )}
         {tab === "기억·개인정보" && (
           <div className={styles.grid}>
             <section className={styles.card}>
@@ -1136,6 +1544,103 @@ export function MentalHealthApp({ owner }: { owner: string }) {
               <p className={styles.small}>
                 수정·삭제한 기억은 다음 AI 요청부터 반영됩니다. 저장된 사본을
                 바꾸려면 암호화 저장을 눌러 주세요.
+              </p>
+            </section>
+            <section className={styles.card}>
+              <h2>저장한 시점별로 골라 지우기</h2>
+              <p>
+                기록이 있는 날짜를 보고, 지우고 싶은 날의 기록만 골라 삭제할 수
+                있어요. 기분 기록, 사고기록, 실천, 날짜별 관계 기록이 그날
+                기준으로 함께 지워집니다.
+              </p>
+              {(() => {
+                const LEGACY = "이전 기록";
+                const groups = new Map<string, string[]>();
+                const add = (at: string | undefined, label: string) =>
+                  groups.set(at ?? LEGACY, [
+                    ...(groups.get(at ?? LEGACY) ?? []),
+                    label,
+                  ]);
+                data.messages.forEach((x) => add(x.savedAt, "대화"));
+                data.moods.forEach((x) => add(x.savedAt, "기분"));
+                data.thoughts.forEach((x) => add(x.savedAt, "사고기록"));
+                data.practices.forEach((x) => add(x.savedAt, "실천"));
+                data.relationshipLog.forEach((x) =>
+                  add(x.savedAt, "날짜별 관계 기록"),
+                );
+                const list = [...groups.entries()].sort((a, b) =>
+                  b[0].localeCompare(a[0], "ko"),
+                );
+                const title = (k: string) =>
+                  k === LEGACY
+                    ? "저장 시각이 없는 이전 기록"
+                    : `${new Date(k).toLocaleString("ko-KR", { timeZone: "Asia/Seoul" })} 저장`;
+                const count = (labels: string[]) =>
+                  [...new Set(labels)]
+                    .map((l) => `${l} ${labels.filter((x) => x === l).length}`)
+                    .join(" · ");
+                if (!list.length)
+                  return (
+                    <p className={styles.small}>
+                      저장 시점이 있는 기록이 없어요.
+                    </p>
+                  );
+                return (
+                  <>
+                    <ul>
+                      {list.map(([k, labels]) => (
+                        <li key={k}>
+                          <label>
+                            <input
+                              type="checkbox"
+                              checked={pickDays.includes(k)}
+                              onChange={(e) =>
+                                setPickDays(
+                                  e.target.checked
+                                    ? [...pickDays, k]
+                                    : pickDays.filter((x) => x !== k),
+                                )
+                              }
+                            />
+                            {title(k)} · {count(labels)}
+                          </label>
+                        </li>
+                      ))}
+                    </ul>
+                    <div className={styles.actions}>
+                      <button
+                        className={styles.danger}
+                        disabled={!pickDays.length}
+                        onClick={() => {
+                          if (
+                            !confirm(
+                              `선택한 ${pickDays.length}개 저장 시점의 기록을 지울까요? 지운 뒤 ‘암호화 저장’을 눌러야 서버에도 반영됩니다.`,
+                            )
+                          )
+                            return;
+                          const gone = new Set(pickDays);
+                          const keep = (x: { savedAt?: string }) =>
+                            !gone.has(x.savedAt ?? LEGACY);
+                          update({
+                            ...data,
+                            messages: data.messages.filter(keep),
+                            moods: data.moods.filter(keep),
+                            thoughts: data.thoughts.filter(keep),
+                            practices: data.practices.filter(keep),
+                            relationshipLog: data.relationshipLog.filter(keep),
+                          });
+                          setPickDays([]);
+                        }}
+                      >
+                        선택한 저장 시점 기록 지우기
+                      </button>
+                    </div>
+                  </>
+                );
+              })()}
+              <p className={styles.small}>
+                관계 기록 본문(통째로 적은 글)은 저장 시점별 묶음에 들어 있지
+                않아요. 본문은 ‘관계 기록’ 탭에서 직접 고쳐 주세요.
               </p>
             </section>
             <section className={styles.card}>
