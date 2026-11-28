@@ -9,6 +9,7 @@ import { getCalendarFilter } from "@/lib/calendar-filter";
 import { listHabits, getLogs } from "@/lib/life-dashboard";
 import { listHoldings, listWatchlist, listEvents } from "@/lib/alpha";
 import { Redis } from "@upstash/redis";
+import { getDailyQuote } from "@/lib/briefing-quote";
 
 export const dynamic = "force-dynamic";
 
@@ -224,7 +225,8 @@ export async function GET(req: NextRequest) {
       : allCals.map((c) => c.id);
     const events = await listAllCalendarsEvents(session, todayStart, rangeEnd, calIds);
 
-    const script = await generateBriefingScript(name, events, plans, mode, performance);
+    const quote = await getDailyQuote(email);
+    const script = await generateBriefingScript(name, events, plans, mode, performance, { quote });
     return new Response(script, { headers: {
       "Content-Type": "text/plain; charset=utf-8",
       "Cache-Control": "private, no-store",

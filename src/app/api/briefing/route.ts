@@ -5,6 +5,7 @@ import { generateBriefingScript, getBriefingMode } from "@/lib/gemini";
 import { synthesize, isTtsConfigured } from "@/lib/tts";
 import { put } from "@vercel/blob";
 import { getCalendarFilter } from "@/lib/calendar-filter";
+import { getDailyQuote } from "@/lib/briefing-quote";
 
 export const dynamic = "force-dynamic";
 
@@ -45,7 +46,8 @@ export async function POST() {
       : allCals.map((c) => c.id);
     const events = await listAllCalendarsEvents(session, todayStart, rangeEnd, calIds);
 
-    const script = await generateBriefingScript(secretaryName, events, plans, mode);
+    const quote = await getDailyQuote(session.email);
+    const script = await generateBriefingScript(secretaryName, events, plans, mode, undefined, { quote });
     const audioBuffer = await synthesize(script, voiceId);
 
     const { url: audioUrl } = await put(
