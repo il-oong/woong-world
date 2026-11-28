@@ -33,6 +33,7 @@ export function PluginMarket() {
     items: MarketItem[];
     error: string | null;
   } | null>(null);
+  const [summaries, setSummaries] = useState<Record<string, string>>({});
   const [installed, setInstalled] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -81,6 +82,35 @@ export function PluginMarket() {
       cancelled = true;
     };
   }, [category, sort]);
+
+  // 목록이 뜬 뒤 한 줄 요약을 비동기로 채운다 (Gemini + Redis 캐시).
+  useEffect(() => {
+    if (!result || result.items.length === 0) return;
+    let cancelled = false;
+    fetch("/api/plugins/market/summary", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        items: result.items.map((i) => ({
+          repo: i.repo,
+          description: i.description,
+          topics: i.topics,
+          language: i.language,
+        })),
+      }),
+    })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data: { summaries?: Record<string, string> } | null) => {
+        if (cancelled || !data?.summaries) return;
+        setSummaries((prev) => ({ ...prev, ...data.summaries }));
+      })
+      .catch(() => {
+        /* 요약 실패 시 원래 설명만 보여준다 */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [result]);
 
   const install = async (it: MarketItem) => {
     const id = pluginIdFromRepo(it.repo);
@@ -196,6 +226,11 @@ export function PluginMarket() {
                     >
                       {it.repo}
                     </a>
+                    {summaries[it.repo] && (
+                      <p className="mt-1 text-xs font-medium text-emerald-200">
+                        💡 {summaries[it.repo]}
+                      </p>
+                    )}
                     <p className="mt-1 line-clamp-2 text-xs text-[var(--muted)]">
                       {it.description || "설명 없음"}
                     </p>
